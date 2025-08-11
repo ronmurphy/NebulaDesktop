@@ -1,18 +1,27 @@
+
+<!-- In src/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>NebulaDesk</title>
     
-    <!-- Basic Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Material 3 Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
     
+    <!-- Shoelace -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
+    
+    <!-- Our CSS -->
     <!-- Simple Styles -->
+    <!-- has layout code, call this before nebula theme -->
     <link rel="stylesheet" href="css/style.css">
+
+    <!-- Nebula Theme -->
+    <link rel="stylesheet" href="css/nebula-theme.css">
 </head>
 <body>
-    <!-- Everything created dynamically by renderer.js -->
-    
     <script src="js/renderer.js"></script>
 </body>
 </html>
