@@ -28,7 +28,8 @@ class NebulaDesktop {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                preload: path.join(__dirname, 'src', 'preload-minimal.js'),
+               // preload: path.join(__dirname, 'src', 'preload.js'), // preload-minimal.js
+                preload: 'src/preload.js', // preload-minimal.js
                 webviewTag: true  // Enable webview for web apps
             }
         });
