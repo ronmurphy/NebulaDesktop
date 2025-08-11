@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+build/
+*.log
+
+# Electron packaged apps
+*.asar
+
+# OS files
+.DS_Store
+Thumbs.db
