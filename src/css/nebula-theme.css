@@ -1,6 +1,6 @@
 /* 
- * Nebula Design Language
- * Custom theming for Shoelace components + Material Icons
+ * Nebula Desktop Theme System
+ * Light, Dark, and Nebula-Slate themes with Material Icons
  */
 
 /* Material Symbols Configuration */
@@ -23,7 +23,7 @@
   font-optical-sizing: auto;
 }
 
-/* Ensure Material Symbols load properly */
+/* Material Symbols Font */
 @font-face {
   font-family: 'Material Symbols Outlined';
   font-style: normal;
@@ -31,85 +31,9 @@
   src: url(https://fonts.gstatic.com/s/materialsymbolsoutlined/v176/kJF1BvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzByHX9rA6RzaxHMPdY3JjGp) format('woff2');
 }
 
-/* Ensure Material Web components use Material Symbols */
-md-icon-button .material-symbols-outlined,
-md-filled-button .material-symbols-outlined,
-md-outlined-text-field .material-symbols-outlined {
-  font-family: 'Material Symbols Outlined' !important;
-  font-size: inherit;
-}
-
-/* Debug: Make sure icons are visible */
-.material-symbols-outlined {
-  color: inherit !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* Icon sizing variants */
-.icon-small { font-size: 18px; }
-.icon-medium { font-size: 24px; }
-.icon-large { font-size: 32px; }
-
-/* Nebula Icon System with Fallbacks */
-.nebula-icon {
-  transition: var(--nebula-transition-fast);
-}
-
-.nebula-icon-fallback {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 1.2em;
-}
-
-/* Fluent-inspired hover effects */
-.nebula-fluent-hover {
-  position: relative;
-  overflow: hidden;
-  transition: var(--nebula-transition);
-}
-
-.nebula-fluent-hover::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.nebula-fluent-hover:hover::before {
-  left: 100%;
-}
-
-/* Fluent-style reveal effect */
-.nebula-reveal {
-  position: relative;
-  background: var(--nebula-glass);
-  border: var(--nebula-border);
-  transition: var(--nebula-transition);
-}
-
-.nebula-reveal::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-
-.nebula-reveal:hover::before {
-  opacity: 1;
-}
-
+/* Base Theme Variables */
 :root {
-  /* Nebula Color Palette */
+  /* Core Brand Colors - consistent across all themes */
   --nebula-primary: #667eea;
   --nebula-secondary: #764ba2;
   --nebula-accent: #4f46e5;
@@ -117,30 +41,15 @@ md-outlined-text-field .material-symbols-outlined {
   --nebula-warning: #f59e0b;
   --nebula-danger: #ef4444;
   
-  /* Surface Colors */
-  --nebula-surface-1: rgba(255, 255, 255, 0.95);
-  --nebula-surface-2: rgba(255, 255, 255, 0.85);
-  --nebula-surface-3: rgba(255, 255, 255, 0.75);
-  --nebula-glass: rgba(255, 255, 255, 0.1);
-  --nebula-glass-dark: rgba(0, 0, 0, 0.1);
-  
-  /* Text Colors */
-  --nebula-text-primary: #1f2937;
-  --nebula-text-secondary: #6b7280;
-  --nebula-text-on-primary: #ffffff;
-  --nebula-text-on-surface: #1f2937;
-  
-  /* Effects */
-  --nebula-blur: blur(20px);
-  --nebula-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-  --nebula-shadow-lg: 0 20px 60px rgba(31, 38, 135, 0.45);
-  --nebula-border: 1px solid rgba(255, 255, 255, 0.18);
+  /* Animation & Effects */
+  --nebula-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --nebula-transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   
   /* Border Radius */
-  --nebula-radius-sm: 8px;
-  --nebula-radius-md: 12px;
-  --nebula-radius-lg: 16px;
-  --nebula-radius-xl: 24px;
+  --nebula-radius-sm: 6px;
+  --nebula-radius-md: 8px;
+  --nebula-radius-lg: 12px;
+  --nebula-radius-xl: 16px;
   
   /* Spacing */
   --nebula-space-xs: 4px;
@@ -149,380 +58,359 @@ md-outlined-text-field .material-symbols-outlined {
   --nebula-space-lg: 24px;
   --nebula-space-xl: 32px;
   
-  /* Animations */
-  --nebula-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --nebula-transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Shadows */
+  --nebula-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --nebula-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --nebula-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
 
-  /* Override Shoelace CSS Custom Properties */
-  --sl-color-primary-600: var(--nebula-primary);
-  --sl-color-primary-500: var(--nebula-secondary);
-  --sl-color-primary-400: #8b9beb;
+/* Light Theme */
+[data-theme="light"], :root {
+  --nebula-bg-primary: #ffffff;
+  --nebula-bg-secondary: #f8fafc;
+  --nebula-bg-tertiary: #f1f5f9;
+  --nebula-surface: #ffffff;
+  --nebula-surface-elevated: #ffffff;
+  --nebula-surface-hover: #f8fafc;
+  --nebula-surface-active: #f1f5f9;
   
-  --sl-border-radius-medium: var(--nebula-radius-md);
-  --sl-border-radius-large: var(--nebula-radius-lg);
-  --sl-border-radius-x-large: var(--nebula-radius-xl);
+  --nebula-text-primary: #1e293b;
+  --nebula-text-secondary: #64748b;
+  --nebula-text-muted: #94a3b8;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #1e293b;
   
-  --sl-shadow-large: var(--nebula-shadow-lg);
-  --sl-shadow-medium: var(--nebula-shadow);
+  --nebula-border: #e2e8f0;
+  --nebula-border-hover: #cbd5e1;
+  --nebula-divider: #f1f5f9;
+  
+  /* Window Controls Colors */
+  --window-control-bg: #f1f5f9;
+  --window-control-hover: #e2e8f0;
+  --window-control-active: #cbd5e1;
+  --window-close-hover: #ef4444;
+  --window-close-active: #dc2626;
+  
+  /* Taskbar & Launcher */
+  --taskbar-bg: rgba(255, 255, 255, 0.95);
+  --taskbar-border: rgba(0, 0, 0, 0.1);
+  --launcher-bg: rgba(255, 255, 255, 0.98);
+  --launcher-border: rgba(0, 0, 0, 0.1);
 }
 
-/* Shoelace Component Customizations */
-
-/* src/css/nebula-theme.css - UNIFIED THEME */
-:root {
-    /* Nebula Color Palette */
-    --nebula-primary: #667eea;
-    --nebula-secondary: #764ba2;
-    --nebula-accent: #f093fb;
-    --nebula-dark: #1a1a1a;
-    --nebula-darker: #0d0d0d;
-    --nebula-light: #ffffff;
-    --nebula-glass: rgba(255, 255, 255, 0.1);
-    --nebula-border: rgba(255, 255, 255, 0.2);
+/* Dark Theme */
+[data-theme="dark"] {
+  --nebula-bg-primary: #0f172a;
+  --nebula-bg-secondary: #1e293b;
+  --nebula-bg-tertiary: #334155;
+  --nebula-surface: #1e293b;
+  --nebula-surface-elevated: #334155;
+  --nebula-surface-hover: #475569;
+  --nebula-surface-active: #64748b;
+  
+  --nebula-text-primary: #f8fafc;
+  --nebula-text-secondary: #cbd5e1;
+  --nebula-text-muted: #94a3b8;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #f8fafc;
+  
+  --nebula-border: #334155;
+  --nebula-border-hover: #475569;
+  --nebula-divider: #1e293b;
+  
+  /* Window Controls Colors */
+  --window-control-bg: #334155;
+  --window-control-hover: #475569;
+  --window-control-active: #64748b;
+  --window-close-hover: #ef4444;
+  --window-close-active: #dc2626;
+  
+  /* Taskbar & Launcher */
+  --taskbar-bg: rgba(15, 23, 42, 0.95);
+  --taskbar-border: rgba(255, 255, 255, 0.1);
+  --launcher-bg: rgba(30, 41, 59, 0.98);
+  --launcher-border: rgba(255, 255, 255, 0.1);
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+/* Nebula-Slate Theme (Default - Between Light & Dark) */
+[data-theme="nebula-slate"], [data-theme=""] {
+  --nebula-bg-primary: #475569;
+  --nebula-bg-secondary: #64748b;
+  --nebula-bg-tertiary: #94a3b8;
+  --nebula-surface: #64748b;
+  --nebula-surface-elevated: #475569;
+  --nebula-surface-hover: #334155;
+  --nebula-surface-active: #1e293b;
+  
+  --nebula-text-primary: #f8fafc;
+  --nebula-text-secondary: #e2e8f0;
+  --nebula-text-muted: #cbd5e1;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #f8fafc;
+  
+  --nebula-border: #334155;
+  --nebula-border-hover: #475569;
+  --nebula-divider: #475569;
+  
+  /* Window Controls Colors */
+  --window-control-bg: #64748b;
+  --window-control-hover: #475569;
+  --window-control-active: #334155;
+  --window-close-hover: #ef4444;
+  --window-close-active: #dc2626;
+  
+  /* Taskbar & Launcher */
+  --taskbar-bg: rgba(71, 85, 105, 0.95);
+  --taskbar-border: rgba(255, 255, 255, 0.15);
+  --launcher-bg: rgba(100, 116, 139, 0.98);
+  --launcher-border: rgba(255, 255, 255, 0.15);
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg, var(--nebula-primary) 0%, var(--nebula-secondary) 100%);
-    height: 100vh;
-    overflow: hidden;
-    color: var(--nebula-light);
+/* Windows 10 Style Window Controls */
+.window-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 0;
 }
 
-/* Taskbar */
-.taskbar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 48px;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    z-index: 9999;
-    gap: 10px;
-}
-
-/* Power Menu - RESTORED */
-.power-menu {
-    position: fixed;
-    background: var(--nebula-dark);
-    border: 1px solid var(--nebula-border);
-    border-radius: 8px;
-    padding: 8px;
-    z-index: 10000;
-    min-width: 150px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-}
-
-.power-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s;
-    color: var(--nebula-light);
-}
-
-.power-menu-item:hover {
-    background: var(--nebula-glass);
-}
-
-/* Buttons */
-sl-button::part(base) {
-  background: var(--nebula-glass);
-  border: var(--nebula-border);
-  backdrop-filter: var(--nebula-blur);
-  transition: var(--nebula-transition);
-  border-radius: var(--nebula-radius-md);
-}
-
-sl-button::part(base):hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-  box-shadow: var(--nebula-shadow);
-}
-
-/* Primary button variant */
-sl-button[variant="primary"]::part(base) {
-  background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary));
+.window-controls button {
+  width: 46px;
+  height: 32px;
   border: none;
-  color: var(--nebula-text-on-primary);
+  background: transparent;
+  color: var(--nebula-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--nebula-transition-fast);
+  font-family: 'Material Symbols Outlined';
+  font-size: 16px;
+  position: relative;
 }
 
-sl-button[variant="primary"]::part(base):hover {
-  background: linear-gradient(135deg, var(--nebula-secondary), var(--nebula-primary));
-}
-
-/* Input Fields */
-sl-input::part(base) {
-  background: var(--nebula-glass);
-  border: var(--nebula-border);
-  backdrop-filter: var(--nebula-blur);
-  border-radius: var(--nebula-radius-md);
-  transition: var(--nebula-transition);
-}
-
-sl-input::part(input) {
+.window-controls button:hover {
+  background: var(--window-control-hover);
   color: var(--nebula-text-primary);
 }
 
-sl-input::part(base):focus-within {
-  border-color: var(--nebula-primary);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+.window-controls button:active {
+  background: var(--window-control-active);
 }
 
-/* Icon Buttons */
-sl-icon-button::part(base) {
-  background: var(--nebula-glass);
-  border: var(--nebula-border);
-  backdrop-filter: var(--nebula-blur);
+/* Close button special styling */
+.window-controls .close:hover {
+  background: var(--window-close-hover);
+  color: white;
+}
+
+.window-controls .close:active {
+  background: var(--window-close-active);
+}
+
+/* Window control icons using Material Symbols */
+.window-controls .minimize::before {
+  content: "minimize";
+}
+
+.window-controls .maximize::before {
+  content: "crop_square";
+}
+
+.window-controls .close::before {
+  content: "close";
+}
+
+/* Window Titlebar */
+.window-titlebar {
+  height: 32px;
+  background: var(--nebula-surface);
+  border-bottom: 1px solid var(--nebula-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: var(--nebula-space-md);
+  user-select: none;
+  cursor: move;
+}
+
+.window-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--nebula-text-primary);
+  flex: 1;
+}
+
+/* General Window Styling */
+.app-window {
+  background: var(--nebula-surface);
+  border: 1px solid var(--nebula-border);
+  border-radius: var(--nebula-radius-lg);
+  box-shadow: var(--nebula-shadow-lg);
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+/* Taskbar Styling */
+.taskbar {
+  background: var(--taskbar-bg);
+  border-top: 1px solid var(--taskbar-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.start-button {
+  background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary));
+  border: none;
+  color: var(--nebula-text-on-primary);
+  padding: 8px 16px;
+  border-radius: var(--nebula-radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--nebula-transition);
+}
+
+.start-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--nebula-shadow-md);
+}
+
+.clock {
+  color: var(--nebula-text-primary);
+  font-weight: 500;
+}
+
+.power-btn {
+  background: transparent;
+  border: none;
+  color: var(--nebula-text-secondary);
+  cursor: pointer;
+  padding: 8px;
   border-radius: var(--nebula-radius-sm);
   transition: var(--nebula-transition);
 }
 
-sl-icon-button::part(base):hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
+.power-btn:hover {
+  background: var(--nebula-surface-hover);
+  color: var(--nebula-text-primary);
 }
 
-/* Taskbar specific styling */
-.taskbar sl-button::part(base) {
-  background: transparent;
-  border: none;
-  color: var(--nebula-text-on-surface);
-  padding: var(--nebula-space-sm) var(--nebula-space-md);
-}
-
-.taskbar sl-button::part(base):hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* Launcher specific styling */
-.launcher sl-input::part(base) {
-  background: var(--nebula-surface-1);
-  border: 2px solid rgba(102, 126, 234, 0.2);
-}
-
-.launcher sl-input::part(base):focus-within {
-  border-color: var(--nebula-primary);
-  background: rgba(255, 255, 255, 0.98);
-}
-
-/* Browser window navigation */
-.browser-nav sl-icon-button::part(base) {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--nebula-radius-sm);
-}
-
-.browser-nav sl-input::part(base) {
-  flex: 1;
-  min-height: 36px;
-}
-
-/* Material Web Component Customizations */
-
-/* Buttons */
-md-filled-button {
-  --md-filled-button-container-color: var(--nebula-primary);
-  --md-filled-button-label-text-color: var(--nebula-text-on-primary);
-  --md-filled-button-container-shape: var(--nebula-radius-md);
-  --md-filled-button-container-height: 48px;
-  backdrop-filter: var(--nebula-blur);
-  box-shadow: var(--nebula-shadow);
-}
-
-md-outlined-button {
-  --md-outlined-button-outline-color: var(--nebula-primary);
-  --md-outlined-button-label-text-color: var(--nebula-primary);
-  --md-outlined-button-container-shape: var(--nebula-radius-md);
-  --md-outlined-button-container-height: 48px;
-  backdrop-filter: var(--nebula-blur);
-  background: var(--nebula-glass);
-}
-
-md-text-button {
-  --md-text-button-label-text-color: var(--nebula-primary);
-  --md-text-button-container-shape: var(--nebula-radius-md);
-  --md-text-button-container-height: 48px;
-}
-
-/* Cards */
-md-elevated-card {
-  --md-elevated-card-container-color: var(--nebula-surface-1);
-  --md-elevated-card-container-shape: var(--nebula-radius-lg);
-  backdrop-filter: var(--nebula-blur);
-  box-shadow: var(--nebula-shadow);
-  border: var(--nebula-border);
-}
-
-md-outlined-card {
-  --md-outlined-card-container-color: var(--nebula-glass);
-  --md-outlined-card-outline-color: rgba(255, 255, 255, 0.2);
-  --md-outlined-card-container-shape: var(--nebula-radius-lg);
-  backdrop-filter: var(--nebula-blur);
-}
-
-/* Text Fields */
-md-outlined-text-field {
-  --md-outlined-text-field-container-shape: var(--nebula-radius-md);
-  --md-outlined-text-field-outline-color: rgba(255, 255, 255, 0.3);
-  --md-outlined-text-field-focused-outline-color: var(--nebula-primary);
-  --md-outlined-text-field-container-color: var(--nebula-glass);
-  --md-outlined-text-field-label-text-color: var(--nebula-text-secondary);
-  --md-outlined-text-field-input-text-color: var(--nebula-text-primary);
-  backdrop-filter: var(--nebula-blur);
-}
-
-/* Browser URL bar specific styling */
-.browser-nav md-outlined-text-field {
-  --md-outlined-text-field-container-color: rgba(255, 255, 255, 0.1);
-  --md-outlined-text-field-outline-color: #888;
-  --md-outlined-text-field-focused-outline-color: var(--nebula-primary);
-  --md-outlined-text-field-label-text-color: #cccccc;
-  --md-outlined-text-field-input-text-color: #ffffff;
-  --md-outlined-text-field-supporting-text-color: #cccccc;
-  min-height: 36px;
-  background: rgba(255, 255, 255, 0.05) !important;
-}
-
-md-filled-text-field {
-  --md-filled-text-field-container-color: var(--nebula-surface-2);
-  --md-filled-text-field-container-shape: var(--nebula-radius-md) var(--nebula-radius-md) 0 0;
-  --md-filled-text-field-active-indicator-color: var(--nebula-primary);
-  --md-filled-text-field-focus-active-indicator-color: var(--nebula-secondary);
-}
-
-/* Dialogs */
-md-dialog {
-  --md-dialog-container-color: var(--nebula-surface-1);
-  --md-dialog-container-shape: var(--nebula-radius-xl);
-  backdrop-filter: var(--nebula-blur);
-  box-shadow: var(--nebula-shadow-lg);
-  border: var(--nebula-border);
-}
-
-/* Shoelace Component Customizations */
-
-/* Buttons */
-sl-button {
-  --sl-color-primary-600: var(--nebula-primary);
-  --sl-color-primary-500: var(--nebula-secondary);
-  --sl-border-radius-medium: var(--nebula-radius-md);
-  --sl-shadow-large: var(--nebula-shadow);
-}
-
-sl-button[variant="default"] {
-  background: var(--nebula-glass);
-  backdrop-filter: var(--nebula-blur);
-  border: var(--nebula-border);
-}
-
-/* Cards */
-sl-card {
-  --sl-border-radius-large: var(--nebula-radius-lg);
-  background: var(--nebula-surface-1);
-  backdrop-filter: var(--nebula-blur);
-  box-shadow: var(--nebula-shadow);
-  border: var(--nebula-border);
-}
-
-/* Inputs */
-sl-input {
-  --sl-border-radius-medium: var(--nebula-radius-md);
-  --sl-color-primary-600: var(--nebula-primary);
-}
-
-sl-input[variant="filled"] {
-  background: var(--nebula-glass);
-  backdrop-filter: var(--nebula-blur);
-}
-
-/* Dropdowns */
-sl-dropdown sl-menu {
-  background: var(--nebula-surface-1);
-  backdrop-filter: var(--nebula-blur);
-  box-shadow: var(--nebula-shadow-lg);
-  border: var(--nebula-border);
-  border-radius: var(--nebula-radius-md);
-}
-
-/* Custom Nebula Components */
-
-.nebula-glass {
-  background: var(--nebula-glass);
-  backdrop-filter: var(--nebula-blur);
-  border: var(--nebula-border);
-  border-radius: var(--nebula-radius-md);
-  box-shadow: var(--nebula-shadow);
-}
-
-.nebula-surface {
-  background: var(--nebula-surface-1);
-  backdrop-filter: var(--nebula-blur);
+/* Launcher Styling */
+.launcher {
+  background: var(--launcher-bg);
+  border: 1px solid var(--launcher-border);
   border-radius: var(--nebula-radius-lg);
-  box-shadow: var(--nebula-shadow);
+  box-shadow: var(--nebula-shadow-lg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-.nebula-gradient {
-  background: linear-gradient(135deg, var(--nebula-primary) 0%, var(--nebula-secondary) 100%);
+.launcher.hidden {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+  visibility: hidden;
 }
 
+.search-box {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--nebula-border);
+  border-radius: var(--nebula-radius-md);
+  background: var(--nebula-surface);
+  color: var(--nebula-text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: var(--nebula-transition);
+}
+
+.search-box:focus {
+  border-color: var(--nebula-primary);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.app-icon {
+  background: var(--nebula-surface);
+  border: 1px solid var(--nebula-border);
+  border-radius: var(--nebula-radius-md);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--nebula-transition);
+}
+
+.app-icon:hover {
+  background: var(--nebula-surface-hover);
+  border-color: var(--nebula-border-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--nebula-shadow-sm);
+}
+
+.app-icon .icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.app-icon .label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nebula-text-secondary);
+}
+
+/* Power Menu */
+.power-menu {
+  background: var(--nebula-surface-elevated);
+  border: 1px solid var(--nebula-border);
+  border-radius: var(--nebula-radius-md);
+  box-shadow: var(--nebula-shadow-lg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.power-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: var(--nebula-transition);
+  color: var(--nebula-text-primary);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+}
+
+.power-menu-item:hover {
+  background: var(--nebula-surface-hover);
+}
+
+.power-menu-item .icon {
+  font-size: 18px;
+}
+
+/* Utility Classes */
 .nebula-text-gradient {
-  background: linear-gradient(135deg, var(--nebula-primary) 0%, var(--nebula-secondary) 100%);
+  background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary));
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
-/* Animation classes */
-.nebula-fade-in {
-  animation: nebula-fade-in 0.3s ease-out;
+/* Theme Transitions */
+* {
+  transition: background-color var(--nebula-transition), 
+              border-color var(--nebula-transition),
+              color var(--nebula-transition);
 }
 
-.nebula-slide-up {
-  animation: nebula-slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes nebula-fade-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes nebula-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  :root {
-    --nebula-radius-sm: 6px;
-    --nebula-radius-md: 8px;
-    --nebula-radius-lg: 12px;
-    --nebula-radius-xl: 16px;
-  }
-}
+/* Icon sizing variants */
+.icon-small { font-size: 16px; }
+.icon-medium { font-size: 24px; }
+.icon-large { font-size: 32px; }
+:root {
+    /* Nebula Color Palette */

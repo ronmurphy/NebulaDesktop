@@ -1,0 +1,287 @@
+/* File Manager App Styles - Uses Theme Variables from nebula-theme.css */
+
+.filemanager-window {
+    width: 900px;
+    height: 600px;
+}
+
+.filemanager-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 40px);
+}
+
+.filemanager-toolbar {
+    height: 48px;
+    background: var(--nebula-surface-primary);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--nebula-border);
+    gap: 8px;
+}
+
+.nav-button {
+    width: 36px;
+    height: 32px;
+    border: none;
+    background: var(--nebula-surface-secondary);
+    color: var(--nebula-text-primary);
+    border-radius: var(--nebula-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+.nav-button:hover {
+    background: var(--nebula-surface-hover);
+}
+
+.nav-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.address-bar {
+    flex: 1;
+    height: 32px;
+    background: var(--nebula-surface-secondary);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius);
+    padding: 0 12px;
+    color: var(--nebula-text-primary);
+    font-size: 14px;
+}
+
+.address-bar:focus {
+    outline: none;
+    border-color: var(--nebula-primary);
+}
+
+.view-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.view-button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--nebula-surface-secondary);
+    color: var(--nebula-text-secondary);
+    border-radius: var(--nebula-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s ease;
+}
+
+.view-button:hover, .view-button.active {
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-primary);
+}
+
+.filemanager-content {
+    flex: 1;
+    display: flex;
+    background: var(--nebula-content-bg);
+}
+
+.filemanager-sidebar {
+    width: 240px;
+    background: var(--nebula-surface-secondary);
+    border-right: 1px solid var(--nebula-border);
+    padding: 16px 0;
+}
+
+.sidebar-section {
+    margin-bottom: 24px;
+}
+
+.sidebar-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nebula-text-secondary);
+    margin-bottom: 8px;
+    padding: 0 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    color: var(--nebula-text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.sidebar-item:hover {
+    background: var(--nebula-surface-hover);
+}
+
+.sidebar-item.active {
+    background: var(--nebula-surface-active);
+    color: var(--nebula-primary);
+}
+
+.sidebar-item .icon {
+    font-size: 18px;
+    opacity: 0.8;
+}
+
+.file-area {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 16px;
+    padding: 8px;
+}
+
+.file-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 12px;
+    border-radius: var(--nebula-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.file-item:hover {
+    background: var(--nebula-surface-hover);
+}
+
+.file-item.selected {
+    background: var(--nebula-surface-active);
+    color: var(--nebula-primary);
+}
+
+.file-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+
+.file-name {
+    font-size: 13px;
+    font-weight: 500;
+    word-break: break-word;
+    line-height: 1.3;
+    max-width: 100%;
+}
+
+.file-size {
+    font-size: 11px;
+    color: var(--nebula-text-secondary);
+    margin-top: 4px;
+}
+
+/* List View */
+.file-list {
+    display: none;
+}
+
+.file-list.active {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.file-list-header {
+    background: var(--nebula-surface-secondary);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--nebula-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.file-list-header th {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--nebula-border);
+}
+
+.file-list-row {
+    transition: all 0.2s ease;
+}
+
+.file-list-row:hover {
+    background: var(--nebula-surface-hover);
+}
+
+.file-list-row.selected {
+    background: var(--nebula-surface-active);
+    color: var(--nebula-primary);
+}
+
+.file-list-cell {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--nebula-border-light);
+    font-size: 13px;
+}
+
+.file-list-cell.name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+}
+
+.file-list-cell .icon {
+    font-size: 18px;
+    opacity: 0.8;
+}
+
+/* Status Bar */
+.filemanager-statusbar {
+    height: 28px;
+    background: var(--nebula-surface-secondary);
+    border-top: 1px solid var(--nebula-border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 12px;
+    color: var(--nebula-text-secondary);
+}
+
+.status-info {
+    flex: 1;
+}
+
+.status-selection {
+    margin-left: 16px;
+}
+
+/* Scrollbar Styling */
+.file-area::-webkit-scrollbar {
+    width: 8px;
+}
+
+.file-area::-webkit-scrollbar-track {
+    background: var(--nebula-surface-secondary);
+}
+
+.file-area::-webkit-scrollbar-thumb {
+    background: var(--nebula-surface-hover);
+    border-radius: 4px;
+}
+
+.file-area::-webkit-scrollbar-thumb:hover {
+    background: var(--nebula-text-secondary);
+}

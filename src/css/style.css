@@ -1,16 +1,4 @@
-/* Nebula Desktop OS - Simple Working Version */
-
-/* Core Variables */
-:root {
-    --nebula-primary: #667eea;
-    --nebula-secondary: #764ba2;
-    --surface-dark: rgba(26, 26, 26, 0.95);
-    --surface-light: rgba(40, 40, 40, 0.9);
-    --text-primary: #ffffff;
-    --text-secondary: #c4c7c5;
-    --glass-bg: rgba(255, 255, 255, 0.1);
-    --glass-border: rgba(255, 255, 255, 0.2);
-}
+/* Nebula Desktop Layout - Uses Theme Variables from nebula-theme.css */
 
 * {
     box-sizing: border-box;
@@ -22,10 +10,15 @@ body {
     font-family: 'Inter', system-ui, sans-serif;
     background: linear-gradient(135deg, var(--nebula-primary) 0%, var(--nebula-secondary) 100%);
     background-attachment: fixed;
-    color: var(--text-primary);
+    color: var(--nebula-text-primary);
     overflow: hidden;
     height: 100vh;
     width: 100vw;
+}
+
+/* Set default theme */
+html {
+    color-scheme: light dark;
 }
 
 /* Desktop */
@@ -45,9 +38,9 @@ body {
     left: 0;
     width: 100%;
     height: 50px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    border-top: 1px solid var(--glass-border);
+    background: var(--nebula-surface-primary);
+    backdrop-filter: blur(var(--nebula-blur));
+    border-top: 1px solid var(--nebula-border);
     display: flex;
     align-items: center;
     padding: 0 16px;
@@ -59,7 +52,7 @@ body {
     border: none;
     color: white;
     padding: 8px 16px;
-    border-radius: 8px;
+    border-radius: var(--nebula-radius);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -67,7 +60,7 @@ body {
 
 .start-button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 16px var(--nebula-shadow);
 }
 
 .task-list {
@@ -81,9 +74,39 @@ body {
     gap: 16px;
 }
 
+.theme-toggle {
+    background: transparent;
+    border: none;
+    color: var(--nebula-text-primary);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--nebula-radius);
+    transition: all 0.2s ease;
+}
+
+.theme-toggle:hover {
+    background: var(--nebula-surface-hover);
+}
+
 .clock {
     font-weight: 500;
-    color: var(--text-primary);
+    color: var(--nebula-text-primary);
+}
+
+.power-btn {
+    background: transparent;
+    border: none;
+    color: var(--nebula-text-primary);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--nebula-radius);
+    transition: all 0.2s ease;
+}
+
+.power-btn:hover {
+    background: var(--nebula-surface-hover);
 }
 
 /* Launcher */
@@ -92,20 +115,50 @@ body {
     bottom: 60px;
     left: 24px;
     width: 380px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
+    background: var(--nebula-surface-primary);
+    backdrop-filter: blur(var(--nebula-blur));
+    border: 1px solid var(--nebula-border);
     border-radius: 16px;
     padding: 24px;
     z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.launcher.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.launcher-header {
+    margin-bottom: 16px;
+}
+
+.search-box {
+    width: 100%;
+    height: 40px;
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius);
+    background: var(--nebula-surface-secondary);
+    color: var(--nebula-text-primary);
+    padding: 0 16px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.search-box:focus {
+    outline: none;
+    border-color: var(--nebula-primary);
 }
 
 .launcher h2 {
     font-size: 24px;
     font-weight: 700;
     margin-bottom: 16px;
-    background: linear-gradient(135deg, var(--nebula-primary), #f093fb);
+    background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-accent));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -115,61 +168,59 @@ body {
     gap: 16px;
 }
 
-.app-item {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
+.app-icon {
+    background: var(--nebula-surface-secondary);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius);
     padding: 20px;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
-.app-item:hover {
-    background: var(--surface-light);
+.app-icon:hover {
+    background: var(--nebula-surface-hover);
     transform: translateY(-2px);
 }
 
-.app-icon {
+.app-icon .icon {
     font-size: 32px;
     margin-bottom: 8px;
     display: block;
 }
 
-.app-name {
+.app-icon .label {
     font-size: 12px;
     font-weight: 500;
-    color: var(--text-secondary);
+    color: var(--nebula-text-secondary);
 }
 
-/* Browser Window */
-.browser-window {
+/* Window Base */
+.window {
     position: absolute;
-    background: var(--surface-dark);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    background: var(--nebula-window-bg);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-lg);
+    box-shadow: 0 20px 60px var(--nebula-shadow);
     overflow: hidden;
-    width: 800px;
-    height: 600px;
     z-index: 100;
 }
 
 .window-titlebar {
     height: 40px;
-    background: var(--surface-light);
+    background: var(--nebula-titlebar-bg);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--nebula-border);
     cursor: move;
     user-select: none;
 }
 
 .window-title {
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--nebula-text-primary);
 }
 
 .window-controls {
@@ -181,43 +232,134 @@ body {
     width: 32px;
     height: 24px;
     border: none;
-    border-radius: 4px;
-    background: var(--surface-dark);
-    color: var(--text-primary);
+    border-radius: var(--nebula-radius-sm);
+    background: var(--nebula-surface-secondary);
+    color: var(--nebula-text-primary);
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
 }
 
 .window-button:hover {
-    background: var(--surface-light);
+    background: var(--nebula-surface-hover);
 }
 
 .window-button.close:hover {
-    background: #e74c3c;
+    background: var(--nebula-red);
     color: white;
+}
+
+/* Browser Window */
+.browser-window {
+    width: 1200px;
+    height: 700px;
+}
+
+.browser-container {
+    display: flex;
+    height: calc(100% - 40px);
+}
+
+.browser-sidebar {
+    width: 70px;
+    background: var(--nebula-surface-secondary);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--nebula-border);
+}
+
+.tab-list {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--nebula-surface-hover) var(--nebula-surface-secondary);
+}
+
+.browser-tab {
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    border-bottom: 1px solid var(--nebula-border);
+    transition: all 0.3s ease;
+}
+
+.browser-tab:hover {
+    background: var(--nebula-surface-hover);
+}
+
+.browser-tab.active {
+    background: var(--nebula-surface-active);
+    border-left: 3px solid var(--nebula-primary);
+}
+
+.tab-favicon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--nebula-radius-sm);
+}
+
+.tab-tooltip {
+    display: none;
+    position: absolute;
+    left: 75px;
+    background: var(--nebula-tooltip-bg);
+    color: var(--nebula-text-primary);
+    padding: 5px 10px;
+    border-radius: var(--nebula-radius-sm);
+    white-space: nowrap;
+    z-index: 10000;
+    font-size: 12px;
+}
+
+.browser-tab:hover .tab-tooltip {
+    display: block;
+}
+
+.new-tab-btn {
+    height: 50px;
+    background: var(--nebula-surface-secondary);
+    border: none;
+    border-top: 1px solid var(--nebula-border);
+    color: var(--nebula-primary);
+    font-size: 28px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.new-tab-btn:hover {
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-accent);
+}
+
+.browser-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .browser-toolbar {
     height: 48px;
-    background: var(--surface-light);
+    background: var(--nebula-surface-primary);
     display: flex;
     align-items: center;
     padding: 0 16px;
     gap: 8px;
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--nebula-border);
 }
 
 .nav-button {
     width: 32px;
     height: 32px;
     border: none;
-    border-radius: 8px;
-    background: var(--surface-dark);
-    color: var(--text-primary);
+    border-radius: var(--nebula-radius);
+    background: var(--nebula-surface-secondary);
+    color: var(--nebula-text-primary);
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
@@ -234,10 +376,10 @@ body {
 .url-bar {
     flex: 1;
     height: 32px;
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    background: var(--surface-dark);
-    color: var(--text-primary);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius);
+    background: var(--nebula-surface-secondary);
+    color: var(--nebula-text-primary);
     padding: 0 16px;
     font-family: inherit;
 }
@@ -247,20 +389,28 @@ body {
     border-color: var(--nebula-primary);
 }
 
-.browser-content {
-    height: calc(100% - 88px);
-    background: var(--surface-dark);
+.webview-container {
+    flex: 1;
+    position: relative;
+    background: var(--nebula-content-bg);
+}
+
+.browser-webview {
+    width: 100%;
+    height: 100%;
+    border: none;
 }
 
 /* Power Menu */
 .power-menu {
     position: fixed;
-    background: var(--surface-dark);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
+    background: var(--nebula-surface-primary);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-lg);
     padding: 8px;
     z-index: 2000;
     min-width: 120px;
+    backdrop-filter: blur(var(--nebula-blur));
 }
 
 .power-menu-item {
@@ -268,18 +418,18 @@ body {
     padding: 12px 16px;
     border: none;
     background: transparent;
-    color: var(--text-primary);
+    color: var(--nebula-text-primary);
     text-align: left;
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: var(--nebula-radius);
     display: flex;
     align-items: center;
     gap: 12px;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .power-menu-item:hover {
-    background: var(--surface-light);
+    background: var(--nebula-surface-hover);
 }
 
 /* Material Symbols */
@@ -291,158 +441,4 @@ body {
     line-height: 1;
     display: inline-block;
     -webkit-font-smoothing: antialiased;
-}
-
-
-/* Vertical Tab Browser Styles */
-.browser-window {
-    width: 1200px;
-    height: 700px;
-    position: absolute;
-    background: #1a1a1a;
-}
-
-.browser-container {
-    display: flex;
-    height: calc(100% + 48px);
-    background: #222;
-}
-
-.browser-sidebar {
-    width: 70px;
-    background: #1a1a1a;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid #333;
-}
-
-.tab-list {
-    flex: 1;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #444 #1a1a1a;
-}
-
-.browser-tab {
-    width: 70px;
-    height: 70px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    position: relative;
-    border-bottom: 1px solid #2a2a2a;
-    transition: all 0.3s;
-}
-
-.browser-tab:hover {
-    background: #333;
-}
-
-.browser-tab.active {
-    background: #2a2a2a;
-    border-left: 3px solid #667eea;
-}
-
-.tab-favicon {
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-}
-
-.tab-tooltip {
-    display: none;
-    position: absolute;
-    left: 75px;
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
-    padding: 5px 10px;
-    border-radius: 4px;
-    white-space: nowrap;
-    z-index: 10000;
-    font-size: 12px;
-}
-
-.browser-tab:hover .tab-tooltip {
-    display: block;
-}
-
-.new-tab-btn {
-    height: 50px;
-    background: #2a2a2a;
-    border: none;
-    border-top: 1px solid #333;
-    color: #667eea;
-    font-size: 28px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.new-tab-btn:hover {
-    background: #333;
-    color: #764ba2;
-}
-
-.browser-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.browser-nav {
-    height: 45px;
-    background: #2a2a2a;
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    gap: 10px;
-    border-bottom: 1px solid #333;
-}
-
-.browser-nav button {
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: #333;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.3s;
-}
-
-.browser-nav button:hover {
-    background: #444;
-}
-
-.url-bar {
-    flex: 1;
-    padding: 8px 12px;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    color: white;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-.url-bar:focus {
-    outline: none;
-    border-color: #667eea;
-}
-
-.nav-go {
-    width: auto !important;
-    padding: 0 15px;
-}
-
-.webview-container {
-    flex: 1;
-    position: relative;
-    background: white;
-}
-
-.browser-webview {
-    width: 100%;
-    height: 100%;
-    border: none;
 }

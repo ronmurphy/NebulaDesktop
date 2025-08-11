@@ -28,7 +28,7 @@ class NebulaDesktop {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                preload: path.join(__dirname, 'src', 'preload.js'),
+                preload: path.join(__dirname, 'src', 'preload-minimal.js'),
                 webviewTag: true  // Enable webview for web apps
             }
         });
@@ -47,15 +47,78 @@ class NebulaDesktop {
             exec('systemctl poweroff');
         });
 
+        ipcMain.handle('system:reboot', () => {
+            const { exec } = require('child_process');
+            exec('systemctl reboot');
+        });
+
+        ipcMain.handle('system:logout', () => {
+            app.quit();
+        });
+
         // Window management
         ipcMain.handle('window:create', (event, options) => {
             return this.createAppWindow(options);
         });
 
-        // File system
+        ipcMain.on('window:close', (event, id) => {
+            const window = this.childWindows.get(id);
+            if (window) {
+                window.close();
+                this.childWindows.delete(id);
+            }
+        });
+
+        ipcMain.on('window:minimize', (event, id) => {
+            const window = this.childWindows.get(id);
+            if (window) {
+                window.minimize();
+            }
+        });
+
+        ipcMain.on('window:maximize', (event, id) => {
+            const window = this.childWindows.get(id);
+            if (window) {
+                if (window.isMaximized()) {
+                    window.restore();
+                } else {
+                    window.maximize();
+                }
+            }
+        });
+
+        // File system operations
         ipcMain.handle('fs:readdir', async (event, dirPath) => {
-            const fs = require('fs').promises;
-            return await fs.readdir(dirPath);
+            try {
+                const fs = require('fs').promises;
+                return await fs.readdir(dirPath);
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        ipcMain.handle('fs:readfile', async (event, filePath) => {
+            try {
+                const fs = require('fs').promises;
+                return await fs.readFile(filePath, 'utf8');
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        ipcMain.handle('fs:writefile', async (event, filePath, data) => {
+            try {
+                const fs = require('fs').promises;
+                await fs.writeFile(filePath, data, 'utf8');
+                return true;
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        ipcMain.handle('fs:homedir', () => {
+            const os = require('os');
+            return os.homedir();
         });
     }
 

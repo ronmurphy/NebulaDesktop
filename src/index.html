@@ -20,8 +20,17 @@
 
     <!-- Nebula Theme -->
     <link rel="stylesheet" href="css/nebula-theme.css">
+    
+    <!-- App-specific Styles -->
+    <link rel="stylesheet" href="css/browser.css">
+    <link rel="stylesheet" href="css/filemanager.css">
 </head>
 <body>
+    <!-- Load Apps First -->
+    <script src="apps/browser.js"></script>
+    <script src="apps/filemanager.js"></script>
+    
+    <!-- Load Desktop Environment -->
     <script src="js/renderer.js"></script>
 </body>
 </html>
