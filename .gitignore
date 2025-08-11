@@ -1,15 +1,45 @@
-# Dependencies
+# ===================================
+# Electron + Node.js .gitignore
+# ===================================
+
+# Node dependencies
 node_modules/
 
-# Build output
+# Build output directories
 dist/
 out/
 build/
-*.log
 
 # Electron packaged apps
 *.asar
 
-# OS files
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-specific files
 .DS_Store
 Thumbs.db
+
+# Editor / IDE files
+.vscode/
+.idea/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Cache / Temp
+.cache/
+tmp/
+temp/
+
+# Coverage reports
+coverage/
+
+# Optional: ignore lock files if you don’t want them in git
+# package-lock.json
+# yarn.lock
