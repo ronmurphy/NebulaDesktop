@@ -18,7 +18,7 @@ class NebulaDesktop {
         taskbar.className = 'taskbar';
         taskbar.innerHTML = `
             <button class="start-button" onclick="desktop.toggleLauncher()">
-                Nebula
+                Start
             </button>
             <div class="task-list" id="taskList"></div>
             <div class="system-tray">

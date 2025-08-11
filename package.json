@@ -9,7 +9,12 @@
     "build": "electron-builder",
     "dist": "electron-builder --linux"
   },
-  "keywords": ["desktop", "electron", "linux", "web-first"],
+  "keywords": [
+    "desktop",
+    "electron",
+    "linux",
+    "web-first"
+  ],
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {
@@ -24,7 +29,10 @@
       "output": "dist"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "System"
     }
   }
