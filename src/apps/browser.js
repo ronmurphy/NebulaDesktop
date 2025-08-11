@@ -26,9 +26,9 @@ class NebulaBrowser {
             <div class="window-titlebar">
                 <span class="window-title">Nebula Browser</span>
                 <div class="window-controls">
-                    <button class="minimize">_</button>
-                    <button class="maximize">□</button>
-                    <button class="close">✕</button>
+                    <button class="window-button minimize" title="Minimize"></button>
+                    <button class="window-button maximize" title="Maximize"></button>
+                    <button class="window-button close" title="Close"></button>
                 </div>
             </div>
             <div class="browser-container">
@@ -220,12 +220,12 @@ class NebulaBrowser {
     }
     
     setupWindowControls(windowEl) {
-        windowEl.querySelector('.minimize').addEventListener('click', () => {
+        windowEl.querySelector('.window-button.minimize').addEventListener('click', () => {
             windowEl.style.display = 'none';
             // TODO: Add to taskbar
         });
         
-        windowEl.querySelector('.maximize').addEventListener('click', () => {
+        windowEl.querySelector('.window-button.maximize').addEventListener('click', () => {
             windowEl.classList.toggle('maximized');
             if (windowEl.classList.contains('maximized')) {
                 windowEl.style.width = '100%';
@@ -244,7 +244,7 @@ class NebulaBrowser {
             }
         });
         
-        windowEl.querySelector('.close').addEventListener('click', () => {
+        windowEl.querySelector('.window-button.close').addEventListener('click', () => {
             if (confirm('Close browser?')) {
                 windowEl.remove();
             }

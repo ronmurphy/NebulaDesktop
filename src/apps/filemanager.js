@@ -27,9 +27,9 @@ class NebulaFileManager {
             <div class="window-titlebar">
                 <span class="window-title">File Manager</span>
                 <div class="window-controls">
-                    <button class="minimize">_</button>
-                    <button class="maximize">□</button>
-                    <button class="close">✕</button>
+                    <button class="window-button minimize" title="Minimize"></button>
+                    <button class="window-button maximize" title="Maximize"></button>
+                    <button class="window-button close" title="Close"></button>
                 </div>
             </div>
             <div class="filemanager-container">
@@ -241,11 +241,11 @@ class NebulaFileManager {
     }
     
     setupWindowControls(windowEl) {
-        windowEl.querySelector('.minimize').addEventListener('click', () => {
+        windowEl.querySelector('.window-button.minimize').addEventListener('click', () => {
             windowEl.style.display = 'none';
         });
         
-        windowEl.querySelector('.maximize').addEventListener('click', () => {
+        windowEl.querySelector('.window-button.maximize').addEventListener('click', () => {
             windowEl.classList.toggle('maximized');
             if (windowEl.classList.contains('maximized')) {
                 windowEl.style.width = '100%';
@@ -263,7 +263,7 @@ class NebulaFileManager {
             }
         });
         
-        windowEl.querySelector('.close').addEventListener('click', () => {
+        windowEl.querySelector('.window-button.close').addEventListener('click', () => {
             if (confirm('Close File Manager?')) {
                 windowEl.remove();
             }
