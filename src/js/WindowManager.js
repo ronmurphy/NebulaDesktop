@@ -525,7 +525,7 @@ class WindowManager {
             }
         });
 
-        // Emergency fix - add direct span click handling
+        // Handle span clicks for buttons (e.g., material icons)
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('material-symbols-outlined')) {
                 const button = e.target.closest('.window-btn');
