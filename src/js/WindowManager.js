@@ -392,75 +392,6 @@ class WindowManager {
         console.log(`Restored window: ${windowId}`);
     }
 
-
-    /**
-     * Maximizes or restores a window (checks for pinned assistant)
-     */
-    // toggleMaximizeWindow(windowId) {
-    //     const windowData = this.windows.get(windowId);
-    //     if (!windowData) return;
-
-    //     if (windowData.isMaximized) {
-    //         // Restore to previous size/position
-    //         if (windowData.savedPosition) {
-    //             Object.assign(windowData.element.style, {
-    //                 width: windowData.savedSize.width,
-    //                 height: windowData.savedSize.height,
-    //                 left: windowData.savedPosition.x,
-    //                 top: windowData.savedPosition.y
-    //             });
-    //         }
-    //         windowData.element.classList.remove('maximized');
-    //         windowData.isMaximized = false;
-    //     } else {
-    //         // Save current position/size
-    //         const rect = windowData.element.getBoundingClientRect();
-    //         windowData.savedPosition = { x: rect.left + 'px', y: rect.top + 'px' };
-    //         windowData.savedSize = { width: rect.width + 'px', height: rect.height + 'px' };
-
-    //         // Check if assistant is pinned by looking at CSS classes
-    //         const desktop = document.querySelector('.desktop');
-    //         const isAssistantPinned = desktop && desktop.classList.contains('assistant-open') && desktop.classList.contains('pinned');
-
-    //         let maxWidth = '100vw';
-    //         let maxLeft = '0px';
-
-    //         if (isAssistantPinned) {
-    //             // Calculate assistant width based on CSS classes
-    //             let assistantWidth = 420; // default width
-
-    //             if (desktop.classList.contains('full-view-25')) {
-    //                 assistantWidth = Math.floor(window.innerWidth * 0.25);
-    //             } else if (desktop.classList.contains('full-view-33')) {
-    //                 assistantWidth = Math.floor(window.innerWidth * 0.333);
-    //             } else if (desktop.classList.contains('full-view-50')) {
-    //                 assistantWidth = Math.floor(window.innerWidth * 0.5);
-    //             }
-
-    //             // Maximize to available space only
-    //             const availableWidth = window.innerWidth - assistantWidth;
-    //             maxWidth = availableWidth + 'px';
-    //             maxLeft = '0px'; // CSS margin will push it to the right spot
-
-    //             console.log(`Assistant pinned at ${assistantWidth}px, maximizing to ${availableWidth}px width`);
-    //         }
-
-    //         // Maximize with calculated dimensions
-    //         Object.assign(windowData.element.style, {
-    //             width: maxWidth,
-    //             height: 'calc(100vh - 50px)', // Account for taskbar
-    //             left: maxLeft,
-    //             top: '0px'
-    //         });
-
-    //         windowData.element.classList.add('maximized');
-    //         windowData.isMaximized = true;
-
-    //         console.log(`Maximized window ${windowId} - Width: ${maxWidth}, Left: ${maxLeft}`);
-    //     }
-    // }
-
-
     /**
      * Maximizes or restores a window (checks for pinned assistant)
      */
@@ -595,18 +526,6 @@ class WindowManager {
             tabData.element.querySelector('.tab-icon').textContent = icon;
         }
     }
-
-    /**
-     * Calculates default position for new windows (cascade effect)
-     */
-    // calculateDefaultPosition() {
-    //     const offset = (this.windows.size % 10) * 30; // Cascade windows
-    //     return {
-    //         x: 100 + offset,
-    //         y: 100 + offset
-    //     };
-    // }
-
 
     /**
      * Calculate default position that respects available area
@@ -1006,76 +925,6 @@ class WindowManager {
         this.restoreWindow(windowId);
     }
 
-    // Add these methods to your WindowManager.js class
-
-    /**
-     * Repositions windows when desktop area changes (e.g., assistant panel pinned)
-     * @param {number} leftMargin - How much space is taken from the left (in pixels)
-     */
-    // repositionWindowsForDesktopResize(leftMargin = 0) {
-    //     const totalWidth = window.innerWidth;
-    //     const visibleDesktopStart = leftMargin;
-    //     const visibleDesktopEnd = totalWidth;
-    //     const availableWidth = visibleDesktopEnd - visibleDesktopStart;
-
-    //     console.log(`🔧 Repositioning check: Visible desktop area is ${visibleDesktopStart}px to ${visibleDesktopEnd}px (${availableWidth}px wide)`);
-
-    //     this.windows.forEach((windowData, windowId) => {
-    //         if (windowData.isMinimized || windowData.isMaximized) {
-    //             console.log(`⏭️ Skipping ${windowId} (minimized: ${windowData.isMinimized}, maximized: ${windowData.isMaximized})`);
-    //             return;
-    //         }
-
-    //         const windowElement = windowData.element;
-    //         const rect = windowElement.getBoundingClientRect();
-    //         const currentLeft = parseInt(windowElement.style.left) || rect.left;
-    //         const currentWidth = parseInt(windowElement.style.width) || rect.width;
-    //         const currentRight = currentLeft + currentWidth;
-
-    //         console.log(`📏 Window ${windowId}: left=${currentLeft}px, width=${currentWidth}px, right=${currentRight}px`);
-
-    //         let newLeft = currentLeft;
-    //         let newWidth = currentWidth;
-    //         let shouldMove = false;
-
-    //         // Check if window needs repositioning
-    //         if (currentLeft < visibleDesktopStart || currentRight > visibleDesktopEnd) {
-    //             shouldMove = true;
-
-    //             // If window is wider than available space, resize it to fit
-    //             if (currentWidth > availableWidth) {
-    //                 newWidth = availableWidth - 20; // Leave 20px margin
-    //                 newLeft = visibleDesktopStart + 10; // 10px from panel edge
-    //                 console.log(`🔧 Window ${windowId} is too wide (${currentWidth}px > ${availableWidth}px), resizing to ${newWidth}px and positioning at ${newLeft}px`);
-    //             }
-    //             // If window can fit, position it optimally
-    //             else {
-    //                 // If window is behind panel, move it to visible area
-    //                 if (currentLeft < visibleDesktopStart) {
-    //                     newLeft = visibleDesktopStart;
-    //                 }
-    //                 // If window extends past screen edge, move it back
-    //                 else if (currentRight > visibleDesktopEnd) {
-    //                     newLeft = visibleDesktopEnd - currentWidth;
-    //                 }
-    //                 console.log(`🔧 Window ${windowId} repositioning to ${newLeft}px (fits in available space)`);
-    //             }
-    //         }
-
-    //         // Apply changes if needed
-    //         if (shouldMove) {
-    //             windowElement.style.left = newLeft + 'px';
-    //             if (newWidth !== currentWidth) {
-    //                 windowElement.style.width = newWidth + 'px';
-    //                 console.log(`✅ Resized and moved window ${windowId}: ${currentLeft}px→${newLeft}px, ${currentWidth}px→${newWidth}px`);
-    //             } else {
-    //                 console.log(`✅ Moved window ${windowId} from ${currentLeft}px to ${newLeft}px`);
-    //             }
-    //         } else {
-    //             console.log(`✅ Window ${windowId} is fine, no movement needed`);
-    //         }
-    //     });
-    // }
 
     /**
      * Simple repositioning: just ensure windows don't go past right edge of screen
