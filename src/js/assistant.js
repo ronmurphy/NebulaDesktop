@@ -50,6 +50,16 @@ class NebulaAssistant {
                 name: 'Copilot',
                 url: 'https://copilot.microsoft.com',
                 icon: '🚀'
+            },
+            gemini: {
+                name: 'Gemini',
+                url: 'https://gemini.google.com',
+                icon: '💎'
+            },
+            bolt: {
+                name: 'Bolt',
+                url: 'https://bolt.new',
+                icon: '⚡'
             }
         };
         
