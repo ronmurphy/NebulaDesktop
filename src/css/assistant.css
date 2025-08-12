@@ -283,23 +283,7 @@
     margin-left: 50vw;
 }
 
-/* Taskbar adjustment when pinned */
-.taskbar.assistant-pinned {
-    transition: var(--nebula-transition);
-    margin-left: 420px; /* Default width */
-}
-
-.taskbar.assistant-pinned.full-view-25 {
-    margin-left: 25vw;
-}
-
-.taskbar.assistant-pinned.full-view-33 {
-    margin-left: 33.333vw;
-}
-
-.taskbar.assistant-pinned.full-view-50 {
-    margin-left: 50vw;
-}
+/* Taskbar stays full width - no adjustment needed when pinned */
 
 /* Responsive Design */
 @media (max-width: 1024px) {
@@ -319,10 +303,6 @@
     }
     
     .desktop.assistant-open.pinned {
-        margin-left: 380px;
-    }
-    
-    .taskbar.assistant-pinned {
         margin-left: 380px;
     }
 }
@@ -358,9 +338,8 @@
         font-size: 14px;
     }
     
-    /* On mobile, don't adjust desktop/taskbar margins */
-    .desktop.assistant-open.pinned,
-    .taskbar.assistant-pinned {
+    /* On mobile, don't adjust desktop margins */
+    .desktop.assistant-open.pinned {
         margin-left: 0;
     }
 }
@@ -382,7 +361,6 @@
     .control-btn,
     .footer-btn,
     .desktop,
-    .taskbar,
     .ai-selector {
         transition: none;
     }
@@ -411,8 +389,7 @@
         display: none;
     }
     
-    .desktop.assistant-open.pinned,
-    .taskbar.assistant-pinned {
+    .desktop.assistant-open.pinned {
         margin-left: 0;
     }
 }

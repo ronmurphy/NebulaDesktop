@@ -382,28 +382,57 @@ class NebulaAssistant {
     }
     
     /**
-     * Update desktop and taskbar layout based on panel state
+     * Update desktop layout (CSS handles the shifting, no WindowManager involvement)
      */
     updateDesktopLayout() {
         const desktop = document.querySelector('.desktop');
-        const taskbar = document.querySelector('.taskbar');
         
-        if (!desktop || !taskbar) return;
+        if (!desktop) return;
         
         // Remove all classes first
         desktop.classList.remove('assistant-open', 'pinned', 'full-view-25', 'full-view-33', 'full-view-50');
-        taskbar.classList.remove('assistant-pinned', 'full-view-25', 'full-view-33', 'full-view-50');
         
         if (this.isOpen && this.isPinned) {
             desktop.classList.add('assistant-open', 'pinned');
-            taskbar.classList.add('assistant-pinned');
             
             if (this.isFullView) {
                 const sizeClass = this.fullViewSizes[this.config.fullViewSize].class;
                 desktop.classList.add(sizeClass);
-                taskbar.classList.add(sizeClass);
             }
+            
+            console.log('Desktop shifted by CSS - WindowManager uses normal maximize');
+        } else {
+            console.log('Desktop restored - WindowManager uses full screen');
         }
+    }
+    
+    /**
+     * Notify WindowManager about assistant panel state for proper window management
+     */
+    notifyWindowManagerOfPanelState() {
+        if (!window.windowManager) return;
+        
+        let panelWidth = 420; // Default width in pixels
+        
+        if (this.isFullView) {
+            // Calculate pixel width from viewport percentage
+            const viewportWidth = window.innerWidth;
+            const percentage = parseInt(this.config.fullViewSize);
+            panelWidth = Math.floor(viewportWidth * (percentage / 100));
+            
+            // Ensure minimum width
+            panelWidth = Math.max(400, panelWidth);
+        }
+        
+        console.log(`Assistant panel width: ${panelWidth}px out of ${window.innerWidth}px total`);
+        
+        // Update WindowManager's available area
+        window.windowManager.updateAvailableArea(panelWidth, 0, 0, 50);
+        
+        // Reposition any windows that are now off-screen
+        window.windowManager.repositionWindowsForDesktopResize(panelWidth);
+        
+        console.log(`Notified WindowManager: Panel width = ${panelWidth}px`);
     }
     
     /**
@@ -718,14 +747,9 @@ class NebulaAssistant {
     destroy() {
         // Remove desktop layout classes
         const desktop = document.querySelector('.desktop');
-        const taskbar = document.querySelector('.taskbar');
         
         if (desktop) {
             desktop.classList.remove('assistant-open', 'pinned', 'full-view-25', 'full-view-33', 'full-view-50');
-        }
-        
-        if (taskbar) {
-            taskbar.classList.remove('assistant-pinned', 'full-view-25', 'full-view-33', 'full-view-50');
         }
         
         // Remove webview
