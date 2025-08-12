@@ -5,31 +5,33 @@ class NebulaDesktop {
         this.launcher = null;
         this.powerMenu = null;
         this.windowManager = null;
-        
+        this.assistant = null; // Add this line
+
         this.init();
     }
-    
     async init() {
         console.log('Initializing NebulaDesk v3 with WindowManager...');
-        
+
         // Initialize the window manager first
         this.windowManager = new WindowManager();
         window.windowManager = this.windowManager; // Make it globally available
-        
+
         // Create UI components
         this.createTaskbar();
         this.createDesktop();
         this.createLauncher();
-        
+
         // Setup event listeners
         this.setupEventListeners();
-        
+
         // Load user configuration
         await this.loadConfiguration();
-        
+
+        this.assistant = new NebulaAssistant();
+
         console.log('NebulaDesk ready with WindowManager!');
     }
-    
+
     createTaskbar() {
         this.taskbar = document.createElement('div');
         this.taskbar.className = 'taskbar';
@@ -47,22 +49,22 @@ class NebulaDesktop {
             </div>
         `;
         document.body.appendChild(this.taskbar);
-        
+
         // Start clock
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
-        
+
         // Listen for window events to update taskbar
         this.setupTaskbarIntegration();
     }
-    
+
     createDesktop() {
         const desktop = document.createElement('div');
         desktop.className = 'desktop';
         desktop.id = 'desktop';
         document.body.appendChild(desktop);
     }
-    
+
     createLauncher() {
         this.launcher = document.createElement('div');
         this.launcher.className = 'launcher hidden';
@@ -80,55 +82,55 @@ class NebulaDesktop {
             </div>
         `;
         document.body.appendChild(this.launcher);
-        
+
         // Setup search functionality
         this.setupLauncherSearch();
     }
-    
+
     getDefaultApps() {
         return [
-            { 
-                id: 'browser', 
-                name: 'Browser', 
-                icon: '🌐', 
+            {
+                id: 'browser',
+                name: 'Browser',
+                icon: '🌐',
                 description: 'Browse the web with tabs',
                 keywords: ['web', 'internet', 'browse', 'url']
             },
-            { 
-                id: 'gmail', 
-                name: 'Gmail', 
-                icon: '📧', 
+            {
+                id: 'gmail',
+                name: 'Gmail',
+                icon: '📧',
                 url: 'https://gmail.com',
                 description: 'Email service',
                 keywords: ['email', 'mail', 'message']
             },
-            { 
-                id: 'docs', 
-                name: 'Docs', 
-                icon: '📄', 
+            {
+                id: 'docs',
+                name: 'Docs',
+                icon: '📄',
                 url: 'https://docs.google.com',
                 description: 'Document editing',
                 keywords: ['document', 'write', 'text', 'office']
             },
-            { 
-                id: 'youtube', 
-                name: 'YouTube', 
-                icon: '📺', 
+            {
+                id: 'youtube',
+                name: 'YouTube',
+                icon: '📺',
                 url: 'https://youtube.com',
                 description: 'Video streaming',
                 keywords: ['video', 'stream', 'watch', 'entertainment']
             },
-            { 
-                id: 'files', 
-                name: 'Files', 
-                icon: '📁', 
+            {
+                id: 'files',
+                name: 'Files',
+                icon: '📁',
                 description: 'File manager',
                 keywords: ['file', 'folder', 'directory', 'explorer']
             },
-            { 
-                id: 'settings', 
-                name: 'Settings', 
-                icon: '⚙️', 
+            {
+                id: 'settings',
+                name: 'Settings',
+                icon: '⚙️',
                 description: 'System preferences',
                 keywords: ['config', 'preferences', 'options', 'system']
             },
@@ -148,23 +150,23 @@ class NebulaDesktop {
             }
         ];
     }
-    
+
     setupEventListeners() {
         // Start button
         document.getElementById('startBtn').addEventListener('click', () => {
             this.toggleLauncher();
         });
-        
+
         // Power button
         document.getElementById('powerBtn').addEventListener('click', () => {
             this.showPowerMenu();
         });
-        
+
         // Theme toggle button
         document.getElementById('themeToggle').addEventListener('click', () => {
             this.cycleTheme();
         });
-        
+
         // App icons
         this.launcher.addEventListener('click', (e) => {
             const appIcon = e.target.closest('.app-icon');
@@ -174,23 +176,23 @@ class NebulaDesktop {
                 this.hideLauncher();
             }
         });
-        
+
         // Click outside to close menus
         document.addEventListener('click', (e) => {
             // Close launcher
-            if (this.launcher && !this.launcher.contains(e.target) && 
-                !e.target.closest('#startBtn') && 
+            if (this.launcher && !this.launcher.contains(e.target) &&
+                !e.target.closest('#startBtn') &&
                 !this.launcher.classList.contains('hidden')) {
                 this.hideLauncher();
             }
-            
+
             // Close power menu
-            if (this.powerMenu && !this.powerMenu.contains(e.target) && 
+            if (this.powerMenu && !this.powerMenu.contains(e.target) &&
                 !e.target.closest('#powerBtn')) {
                 this.closePowerMenu();
             }
         });
-        
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             // Alt + Space - Open launcher
@@ -198,7 +200,7 @@ class NebulaDesktop {
                 e.preventDefault();
                 this.toggleLauncher();
             }
-            
+
             // Escape - Close launcher
             if (e.key === 'Escape') {
                 this.hideLauncher();
@@ -206,21 +208,21 @@ class NebulaDesktop {
             }
         });
     }
-    
+
     setupLauncherSearch() {
         const searchBox = document.getElementById('searchBox');
         const appGrid = this.launcher.querySelector('.app-grid');
         const apps = this.getDefaultApps();
-        
+
         searchBox.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase().trim();
-            
+
             if (query === '') {
                 // Show all apps
                 this.renderAppGrid(apps);
             } else {
                 // Filter apps
-                const filteredApps = apps.filter(app => 
+                const filteredApps = apps.filter(app =>
                     app.name.toLowerCase().includes(query) ||
                     app.description.toLowerCase().includes(query) ||
                     app.keywords.some(keyword => keyword.includes(query))
@@ -228,7 +230,7 @@ class NebulaDesktop {
                 this.renderAppGrid(filteredApps);
             }
         });
-        
+
         // Handle Enter key in search
         searchBox.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -240,7 +242,7 @@ class NebulaDesktop {
             }
         });
     }
-    
+
     renderAppGrid(apps) {
         const appGrid = this.launcher.querySelector('.app-grid');
         appGrid.innerHTML = apps.map(app => `
@@ -250,53 +252,53 @@ class NebulaDesktop {
             </div>
         `).join('');
     }
-    
+
     setupTaskbarIntegration() {
         const taskList = document.getElementById('taskList');
-        
+
         // Create a task button for each window
         const updateTaskbar = () => {
             const windows = this.windowManager.getAllWindows();
             taskList.innerHTML = '';
-            
+
             windows.forEach(windowData => {
                 if (!windowData.isMinimized) return; // Only show minimized windows for now
-                
+
                 const taskButton = document.createElement('button');
                 taskButton.className = 'task-button';
                 taskButton.innerHTML = `
                     <span class="task-icon">${windowData.config.icon || '🪟'}</span>
                     <span class="task-title">${windowData.config.title}</span>
                 `;
-                
+
                 taskButton.addEventListener('click', () => {
                     this.restoreWindow(windowData.id);
                 });
-                
+
                 taskList.appendChild(taskButton);
             });
         };
-        
+
         // Update taskbar when windows change (this is a simple implementation)
         // In a real app, you'd want proper event listening
         setInterval(updateTaskbar, 1000);
     }
-    
+
     restoreWindow(windowId) {
         this.windowManager.restoreWindowById(windowId);
     }
-    
+
     async launchApp(appId) {
         console.log('Launching app:', appId);
-        
+
         const apps = this.getDefaultApps();
         const appConfig = apps.find(app => app.id === appId);
-        
+
         if (!appConfig) {
             console.error('App not found:', appId);
             return;
         }
-        
+
         try {
             switch (appId) {
                 case 'browser':
@@ -307,7 +309,7 @@ class NebulaDesktop {
                         this.showError('Browser app not available. Make sure browser.js is loaded.');
                     }
                     break;
-                    
+
                 case 'files':
                     // Launch file manager
                     if (window.NebulaFileManager) {
@@ -316,19 +318,19 @@ class NebulaDesktop {
                         this.showError('File Manager app not available. Make sure filemanager.js is loaded.');
                     }
                     break;
-                    
+
                 case 'terminal':
                     this.launchTerminal();
                     break;
-                    
+
                 case 'calculator':
                     this.launchCalculator();
                     break;
-                    
+
                 case 'settings':
                     this.openSettings();
                     break;
-                    
+
                 default:
                     // For web apps, open in browser
                     if (appConfig.url) {
@@ -348,7 +350,7 @@ class NebulaDesktop {
             this.showError(`Failed to launch ${appConfig.name}: ${error.message}`);
         }
     }
-    
+
     launchTerminal() {
         // Placeholder terminal app
         const windowId = this.windowManager.createWindow({
@@ -357,7 +359,7 @@ class NebulaDesktop {
             height: 500,
             hasTabBar: false
         });
-        
+
         this.windowManager.loadApp(windowId, {
             render: () => {
                 const container = document.createElement('div');
@@ -382,7 +384,7 @@ class NebulaDesktop {
             getIcon: () => '💻'
         });
     }
-    
+
     launchCalculator() {
         // Simple calculator app
         const windowId = this.windowManager.createWindow({
@@ -392,7 +394,7 @@ class NebulaDesktop {
             hasTabBar: false,
             resizable: false
         });
-        
+
         this.windowManager.loadApp(windowId, {
             render: () => {
                 const container = document.createElement('div');
@@ -405,7 +407,7 @@ class NebulaDesktop {
                     flex-direction: column;
                     gap: 12px;
                 `;
-                
+
                 container.innerHTML = `
                     <div style="background: var(--nebula-surface); padding: 16px; border-radius: 8px; text-align: right; font-size: 24px; font-family: monospace;">0</div>
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: 1;">
@@ -430,17 +432,17 @@ class NebulaDesktop {
                         <button style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">=</button>
                     </div>
                 `;
-                
+
                 // Add basic calculator functionality
                 let display = container.querySelector('div');
                 let currentValue = '0';
                 let operator = null;
                 let waitingForNewValue = false;
-                
+
                 container.addEventListener('click', (e) => {
                     if (e.target.tagName === 'BUTTON') {
                         const value = e.target.textContent;
-                        
+
                         if ('0123456789'.includes(value)) {
                             if (waitingForNewValue) {
                                 currentValue = value;
@@ -458,14 +460,14 @@ class NebulaDesktop {
                         // Add more calculator logic here...
                     }
                 });
-                
+
                 return container;
             },
             getTitle: () => 'Calculator',
             getIcon: () => '🧮'
         });
     }
-    
+
     toggleLauncher() {
         this.launcher.classList.toggle('hidden');
         if (!this.launcher.classList.contains('hidden')) {
@@ -475,17 +477,17 @@ class NebulaDesktop {
             }, 100);
         }
     }
-    
+
     hideLauncher() {
         this.launcher.classList.add('hidden');
         // Clear search
         document.getElementById('searchBox').value = '';
         this.renderAppGrid(this.getDefaultApps());
     }
-    
+
     showPowerMenu() {
         this.closePowerMenu(); // Close any existing menu
-        
+
         this.powerMenu = document.createElement('div');
         this.powerMenu.className = 'power-menu';
         this.powerMenu.innerHTML = `
@@ -502,7 +504,7 @@ class NebulaDesktop {
                 <span>Shutdown</span>
             </div>
         `;
-        
+
         // Position the menu
         const powerBtn = document.getElementById('powerBtn');
         const rect = powerBtn.getBoundingClientRect();
@@ -512,9 +514,9 @@ class NebulaDesktop {
             right: 16px;
             z-index: 2000;
         `;
-        
+
         document.body.appendChild(this.powerMenu);
-        
+
         // Add event listeners
         this.powerMenu.addEventListener('click', (e) => {
             const menuItem = e.target.closest('.power-menu-item');
@@ -525,14 +527,14 @@ class NebulaDesktop {
             }
         });
     }
-    
+
     closePowerMenu() {
         if (this.powerMenu) {
             this.powerMenu.remove();
             this.powerMenu = null;
         }
     }
-    
+
     handlePowerAction(action) {
         switch (action) {
             case 'logout':
@@ -564,11 +566,11 @@ class NebulaDesktop {
                 break;
         }
     }
-    
+
     openSettings() {
         this.showError('Settings panel coming soon!');
     }
-    
+
     showError(message) {
         // Simple error notification
         const notification = document.createElement('div');
@@ -587,46 +589,46 @@ class NebulaDesktop {
             animation: slideIn 0.3s ease-out;
         `;
         notification.textContent = message;
-        
+
         document.body.appendChild(notification);
-        
+
         // Auto-remove after 3 seconds
         setTimeout(() => {
             notification.style.animation = 'slideOut 0.3s ease-out forwards';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
-    
+
     updateClock() {
         const clock = document.getElementById('clock');
         if (clock) {
             const now = new Date();
-            clock.textContent = now.toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            clock.textContent = now.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
             });
         }
     }
-    
+
     cycleTheme() {
         const themes = ['light', 'dark', 'nebula-slate'];
         const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
         const currentIndex = themes.indexOf(currentTheme);
         const nextIndex = (currentIndex + 1) % themes.length;
         const nextTheme = themes[nextIndex];
-        
+
         document.documentElement.setAttribute('data-theme', nextTheme);
-        
+
         // Save theme preference
         try {
             localStorage.setItem('nebula-theme', nextTheme);
         } catch (error) {
             console.warn('Could not save theme preference:', error);
         }
-        
+
         console.log(`Theme switched to: ${nextTheme}`);
     }
-    
+
     async loadConfiguration() {
         // Load saved theme
         try {
