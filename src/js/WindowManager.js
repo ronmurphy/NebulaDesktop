@@ -37,7 +37,7 @@ class WindowManager {
         const windowElement = this.createWindowElement(windowId, config);
         document.getElementById('desktop').appendChild(windowElement);
 
-        // Store window data
+        // Store window data FIRST
         const windowData = {
             id: windowId,
             element: windowElement,
@@ -52,6 +52,9 @@ class WindowManager {
         };
 
         this.windows.set(windowId, windowData);
+
+        // THEN set up listeners and resize handles (after windowData exists)
+        this.setupWindowListeners(windowElement, windowId);
         this.focusWindow(windowId);
 
         console.log(`Created window: ${windowId}`);
@@ -96,7 +99,7 @@ class WindowManager {
             </div>
         `;
 
-        this.setupWindowListeners(window, windowId);
+        // DON'T call setupWindowListeners here - do it after windowData is stored
         return window;
     }
 
@@ -525,7 +528,7 @@ class WindowManager {
             }
         });
 
-        // Handle span clicks for buttons (e.g., material icons)
+        // Emergency fix - add direct span click handling
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('material-symbols-outlined')) {
                 const button = e.target.closest('.window-btn');
@@ -727,12 +730,17 @@ class WindowManager {
      */
     addResizeHandles(windowElement, windowId) {
         const windowData = this.windows.get(windowId);
-        if (!windowData || !windowData.config.resizable) {
+        if (!windowData) {
+            console.error(`No windowData found for window ${windowId}`);
+            return;
+        }
+
+        if (!windowData.config.resizable) {
             console.log(`Skipping resize handles for window ${windowId} - not resizable`);
             return;
         }
 
-        console.log(`Adding resize handles to window ${windowId}`);
+        console.log(`✅ Adding resize handles to window ${windowId} (resizable: ${windowData.config.resizable})`);
 
         // Create resize handles
         const handles = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
@@ -745,8 +753,10 @@ class WindowManager {
             windowElement.appendChild(handle);
 
             this.setupResizeHandle(handle, windowElement, windowId, direction);
-            console.log(`Created ${direction} resize handle`);
+            console.log(`  📐 Created ${direction} resize handle`);
         });
+
+        console.log(`✅ All resize handles added for window ${windowId}`);
     }
 
     /**
