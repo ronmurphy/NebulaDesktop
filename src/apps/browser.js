@@ -1,283 +1,619 @@
-// apps/browser.js - Nebula Browser Application
-// Separated browser functionality with vertical tabs
-
+// VerticalBrowser.js - Browser with vertical tabs using WindowManager
 class NebulaBrowser {
-    constructor(initialUrl = 'https://google.com') {
-        this.tabs = new Map();
-        this.activeTab = null;
-        this.windowId = `browser-${Date.now()}`;
+    constructor(initialUrl = null) {
+        this.windowId = null;
+        this.tabs = new Map(); // tabId -> tabData
+        this.activeTabId = null;
+        this.nextTabId = 1;
         
-        this.createBrowserWindow(initialUrl);
+        this.init(initialUrl);
     }
     
-    createBrowserWindow(url) {
-        const windowEl = document.createElement('div');
-        windowEl.className = 'browser-window app-window';
-        windowEl.id = this.windowId;
+    /**
+     * Initialize the browser - create window and setup
+     */
+    async init(initialUrl) {
+        if (!window.windowManager) {
+            console.error('WindowManager not available');
+            return;
+        }
         
-        // Position in center
-        const desktop = document.getElementById('desktop');
-        const x = (desktop.offsetWidth - 1200) / 2;
-        const y = (desktop.offsetHeight - 700) / 2;
-        windowEl.style.left = x + 'px';
-        windowEl.style.top = y + 'px';
+        // Create a window without the WindowManager's tab bar (we'll make our own)
+        this.windowId = window.windowManager.createWindow({
+            title: 'Nebula Browser',
+            width: 1200,
+            height: 700,
+            hasTabBar: false // We'll create our own vertical tab system
+        });
         
-        windowEl.innerHTML = `
-            <div class="window-titlebar">
-                <span class="window-title">Nebula Browser</span>
-                <div class="window-controls">
-                    <button class="window-button minimize" title="Minimize"></button>
-                    <button class="window-button maximize" title="Maximize"></button>
-                    <button class="window-button close" title="Close"></button>
+        // Load this browser app into the window
+        window.windowManager.loadApp(this.windowId, this);
+        
+        // Create the first tab
+        this.createTab(initialUrl || 'about:blank');
+        
+        console.log(`Browser initialized with window ${this.windowId}`);
+    }
+    
+    /**
+     * Called by WindowManager to render the browser's content
+     */
+    render() {
+        const container = document.createElement('div');
+        container.className = 'vertical-browser-container';
+        container.innerHTML = `
+            <div class="browser-sidebar" id="browserSidebar">
+                <div class="tab-grid" id="verticalTabGrid">
+                    <!-- Vertical tab squares will be added here -->
+                </div>
+                <div class="sidebar-controls">
+                    <button class="new-tab-btn" id="newVerticalTabBtn" title="New Tab">
+                        <span class="material-symbols-outlined">add</span>
+                    </button>
                 </div>
             </div>
-            <div class="browser-container">
-                <div class="browser-sidebar">
-                    <div class="tab-list" id="tabs-${this.windowId}">
-                        <!-- Tabs go here -->
-                    </div>
-                    <button class="new-tab-btn" title="New Tab">+</button>
+            <div class="browser-main">
+                <div class="browser-toolbar">
+                    <button class="nav-btn toggle-tabs-btn" id="toggleTabsBtn" title="Toggle Tabs Sidebar">
+                        <span class="material-symbols-outlined">left_panel_close</span>
+                    </button>
+                    <button class="nav-btn" id="backBtn" title="Back" disabled>
+                        <span class="material-symbols-outlined">arrow_back</span>
+                    </button>
+                    <button class="nav-btn" id="forwardBtn" title="Forward" disabled>
+                        <span class="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                    <button class="nav-btn" id="refreshBtn" title="Refresh">
+                        <span class="material-symbols-outlined">refresh</span>
+                    </button>
+                    <input type="text" class="url-bar" id="urlBar" placeholder="Enter URL or search...">
+                    <button class="nav-btn go-btn" id="goBtn">
+                        <span class="material-symbols-outlined">search</span>
+                    </button>
+                    <button class="nav-btn" id="homeBtn" title="Home">
+                        <span class="material-symbols-outlined">home</span>
+                    </button>
                 </div>
-                <div class="browser-content">
-                    <div class="browser-nav">
-                        <button class="nav-back" id="back-${this.windowId}">←</button>
-                        <button class="nav-forward" id="forward-${this.windowId}">→</button>
-                        <button class="nav-refresh" id="refresh-${this.windowId}">⟳</button>
-                        <input type="text" class="url-bar" id="url-${this.windowId}" value="${url}">
-                        <button class="nav-go" id="go-${this.windowId}">Go</button>
-                    </div>
-                    <div class="webview-container" id="webviews-${this.windowId}">
-                        <!-- Webviews go here -->
-                    </div>
+                <div class="webview-container" id="webviewContainer">
+                    <!-- Webviews will be added here -->
                 </div>
             </div>
         `;
         
-        document.getElementById('desktop').appendChild(windowEl);
+        // Set up event listeners
+        this.setupEventListeners(container);
         
-        // Setup window controls
-        this.setupWindowControls(windowEl);
-        this.setupNavigation();
-        this.setupWindowDragging(windowEl);
-        
-        // Create first tab
-        this.createTab(url);
-        
-        // New tab button
-        windowEl.querySelector('.new-tab-btn').addEventListener('click', () => {
-            this.createTab('https://google.com');
-        });
+        return container;
     }
     
-    createTab(url) {
-        const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    /**
+     * Set up all event listeners for the browser
+     */
+    setupEventListeners(container) {
+        // Navigation buttons
+        const toggleTabsBtn = container.querySelector('#toggleTabsBtn');
+        const backBtn = container.querySelector('#backBtn');
+        const forwardBtn = container.querySelector('#forwardBtn');
+        const refreshBtn = container.querySelector('#refreshBtn');
+        const urlBar = container.querySelector('#urlBar');
+        const goBtn = container.querySelector('#goBtn');
+        const homeBtn = container.querySelector('#homeBtn');
+        const newTabBtn = container.querySelector('#newVerticalTabBtn');
         
-        // Create tab button with favicon
-        const tabEl = document.createElement('div');
-        tabEl.className = 'browser-tab';
-        tabEl.id = tabId;
-        tabEl.innerHTML = `
-            <img class="tab-favicon" src="https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=32" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%23666%22 d=%22M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z%22/></svg>'">
-            <span class="tab-tooltip">${new URL(url).hostname}</span>
-        `;
+        toggleTabsBtn.addEventListener('click', () => this.toggleSidebar());
+        backBtn.addEventListener('click', () => this.goBack());
+        forwardBtn.addEventListener('click', () => this.goForward());
+        refreshBtn.addEventListener('click', () => this.refresh());
+        goBtn.addEventListener('click', () => this.navigate(urlBar.value));
+        homeBtn.addEventListener('click', () => this.navigate('about:blank'));
+        newTabBtn.addEventListener('click', () => this.createTab());
         
-        // Right-click to close
-        tabEl.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            if (this.tabs.size > 1) {
-                if (confirm('Close this tab?')) {
-                    this.closeTab(tabId);
-                }
-            } else {
-                alert('Cannot close the last tab');
-            }
-        });
-        
-        // Left-click to switch
-        tabEl.addEventListener('click', () => {
-            this.switchTab(tabId);
-        });
-        
-        // Create webview
-        const webview = document.createElement('webview');
-        webview.src = url;
-        webview.className = 'browser-webview';
-        webview.id = `webview-${tabId}`;
-        webview.setAttribute('allowpopups', 'true');
-        webview.setAttribute('nodeintegration', 'false');
-        
-        // Update favicon when page loads
-        webview.addEventListener('page-favicon-updated', (e) => {
-            if (e.favicons && e.favicons.length > 0) {
-                tabEl.querySelector('.tab-favicon').src = e.favicons[0];
-            }
-        });
-        
-        // Update URL bar when navigating
-        webview.addEventListener('did-navigate', (e) => {
-            if (this.activeTab === tabId) {
-                document.getElementById(`url-${this.windowId}`).value = e.url;
-                // Update tab tooltip
-                try {
-                    tabEl.querySelector('.tab-tooltip').textContent = new URL(e.url).hostname;
-                } catch (error) {
-                    tabEl.querySelector('.tab-tooltip').textContent = e.url;
-                }
-            }
-        });
-        
-        // Add to DOM
-        document.getElementById(`tabs-${this.windowId}`).appendChild(tabEl);
-        document.getElementById(`webviews-${this.windowId}`).appendChild(webview);
-        
-        this.tabs.set(tabId, { tabEl, webview, url });
-        this.switchTab(tabId);
-    }
-    
-    switchTab(tabId) {
-        // Hide all webviews and deactivate all tabs
-        this.tabs.forEach((tab, id) => {
-            tab.webview.style.display = 'none';
-            tab.tabEl.classList.remove('active');
-        });
-        
-        // Show selected tab
-        const tab = this.tabs.get(tabId);
-        if (tab) {
-            tab.webview.style.display = 'flex';
-            tab.tabEl.classList.add('active');
-            this.activeTab = tabId;
-            
-            // Update URL bar
-            document.getElementById(`url-${this.windowId}`).value = tab.webview.src;
-        }
-    }
-    
-    closeTab(tabId) {
-        const tab = this.tabs.get(tabId);
-        if (tab) {
-            tab.tabEl.remove();
-            tab.webview.remove();
-            this.tabs.delete(tabId);
-            
-            // Switch to another tab if this was active
-            if (this.activeTab === tabId && this.tabs.size > 0) {
-                const firstTab = this.tabs.keys().next().value;
-                this.switchTab(firstTab);
-            } else if (this.tabs.size === 0) {
-                // Close browser window if no tabs left
-                document.getElementById(this.windowId).remove();
-            }
-        }
-    }
-    
-    setupNavigation() {
-        // Back button
-        document.getElementById(`back-${this.windowId}`).addEventListener('click', () => {
-            const tab = this.tabs.get(this.activeTab);
-            if (tab && tab.webview.canGoBack()) {
-                tab.webview.goBack();
-            }
-        });
-        
-        // Forward button
-        document.getElementById(`forward-${this.windowId}`).addEventListener('click', () => {
-            const tab = this.tabs.get(this.activeTab);
-            if (tab && tab.webview.canGoForward()) {
-                tab.webview.goForward();
-            }
-        });
-        
-        // Refresh button
-        document.getElementById(`refresh-${this.windowId}`).addEventListener('click', () => {
-            const tab = this.tabs.get(this.activeTab);
-            if (tab) {
-                tab.webview.reload();
-            }
-        });
-        
-        // URL bar
-        const urlBar = document.getElementById(`url-${this.windowId}`);
-        const goBtn = document.getElementById(`go-${this.windowId}`);
-        
-        const navigate = () => {
-            const tab = this.tabs.get(this.activeTab);
-            if (tab) {
-                let url = urlBar.value;
-                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                    url = 'https://' + url;
-                }
-                tab.webview.src = url;
-            }
-        };
-        
-        goBtn.addEventListener('click', navigate);
+        // URL bar events
         urlBar.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                navigate();
+                this.navigate(urlBar.value);
             }
         });
-    }
-    
-    setupWindowControls(windowEl) {
-        windowEl.querySelector('.window-button.minimize').addEventListener('click', () => {
-            windowEl.style.display = 'none';
-            // TODO: Add to taskbar
+        
+        urlBar.addEventListener('focus', () => {
+            const activeTab = this.tabs.get(this.activeTabId);
+            if (activeTab) {
+                urlBar.value = activeTab.url;
+                urlBar.select();
+            }
         });
         
-        windowEl.querySelector('.window-button.maximize').addEventListener('click', () => {
-            windowEl.classList.toggle('maximized');
-            if (windowEl.classList.contains('maximized')) {
-                windowEl.style.width = '100%';
-                windowEl.style.height = 'calc(100% - 48px)';
-                windowEl.style.left = '0';
-                windowEl.style.top = '0';
+        // Tab grid click handling
+        const tabGrid = container.querySelector('#verticalTabGrid');
+        tabGrid.addEventListener('click', (e) => {
+            const tabElement = e.target.closest('.tab-square');
+            if (tabElement) {
+                const tabId = tabElement.dataset.tabId;
+                
+                // Check if close button was clicked
+                if (e.target.closest('.tab-close-btn')) {
+                    this.closeTab(tabId);
+                } else {
+                    this.switchToTab(tabId);
+                }
+            }
+        });
+        
+        // Update navigation buttons when tabs change
+        this.updateNavigationButtons = () => {
+            const activeTab = this.tabs.get(this.activeTabId);
+            if (activeTab && activeTab.webview && activeTab.webview.tagName === 'WEBVIEW') {
+                // Only real webviews have these methods
+                backBtn.disabled = !activeTab.webview.canGoBack();
+                forwardBtn.disabled = !activeTab.webview.canGoForward();
             } else {
-                windowEl.style.width = '1200px';
-                windowEl.style.height = '700px';
-                // Re-center
-                const desktop = document.getElementById('desktop');
-                const x = (desktop.offsetWidth - 1200) / 2;
-                const y = (desktop.offsetHeight - 700) / 2;
-                windowEl.style.left = x + 'px';
-                windowEl.style.top = y + 'px';
+                // Start pages or invalid webviews
+                backBtn.disabled = true;
+                forwardBtn.disabled = true;
+            }
+        };
+    }
+    
+    /**
+     * Toggle sidebar visibility
+     */
+    toggleSidebar() {
+        const sidebar = document.querySelector('#browserSidebar');
+        const toggleBtn = document.querySelector('#toggleTabsBtn');
+        const icon = toggleBtn.querySelector('.material-symbols-outlined');
+        
+        if (sidebar.classList.contains('collapsed')) {
+            sidebar.classList.remove('collapsed');
+            icon.textContent = 'left_panel_close';
+            toggleBtn.title = 'Hide Tabs Sidebar';
+        } else {
+            sidebar.classList.add('collapsed');
+            icon.textContent = 'left_panel_open';
+            toggleBtn.title = 'Show Tabs Sidebar';
+        }
+    }
+    
+    /**
+     * Create a new tab
+     */
+    createTab(url = 'about:blank') {
+        const tabId = `tab-${this.nextTabId++}`;
+        
+        const tabData = {
+            id: tabId,
+            url: url,
+            title: 'New Tab',
+            favicon: '🌐',
+            webview: null,
+            isLoading: false
+        };
+        
+        this.tabs.set(tabId, tabData);
+        
+        // Create the tab UI
+        this.createTabElement(tabData);
+        
+        // Create the webview
+        this.createWebview(tabData);
+        
+        // Switch to this tab (this will handle visibility properly)
+        this.switchToTab(tabId);
+        
+        // Navigate to URL if provided
+        if (url && url !== 'about:blank') {
+            this.navigateTab(tabId, url);
+        }
+        
+        return tabId;
+    }
+    
+    /**
+     * Create the visual tab element (64x64px square)
+     */
+    createTabElement(tabData) {
+        const tabGrid = document.querySelector('#verticalTabGrid');
+        if (!tabGrid) return;
+        
+        const tabElement = document.createElement('div');
+        tabElement.className = 'tab-square';
+        tabElement.dataset.tabId = tabData.id;
+        tabElement.title = tabData.title; // Tooltip
+        tabElement.innerHTML = `
+            <div class="tab-favicon-large">${tabData.favicon}</div>
+            <button class="tab-close-btn" title="Close tab">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="tab-loading-indicator"></div>
+        `;
+        
+        tabGrid.appendChild(tabElement);
+        
+        // Store reference
+        tabData.element = tabElement;
+        
+        // Update tooltip when title changes
+        this.updateTabTooltip(tabData.id, tabData.title);
+    }
+    
+    /**
+     * Create webview for a tab
+     */
+    createWebview(tabData) {
+        const container = document.querySelector('#webviewContainer');
+        if (!container) return;
+        
+        if (tabData.url === 'about:blank') {
+            // Create start page
+            const startPage = document.createElement('div');
+            startPage.className = 'start-page';
+            startPage.dataset.tabId = tabData.id;
+            startPage.style.display = 'none';
+            startPage.innerHTML = `
+                <div class="start-page-content">
+                    <div class="start-page-header">
+                        <h1><span class="material-symbols-outlined">rocket_launch</span> Nebula Browser</h1>
+                        <p>Your gateway to the web</p>
+                    </div>
+                    <div class="quick-links">
+                        <a href="#" data-url="https://google.com" class="quick-link">
+                            <span class="material-symbols-outlined">search</span>
+                            <span>Google</span>
+                        </a>
+                        <a href="#" data-url="https://github.com" class="quick-link">
+                            <span class="material-symbols-outlined">code</span>
+                            <span>GitHub</span>
+                        </a>
+                        <a href="#" data-url="https://youtube.com" class="quick-link">
+                            <span class="material-symbols-outlined">play_circle</span>
+                            <span>YouTube</span>
+                        </a>
+                        <a href="#" data-url="https://docs.google.com" class="quick-link">
+                            <span class="material-symbols-outlined">description</span>
+                            <span>Google Docs</span>
+                        </a>
+                        <a href="#" data-url="https://drive.google.com" class="quick-link">
+                            <span class="material-symbols-outlined">cloud</span>
+                            <span>Google Drive</span>
+                        </a>
+                        <a href="#" data-url="https://gmail.com" class="quick-link">
+                            <span class="material-symbols-outlined">mail</span>
+                            <span>Gmail</span>
+                        </a>
+                    </div>
+                </div>
+            `;
+            
+            // Handle quick link clicks
+            startPage.addEventListener('click', (e) => {
+                const link = e.target.closest('[data-url]');
+                if (link) {
+                    e.preventDefault();
+                    this.navigateTab(tabData.id, link.dataset.url);
+                }
+            });
+            
+            container.appendChild(startPage);
+            tabData.webview = startPage;
+        } else {
+            // Create actual webview
+            const webview = document.createElement('webview');
+            webview.className = 'browser-webview';
+            webview.dataset.tabId = tabData.id;
+            webview.style.display = 'none';
+            webview.src = tabData.url;
+            
+            this.setupWebviewListeners(webview, tabData);
+            
+            container.appendChild(webview);
+            tabData.webview = webview;
+        }
+    }
+    
+    /**
+     * Set up webview event listeners
+     */
+    setupWebviewListeners(webview, tabData) {
+        webview.addEventListener('dom-ready', () => {
+            tabData.isLoading = false;
+            this.updateTabLoadingState(tabData.id);
+            this.updateNavigationButtons();
+        });
+        
+        webview.addEventListener('did-start-loading', () => {
+            tabData.isLoading = true;
+            this.updateTabLoadingState(tabData.id);
+        });
+        
+        webview.addEventListener('did-stop-loading', () => {
+            tabData.isLoading = false;
+            this.updateTabLoadingState(tabData.id);
+            this.updateNavigationButtons();
+        });
+        
+        webview.addEventListener('page-title-updated', (e) => {
+            tabData.title = e.title || 'Untitled';
+            this.updateTabTitle(tabData.id, tabData.title);
+            
+            // Update window title if this is the active tab
+            if (tabData.id === this.activeTabId) {
+                window.windowManager.setWindowTitle(this.windowId, `${tabData.title} - Nebula Browser`);
             }
         });
         
-        windowEl.querySelector('.window-button.close').addEventListener('click', () => {
-            if (confirm('Close browser?')) {
-                windowEl.remove();
+        webview.addEventListener('page-favicon-updated', (e) => {
+            if (e.favicons && e.favicons.length > 0) {
+                const favicon = document.createElement('img');
+                favicon.src = e.favicons[0];
+                favicon.style.width = '16px';
+                favicon.style.height = '16px';
+                favicon.style.borderRadius = '2px';
+                tabData.favicon = favicon.outerHTML;
+            } else {
+                tabData.favicon = '🌐';
             }
+            this.updateTabFavicon(tabData.id, tabData.favicon);
+        });
+        
+        webview.addEventListener('did-navigate', (e) => {
+            tabData.url = e.url;
+            this.updateTabUrl(tabData.id, e.url);
+            this.updateUrlBar(e.url);
+            this.updateNavigationButtons();
+        });
+        
+        webview.addEventListener('new-window', (e) => {
+            // Open new windows in new tabs
+            this.createTab(e.url);
         });
     }
     
-    setupWindowDragging(windowEl) {
-        const titlebar = windowEl.querySelector('.window-titlebar');
-        let isDragging = false;
-        let initialX, initialY;
+    /**
+     * Switch to a specific tab
+     */
+    switchToTab(tabId) {
+        const tabData = this.tabs.get(tabId);
+        if (!tabData) return;
         
-        titlebar.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.window-controls')) return;
-            isDragging = true;
-            initialX = e.clientX - windowEl.offsetLeft;
-            initialY = e.clientY - windowEl.offsetTop;
-            windowEl.style.cursor = 'grabbing';
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            windowEl.style.left = (e.clientX - initialX) + 'px';
-            windowEl.style.top = (e.clientY - initialY) + 'px';
-        });
-        
-        document.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                windowEl.style.cursor = 'default';
+        // Hide all webviews using CSS classes instead of inline styles
+        this.tabs.forEach((tab) => {
+            if (tab.webview) {
+                tab.webview.classList.add('webview-hidden');
+                tab.webview.classList.remove('webview-visible');
+            }
+            if (tab.element) {
+                tab.element.classList.remove('active');
             }
         });
+        
+        // Show active webview using CSS classes
+        if (tabData.webview) {
+            tabData.webview.classList.remove('webview-hidden');
+            tabData.webview.classList.add('webview-visible');
+        }
+        
+        // Update active tab
+        if (tabData.element) {
+            tabData.element.classList.add('active');
+        }
+        
+        this.activeTabId = tabId;
+        
+        // Update URL bar and navigation
+        this.updateUrlBar(tabData.url);
+        this.updateNavigationButtons();
+        
+        // Update window title
+        window.windowManager.setWindowTitle(this.windowId, `${tabData.title} - Nebula Browser`);
+    }
+    
+    /**
+     * Navigate a specific tab to a URL
+     */
+    navigateTab(tabId, url) {
+        const tabData = this.tabs.get(tabId);
+        if (!tabData) return;
+        
+        // Normalize URL
+        if (!url.startsWith('http://') && !url.startsWith('https://') && url !== 'about:blank') {
+            if (url.includes('.') && !url.includes(' ')) {
+                url = 'https://' + url;
+            } else {
+                url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+            }
+        }
+        
+        tabData.url = url;
+        
+        // If this is a start page, replace it with a webview
+        if (tabData.webview && tabData.webview.classList.contains('start-page')) {
+            const container = document.querySelector('#webviewContainer');
+            tabData.webview.remove();
+            
+            const webview = document.createElement('webview');
+            webview.className = 'browser-webview';
+            webview.dataset.tabId = tabData.id;
+            // Use CSS classes instead of inline styles
+            if (tabData.id === this.activeTabId) {
+                webview.classList.add('webview-visible');
+            } else {
+                webview.classList.add('webview-hidden');
+            }
+            webview.src = url;
+            
+            this.setupWebviewListeners(webview, tabData);
+            container.appendChild(webview);
+            tabData.webview = webview;
+        } else if (tabData.webview && tabData.webview.tagName === 'WEBVIEW') {
+            tabData.webview.src = url;
+        }
+        
+        this.updateTabUrl(tabId, url);
+        this.updateUrlBar(url);
+    }
+    
+    /**
+     * Navigate the active tab
+     */
+    navigate(url) {
+        if (this.activeTabId) {
+            this.navigateTab(this.activeTabId, url);
+        }
+    }
+    
+    /**
+     * Close a tab
+     */
+    closeTab(tabId) {
+        const tabData = this.tabs.get(tabId);
+        if (!tabData) return;
+        
+        // Don't close the last tab
+        if (this.tabs.size === 1) {
+            this.navigateTab(tabId, 'about:blank');
+            return;
+        }
+        
+        // Remove webview
+        if (tabData.webview) {
+            tabData.webview.remove();
+        }
+        
+        // Remove tab element
+        if (tabData.element) {
+            tabData.element.remove();
+        }
+        
+        // Remove from tabs map
+        this.tabs.delete(tabId);
+        
+        // If this was the active tab, switch to another
+        if (this.activeTabId === tabId) {
+            const remainingTabs = Array.from(this.tabs.keys());
+            if (remainingTabs.length > 0) {
+                this.switchToTab(remainingTabs[0]);
+            }
+        }
+    }
+    
+    /**
+     * Navigation methods
+     */
+    goBack() {
+        const tabData = this.tabs.get(this.activeTabId);
+        if (tabData && tabData.webview && tabData.webview.tagName === 'WEBVIEW' && tabData.webview.canGoBack) {
+            tabData.webview.goBack();
+        }
+    }
+    
+    goForward() {
+        const tabData = this.tabs.get(this.activeTabId);
+        if (tabData && tabData.webview && tabData.webview.tagName === 'WEBVIEW' && tabData.webview.canGoForward) {
+            tabData.webview.goForward();
+        }
+    }
+    
+    refresh() {
+        const tabData = this.tabs.get(this.activeTabId);
+        if (tabData && tabData.webview) {
+            if (tabData.webview.tagName === 'WEBVIEW' && tabData.webview.reload) {
+                tabData.webview.reload();
+            } else {
+                // For start page, just refresh the content
+                this.navigateTab(this.activeTabId, tabData.url);
+            }
+        }
+    }
+    
+    /**
+     * Update UI elements
+     */
+    updateTabTitle(tabId, title) {
+        const tabData = this.tabs.get(tabId);
+        if (tabData && tabData.element) {
+            // Update tooltip for square tabs
+            this.updateTabTooltip(tabId, title);
+        }
+    }
+    
+    updateTabTooltip(tabId, title) {
+        const tabData = this.tabs.get(tabId);
+        if (tabData && tabData.element) {
+            const url = this.formatUrl(tabData.url);
+            const tooltip = title + (url !== 'New Tab' ? `\n${url}` : '');
+            tabData.element.title = tooltip;
+        }
+    }
+    
+    updateTabUrl(tabId, url) {
+        const tabData = this.tabs.get(tabId);
+        if (tabData && tabData.element) {
+            // Update tooltip with new URL
+            this.updateTabTooltip(tabId, tabData.title);
+        }
+    }
+    
+    updateTabFavicon(tabId, favicon) {
+        const tabData = this.tabs.get(tabId);
+        if (tabData && tabData.element) {
+            const faviconElement = tabData.element.querySelector('.tab-favicon-large');
+            if (faviconElement) {
+                faviconElement.innerHTML = favicon;
+            }
+        }
+    }
+    
+    updateTabLoadingState(tabId) {
+        const tabData = this.tabs.get(tabId);
+        if (tabData && tabData.element) {
+            const indicator = tabData.element.querySelector('.tab-loading-indicator');
+            if (indicator) {
+                indicator.classList.toggle('loading', tabData.isLoading);
+            }
+        }
+    }
+    
+    updateUrlBar(url) {
+        const urlBar = document.querySelector('#urlBar');
+        if (urlBar && document.activeElement !== urlBar) {
+            urlBar.value = url === 'about:blank' ? '' : url;
+        }
+    }
+    
+    /**
+     * Utility methods
+     */
+    formatUrl(url) {
+        if (url === 'about:blank') return 'New Tab';
+        try {
+            const urlObj = new URL(url);
+            return urlObj.hostname;
+        } catch {
+            return url.length > 30 ? url.substring(0, 30) + '...' : url;
+        }
+    }
+    
+    /**
+     * App interface methods
+     */
+    getTitle() {
+        const activeTab = this.tabs.get(this.activeTabId);
+        return activeTab ? `${activeTab.title} - Nebula Browser` : 'Nebula Browser';
+    }
+    
+    getIcon() {
+        return '🌐';
+    }
+    
+    cleanup() {
+        this.tabs.forEach((tabData) => {
+            if (tabData.webview) {
+                tabData.webview.remove();
+            }
+        });
+        this.tabs.clear();
+        console.log('Browser cleaned up');
     }
 }
 
-// Export for use in other files
+// Make NebulaBrowser available globally
 window.NebulaBrowser = NebulaBrowser;

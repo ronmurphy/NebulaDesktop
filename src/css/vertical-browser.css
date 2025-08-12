@@ -1,0 +1,584 @@
+/* Vertical Browser Styling - Using Nebula Theme Variables */
+
+.vertical-browser-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    background: var(--nebula-bg-primary);
+    overflow: hidden;
+}
+
+/* Browser Sidebar with Square Tabs */
+.browser-sidebar {
+    width: 144px; /* 64px * 2 + 16px gap */
+    background: var(--nebula-surface);
+    border-right: 1px solid var(--nebula-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: var(--nebula-transition);
+}
+
+.browser-sidebar.collapsed {
+    width: 0;
+    border-right: none;
+}
+
+/* Tab Grid - 2 columns of 64x64px squares */
+.tab-grid {
+    flex: 1;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(2, 64px);
+    gap: 8px;
+    justify-content: center;
+    align-content: start;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--nebula-surface-hover) transparent;
+}
+
+.tab-grid::-webkit-scrollbar {
+    width: 4px;
+}
+
+.tab-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tab-grid::-webkit-scrollbar-thumb {
+    background: var(--nebula-surface-hover);
+    border-radius: 2px;
+}
+
+/* Individual Tab Square (64x64px) */
+.tab-square {
+    width: 64px;
+    height: 64px;
+    background: var(--nebula-bg-secondary);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-md);
+    cursor: pointer;
+    transition: var(--nebula-transition-fast);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.tab-square:hover {
+    background: var(--nebula-surface-hover);
+    border-color: var(--nebula-border-hover);
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+    z-index: 10;
+}
+
+.tab-square.active {
+    background: var(--nebula-surface-elevated);
+    border-color: var(--nebula-primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+    transform: scale(1.08);
+    z-index: 10;
+}
+
+.tab-square.active::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary));
+    border-radius: var(--nebula-radius-md);
+    z-index: -1;
+}
+
+/* Large Favicon for Squares */
+.tab-favicon-large {
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--nebula-radius-sm);
+}
+
+.tab-favicon-large img {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--nebula-radius-sm);
+}
+
+/* Square Tab Close Button */
+.tab-square .tab-close-btn {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: var(--nebula-danger);
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: var(--nebula-transition-fast);
+    z-index: 20;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tab-square .tab-close-btn .material-symbols-outlined {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.tab-square:hover .tab-close-btn {
+    opacity: 1;
+}
+
+.tab-square .tab-close-btn:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+}
+
+/* Square Tab Loading Indicator */
+.tab-square .tab-loading-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: transparent;
+    overflow: hidden;
+    border-radius: 0 0 var(--nebula-radius-md) var(--nebula-radius-md);
+}
+
+.tab-square .tab-loading-indicator.loading::before {
+    content: '';
+    position: absolute;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        var(--nebula-primary), 
+        transparent
+    );
+    animation: loadingProgress 1.5s infinite;
+}
+
+/* Sidebar Controls */
+.sidebar-controls {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* New Tab Button - Square */
+.new-tab-btn {
+    width: 64px;
+    height: 32px;
+    background: var(--nebula-surface-hover);
+    border: 1px dashed var(--nebula-border);
+    color: var(--nebula-primary);
+    border-radius: var(--nebula-radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition);
+    margin: 0 auto;
+}
+
+.new-tab-btn:hover {
+    background: var(--nebula-surface-active);
+    border-color: var(--nebula-primary);
+    color: var(--nebula-secondary);
+    transform: scale(1.05);
+}
+
+.new-tab-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* Toggle Tabs Button in Toolbar */
+.toggle-tabs-btn {
+    background: var(--nebula-bg-secondary) !important;
+    border-color: var(--nebula-border) !important;
+    color: var(--nebula-text-secondary) !important;
+}
+
+.toggle-tabs-btn:hover {
+    background: var(--nebula-surface-hover) !important;
+    color: var(--nebula-text-primary) !important;
+    border-color: var(--nebula-border-hover) !important;
+}
+
+.toggle-tabs-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
+/* Browser Main Area */
+.browser-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--nebula-bg-primary);
+    min-width: 0;
+}
+
+/* Browser Toolbar */
+.browser-toolbar {
+    height: 52px;
+    background: var(--nebula-surface);
+    border-bottom: 1px solid var(--nebula-border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Navigation Buttons */
+.nav-btn {
+    width: 40px;
+    height: 36px;
+    border: 1px solid var(--nebula-border);
+    background: var(--nebula-bg-secondary);
+    color: var(--nebula-text-primary);
+    border-radius: var(--nebula-radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition-fast);
+    flex-shrink: 0;
+}
+
+.nav-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: var(--nebula-primary);
+    color: white;
+    border-color: var(--nebula-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.nav-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--nebula-bg-secondary);
+    color: var(--nebula-text-muted);
+}
+
+/* Go Button Special Styling */
+.go-btn {
+    background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary)) !important;
+    color: white !important;
+    border-color: transparent !important;
+    width: 50px !important;
+}
+
+.go-btn:hover {
+    background: linear-gradient(135deg, var(--nebula-secondary), var(--nebula-primary)) !important;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* URL Bar */
+.url-bar {
+    flex: 1;
+    height: 36px;
+    padding: 0 16px;
+    background: var(--nebula-bg-primary);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    border-radius: var(--nebula-radius-md);
+    font-size: 14px;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    transition: var(--nebula-transition-fast);
+    outline: none;
+    min-width: 200px;
+}
+
+.url-bar:focus {
+    border-color: var(--nebula-primary);
+    background: var(--nebula-bg-secondary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.url-bar::placeholder {
+    color: var(--nebula-text-muted);
+    font-style: italic;
+}
+
+/* Webview Container - Fixed to use full space */
+.webview-container {
+    flex: 1;
+    position: relative;
+    background: var(--nebula-bg-primary);
+    overflow: hidden;
+    display: flex; /* This fixes the display issue! */
+    flex-direction: column;
+}
+
+/* Browser Webview */
+.browser-webview {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+    flex: 1; /* Take full available space */
+}
+
+/* Webview Visibility Control - Using CSS classes instead of inline styles */
+.webview-hidden {
+    display: none !important;
+}
+
+.webview-visible {
+    display: flex !important; /* Use flex for proper layout */
+    flex-direction: column !important;
+}
+
+/* Start Page */
+.start-page {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, 
+        var(--nebula-bg-primary) 0%, 
+        var(--nebula-bg-secondary) 100%);
+    overflow-y: auto;
+    flex: 1; /* Take full available space */
+}
+
+.start-page-content {
+    max-width: 800px;
+    padding: 40px;
+    text-align: center;
+}
+
+.start-page-header {
+    margin-bottom: 48px;
+}
+
+.start-page-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--nebula-text-primary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.start-page-header h1 .material-symbols-outlined {
+    font-size: 2.5rem;
+    background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+.start-page-header p {
+    font-size: 1.2rem;
+    color: var(--nebula-text-secondary);
+    font-weight: 400;
+}
+
+/* Quick Links Grid */
+.quick-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.quick-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 16px;
+    background: var(--nebula-surface);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-lg);
+    color: var(--nebula-text-primary);
+    text-decoration: none;
+    transition: var(--nebula-transition);
+    cursor: pointer;
+}
+
+.quick-link:hover {
+    background: var(--nebula-surface-hover);
+    border-color: var(--nebula-primary);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+}
+
+.quick-link .material-symbols-outlined {
+    font-size: 32px;
+    color: var(--nebula-primary);
+}
+
+.quick-link span:last-child {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Animations */
+@keyframes loadingProgress {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .browser-sidebar {
+        width: 80px; /* Single column on smaller screens */
+    }
+    
+    .tab-grid {
+        grid-template-columns: 64px; /* Single column */
+        justify-content: center;
+    }
+    
+    .new-tab-btn {
+        width: 56px;
+    }
+}
+
+@media (max-width: 768px) {
+    .browser-sidebar {
+        width: 72px;
+    }
+    
+    .tab-square {
+        width: 56px;
+        height: 56px;
+    }
+    
+    .tab-grid {
+        grid-template-columns: 56px;
+        gap: 6px;
+    }
+    
+    .tab-favicon-large {
+        font-size: 20px;
+        width: 28px;
+        height: 28px;
+    }
+    
+    .new-tab-btn {
+        width: 56px;
+        height: 28px;
+    }
+    
+    .browser-toolbar {
+        padding: 0 12px;
+        gap: 6px;
+    }
+    
+    .nav-btn {
+        width: 36px;
+        height: 32px;
+    }
+    
+    .nav-btn .material-symbols-outlined {
+        font-size: 16px;
+    }
+    
+    .url-bar {
+        height: 32px;
+        font-size: 13px;
+        min-width: 150px;
+    }
+    
+    .quick-links {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+    
+    .quick-link {
+        padding: 20px 12px;
+    }
+}
+
+/* Dark Theme Adjustments */
+[data-theme="dark"] .browser-webview {
+    background: #1a1a1a;
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .vertical-tab,
+    .nav-btn,
+    .url-bar {
+        border-width: 2px;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    .tab-square,
+    .nav-btn,
+    .quick-link,
+    .new-tab-btn,
+    .toggle-tabs-btn,
+    .browser-sidebar {
+        transition: none;
+        transform: none !important;
+    }
+    
+    .tab-square:hover,
+    .tab-square.active {
+        transform: none !important;
+    }
+    
+    .tab-loading-indicator.loading::before {
+        animation: none;
+    }
+}
+
+/* Focus Management */
+.nav-btn:focus,
+.url-bar:focus,
+.new-tab-btn:focus,
+.toggle-tabs-btn:focus,
+.tab-square:focus {
+    outline: 2px solid var(--nebula-primary);
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .browser-sidebar,
+    .browser-toolbar {
+        display: none;
+    }
+    
+    .browser-webview {
+        background: white !important;
+    }
+}

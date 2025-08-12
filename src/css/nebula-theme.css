@@ -210,7 +210,9 @@
 }
 
 /* Window control icons using Material Symbols */
-.window-controls .minimize::before {
+
+/* not used, was causing duplicate min max close icons */
+/* .window-controls .minimize::before {
   content: "minimize";
 }
 
@@ -220,7 +222,7 @@
 
 .window-controls .close::before {
   content: "close";
-}
+} */
 
 /* Window Titlebar */
 .window-titlebar {

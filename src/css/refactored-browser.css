@@ -1,0 +1,338 @@
+/* Refactored Browser App Styles - Works with WindowManager */
+
+/* Browser App Container */
+.browser-app-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--nebula-bg-primary);
+}
+
+/* Browser Toolbar */
+.browser-toolbar {
+    height: 48px;
+    background: var(--nebula-surface);
+    border-bottom: 1px solid var(--nebula-border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Navigation Buttons */
+.nav-btn {
+    width: 36px;
+    height: 32px;
+    border: 1px solid var(--nebula-border);
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-primary);
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition-fast);
+    user-select: none;
+}
+
+.nav-btn:hover {
+    background: var(--nebula-primary);
+    color: white;
+    border-color: var(--nebula-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.nav-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(102, 126, 234, 0.3);
+}
+
+.nav-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-secondary);
+    border-color: var(--nebula-border);
+}
+
+.nav-btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* URL Bar */
+.url-bar {
+    flex: 1;
+    height: 32px;
+    padding: 0 12px;
+    background: var(--nebula-bg-secondary);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    border-radius: var(--nebula-radius-sm);
+    font-size: 14px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace, system-ui;
+    transition: var(--nebula-transition-fast);
+    outline: none;
+}
+
+.url-bar:focus {
+    border-color: var(--nebula-primary);
+    background: var(--nebula-bg-primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.url-bar::placeholder {
+    color: var(--nebula-text-muted);
+    font-style: italic;
+}
+
+/* Go Button */
+.go-btn {
+    width: auto !important;
+    padding: 0 16px !important;
+    font-size: 14px !important;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary)) !important;
+    border-color: transparent !important;
+    color: white !important;
+}
+
+.go-btn:hover {
+    background: linear-gradient(135deg, var(--nebula-secondary), var(--nebula-primary)) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* Tab Content Area */
+.tab-content-area {
+    flex: 1;
+    position: relative;
+    background: var(--nebula-bg-primary);
+    overflow: hidden;
+}
+
+/* Individual Tab Content */
+.browser-tab-content {
+    width: 100%;
+    height: 100%;
+    background: var(--nebula-bg-primary);
+    overflow: hidden;
+}
+
+/* Webview Styling */
+.browser-webview {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+}
+
+/* Start Page Styling */
+.start-page {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, 
+        var(--nebula-bg-primary) 0%, 
+        var(--nebula-bg-secondary) 100%);
+    color: var(--nebula-text-primary);
+    text-align: center;
+    padding: 40px;
+}
+
+.start-page-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+.start-page-header p {
+    font-size: 1.1rem;
+    color: var(--nebula-text-secondary);
+    margin-bottom: 40px;
+}
+
+/* Quick Links Grid */
+.quick-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 20px;
+    max-width: 600px;
+    width: 100%;
+}
+
+.quick-links a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--nebula-surface);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-lg);
+    color: var(--nebula-text-primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: var(--nebula-transition);
+    cursor: pointer;
+}
+
+.quick-links a:hover {
+    background: var(--nebula-surface-hover);
+    border-color: var(--nebula-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+}
+
+.quick-links a:active {
+    transform: translateY(0);
+}
+
+/* Loading Animation */
+.browser-webview[src=""] {
+    background: var(--nebula-bg-secondary) url("data:image/svg+xml,%3csvg width='50' height='50' xmlns='http://www.w3.org/2000/svg'%3e%3cg%3e%3ccircle cx='25' cy='25' r='20' fill='none' stroke='%23667eea' stroke-width='3' stroke-linecap='round' stroke-dasharray='31.416' stroke-dashoffset='31.416'%3e%3canimateTransform attributeName='transform' dur='1s' type='rotate' values='0 25 25;360 25 25' repeatCount='indefinite'/%3e%3canimate attributeName='stroke-dasharray' dur='1s' values='0 31.416;15.708 15.708;0 31.416' repeatCount='indefinite'/%3e%3canimate attributeName='stroke-dashoffset' dur='1s' values='0;-15.708;-31.416' repeatCount='indefinite'/%3e%3c/circle%3e%3c/g%3e%3c/svg%3e") no-repeat center;
+    background-size: 50px;
+}
+
+/* Error Page Styling */
+.error-page {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--nebula-bg-primary);
+    color: var(--nebula-text-primary);
+    text-align: center;
+    padding: 40px;
+}
+
+.error-page h1 {
+    font-size: 2rem;
+    color: var(--nebula-danger);
+    margin-bottom: 16px;
+}
+
+.error-page p {
+    color: var(--nebula-text-secondary);
+    margin-bottom: 24px;
+    max-width: 400px;
+    line-height: 1.5;
+}
+
+.error-page button {
+    background: var(--nebula-primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--nebula-radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--nebula-transition);
+}
+
+.error-page button:hover {
+    background: var(--nebula-secondary);
+    transform: translateY(-1px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .browser-toolbar {
+        height: 44px;
+        padding: 0 8px;
+        gap: 6px;
+    }
+    
+    .nav-btn {
+        width: 32px;
+        height: 28px;
+        font-size: 14px;
+    }
+    
+    .url-bar {
+        height: 28px;
+        font-size: 12px;
+    }
+    
+    .start-page {
+        padding: 20px;
+    }
+    
+    .start-page-header h1 {
+        font-size: 2rem;
+    }
+    
+    .quick-links {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .quick-links a {
+        padding: 16px 12px;
+        font-size: 14px;
+    }
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .browser-webview {
+    background: #1a1a1a;
+}
+
+[data-theme="dark"] .start-page {
+    background: linear-gradient(135deg, 
+        var(--nebula-bg-primary) 0%, 
+        var(--nebula-bg-secondary) 100%);
+}
+
+/* Print styles */
+@media print {
+    .browser-toolbar {
+        display: none;
+    }
+    
+    .browser-webview {
+        background: white !important;
+    }
+}
+
+/* Focus management for accessibility */
+.nav-btn:focus,
+.url-bar:focus {
+    outline: 2px solid var(--nebula-primary);
+    outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .nav-btn,
+    .url-bar {
+        border-width: 2px;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .nav-btn,
+    .quick-links a,
+    .error-page button {
+        transition: none;
+    }
+    
+    .quick-links a:hover {
+        transform: none;
+    }
+}
