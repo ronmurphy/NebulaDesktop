@@ -23,7 +23,10 @@ class NebulaBrowser {
             title: 'Nebula Browser',
             width: 1200,
             height: 700,
-            hasTabBar: false // We'll create our own vertical tab system
+            hasTabBar: false, // We'll create our own vertical tab system
+            resizable: true, // Explicitly enable resizing
+            maximizable: true,
+            minimizable: true
         });
         
         // Load this browser app into the window

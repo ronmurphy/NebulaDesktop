@@ -24,12 +24,14 @@ class WindowManager {
             height: options.height || 600,
             x: options.x || this.calculateDefaultPosition().x,
             y: options.y || this.calculateDefaultPosition().y,
-            resizable: options.resizable !== false,
+            resizable: options.resizable !== false, // Default to true
             maximizable: options.maximizable !== false,
             minimizable: options.minimizable !== false,
             hasTabBar: options.hasTabBar || false, // For multi-tab apps like browser
             ...options
         };
+
+        console.log(`Creating window with config:`, config);
 
         // Create window DOM structure
         const windowElement = this.createWindowElement(windowId, config);
@@ -725,7 +727,12 @@ class WindowManager {
      */
     addResizeHandles(windowElement, windowId) {
         const windowData = this.windows.get(windowId);
-        if (!windowData || !windowData.config.resizable) return;
+        if (!windowData || !windowData.config.resizable) {
+            console.log(`Skipping resize handles for window ${windowId} - not resizable`);
+            return;
+        }
+
+        console.log(`Adding resize handles to window ${windowId}`);
 
         // Create resize handles
         const handles = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
@@ -734,9 +741,11 @@ class WindowManager {
             const handle = document.createElement('div');
             handle.className = `resize-handle resize-${direction}`;
             handle.dataset.direction = direction;
+            handle.title = `Resize ${direction.toUpperCase()}`; // Add tooltip for debugging
             windowElement.appendChild(handle);
 
             this.setupResizeHandle(handle, windowElement, windowId, direction);
+            console.log(`Created ${direction} resize handle`);
         });
     }
 
