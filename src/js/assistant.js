@@ -1,11 +1,28 @@
-// NebulaAssistant.js - AI Assistant Panel for Nebula Desktop
+// NebulaAssistant.js - Full Height AI Assistant Panel with Pin & Full View
 class NebulaAssistant {
     constructor() {
         this.panel = null;
         this.webview = null;
         this.isOpen = false;
-        this.currentAI = 'claude'; // Default AI service
+        this.isPinned = false;
+        this.isFullView = false;
+        this.currentAI = 'claude';
         this.isLoading = false;
+        
+        // Configuration
+        this.config = {
+            isPinned: false,
+            isFullView: false,
+            fullViewSize: '33', // Default to 33% width
+            currentAI: 'claude'
+        };
+        
+        // Full view size options
+        this.fullViewSizes = {
+            '25': { class: 'full-view-25', label: '25%', width: '25vw' },
+            '33': { class: 'full-view-33', label: '33%', width: '33.333vw' },
+            '50': { class: 'full-view-50', label: '50%', width: '50vw' }
+        };
         
         // AI Services configuration
         this.aiServices = {
@@ -21,7 +38,7 @@ class NebulaAssistant {
             },
             manus: {
                 name: 'Manus',
-                url: 'https://manus.chat',
+                url: 'https://manus.im',
                 icon: '🤖'
             },
             perplexity: {
@@ -40,15 +57,16 @@ class NebulaAssistant {
     }
     
     /**
-     * Initialize the assistant - create button and panel
+     * Initialize the assistant
      */
     init() {
+        this.loadConfig();
         this.createAssistantButton();
         this.createAssistantPanel();
         this.setupEventListeners();
-        this.loadSavedAI();
+        this.applyConfig();
         
-        console.log('NebulaAssistant initialized');
+        console.log('NebulaAssistant initialized with full height design');
     }
     
     /**
@@ -70,7 +88,7 @@ class NebulaAssistant {
             <span class="material-symbols-outlined icon">smart_toy</span>
             <span>AI</span>
         `;
-        assistantButton.title = 'AI Assistant';
+        assistantButton.title = 'AI Assistant (Alt+A)';
         
         // Insert after the start button
         startButton.insertAdjacentElement('afterend', assistantButton);
@@ -79,18 +97,28 @@ class NebulaAssistant {
     }
     
     /**
-     * Create the assistant panel
+     * Create the full-height assistant panel
      */
     createAssistantPanel() {
         this.panel = document.createElement('div');
-        this.panel.className = 'assistant-panel hidden';
+        this.panel.className = 'assistant-panel';
         this.panel.id = 'assistantPanel';
         
         this.panel.innerHTML = `
             <div class="assistant-header">
-                <div class="assistant-title">
-                    <span class="material-symbols-outlined icon">smart_toy</span>
-                    AI Assistant
+                <div class="assistant-title-row">
+                    <div class="assistant-title">
+                        <span class="material-symbols-outlined icon">smart_toy</span>
+                        AI Assistant
+                    </div>
+                    <div class="assistant-controls">
+                        <button class="control-btn pin-btn" id="pinBtn" title="Pin panel">
+                            <span class="material-symbols-outlined">push_pin</span>
+                        </button>
+                        <button class="control-btn full-view-btn" id="fullViewBtn" title="Full view (33%)">
+                            <span class="material-symbols-outlined">open_in_full</span>
+                        </button>
+                    </div>
                 </div>
                 <select class="ai-selector" id="aiSelector">
                     ${Object.entries(this.aiServices).map(([key, service]) => `
@@ -110,18 +138,21 @@ class NebulaAssistant {
             <div class="assistant-footer">
                 <div class="status" id="assistantStatus">Ready</div>
                 <div class="controls">
-                    <button id="refreshAI" title="Refresh">
+                    <button class="footer-btn" id="refreshAI" title="Refresh">
                         <span class="material-symbols-outlined">refresh</span>
                     </button>
-                    <button id="newChat" title="New Chat">
+                    <button class="footer-btn" id="newChat" title="New Chat">
                         <span class="material-symbols-outlined">add</span>
+                    </button>
+                    <button class="footer-btn" id="settingsBtn" title="Settings">
+                        <span class="material-symbols-outlined">settings</span>
                     </button>
                 </div>
             </div>
         `;
         
         document.body.appendChild(this.panel);
-        console.log('Assistant panel created');
+        console.log('Full-height assistant panel created');
     }
     
     /**
@@ -132,6 +163,18 @@ class NebulaAssistant {
         const assistantBtn = document.getElementById('assistantBtn');
         assistantBtn?.addEventListener('click', () => {
             this.togglePanel();
+        });
+        
+        // Pin button
+        const pinBtn = document.getElementById('pinBtn');
+        pinBtn?.addEventListener('click', () => {
+            this.togglePin();
+        });
+        
+        // Full view button
+        const fullViewBtn = document.getElementById('fullViewBtn');
+        fullViewBtn?.addEventListener('click', () => {
+            this.toggleFullView();
         });
         
         // AI service selector
@@ -151,11 +194,18 @@ class NebulaAssistant {
             this.startNewChat();
         });
         
-        // Click outside to close panel
+        const settingsBtn = document.getElementById('settingsBtn');
+        settingsBtn?.addEventListener('click', () => {
+            this.showSettings();
+        });
+        
+        // Click outside to close panel (only if not pinned)
         document.addEventListener('click', (e) => {
+            if (this.isPinned) return; // Don't close if pinned
+            
             if (this.panel && !this.panel.contains(e.target) && 
                 !e.target.closest('#assistantBtn') && 
-                !this.panel.classList.contains('hidden')) {
+                this.isOpen) {
                 this.hidePanel();
             }
         });
@@ -168,9 +218,21 @@ class NebulaAssistant {
                 this.togglePanel();
             }
             
-            // Escape - Close panel
-            if (e.key === 'Escape' && this.isOpen) {
+            // Escape - Close panel (only if not pinned)
+            if (e.key === 'Escape' && this.isOpen && !this.isPinned) {
                 this.hidePanel();
+            }
+            
+            // Ctrl + Shift + P - Toggle Pin
+            if (e.ctrlKey && e.shiftKey && e.key === 'P' && this.isOpen) {
+                e.preventDefault();
+                this.togglePin();
+            }
+            
+            // Ctrl + Shift + F - Toggle Full View
+            if (e.ctrlKey && e.shiftKey && e.key === 'F' && this.isOpen) {
+                e.preventDefault();
+                this.toggleFullView();
             }
         });
         
@@ -194,23 +256,33 @@ class NebulaAssistant {
     showPanel() {
         if (!this.panel) return;
         
-        // Hide launcher if it's open
-        const launcher = document.querySelector('.launcher');
-        if (launcher && !launcher.classList.contains('hidden')) {
-            launcher.classList.add('hidden');
+        // Hide launcher if it's open (unless pinned)
+        if (!this.isPinned) {
+            const launcher = document.querySelector('.launcher');
+            if (launcher && !launcher.classList.contains('hidden')) {
+                launcher.classList.add('hidden');
+            }
         }
         
-        this.panel.classList.remove('hidden');
+        // Show panel
+        this.panel.classList.add('visible');
         this.isOpen = true;
+        
+        // Update button state
+        const assistantBtn = document.getElementById('assistantBtn');
+        if (assistantBtn) {
+            assistantBtn.classList.add('active');
+        }
+        
+        // Apply desktop adjustments if pinned
+        this.updateDesktopLayout();
         
         // Load webview if not already loaded
         if (!this.webview) {
             this.createWebview();
         }
         
-        // Update status
         this.updateStatus('Active');
-        
         console.log('Assistant panel shown');
     }
     
@@ -218,15 +290,110 @@ class NebulaAssistant {
      * Hide the assistant panel
      */
     hidePanel() {
-        if (!this.panel) return;
+        if (!this.panel || this.isPinned) return; // Can't hide if pinned
         
-        this.panel.classList.add('hidden');
+        this.panel.classList.remove('visible');
         this.isOpen = false;
         
-        // Update status
-        this.updateStatus('Ready');
+        // Update button state
+        const assistantBtn = document.getElementById('assistantBtn');
+        if (assistantBtn) {
+            assistantBtn.classList.remove('active');
+        }
         
+        // Remove desktop adjustments
+        this.updateDesktopLayout();
+        
+        this.updateStatus('Ready');
         console.log('Assistant panel hidden');
+    }
+    
+    /**
+     * Toggle pin state
+     */
+    togglePin() {
+        this.isPinned = !this.isPinned;
+        
+        // Update UI
+        const pinBtn = document.getElementById('pinBtn');
+        if (pinBtn) {
+            pinBtn.classList.toggle('active', this.isPinned);
+            pinBtn.title = this.isPinned ? 'Unpin panel' : 'Pin panel';
+        }
+        
+        // Update panel classes
+        this.panel.classList.toggle('pinned', this.isPinned);
+        
+        // Update desktop layout
+        this.updateDesktopLayout();
+        
+        // Save config
+        this.config.isPinned = this.isPinned;
+        this.saveConfig();
+        
+        this.updateStatus(this.isPinned ? 'Pinned' : 'Active');
+        console.log(`Assistant panel ${this.isPinned ? 'pinned' : 'unpinned'}`);
+    }
+    
+    /**
+     * Toggle full view mode
+     */
+    toggleFullView() {
+        this.isFullView = !this.isFullView;
+        
+        // Update UI
+        const fullViewBtn = document.getElementById('fullViewBtn');
+        if (fullViewBtn) {
+            fullViewBtn.classList.toggle('active', this.isFullView);
+            const sizeInfo = this.fullViewSizes[this.config.fullViewSize];
+            fullViewBtn.title = this.isFullView ? 
+                `Normal view` : 
+                `Full view (${sizeInfo.label})`;
+        }
+        
+        // Apply/remove full view class
+        Object.values(this.fullViewSizes).forEach(size => {
+            this.panel.classList.remove(size.class);
+        });
+        
+        if (this.isFullView) {
+            const sizeClass = this.fullViewSizes[this.config.fullViewSize].class;
+            this.panel.classList.add(sizeClass);
+        }
+        
+        // Update desktop layout
+        this.updateDesktopLayout();
+        
+        // Save config
+        this.config.isFullView = this.isFullView;
+        this.saveConfig();
+        
+        console.log(`Assistant panel ${this.isFullView ? 'expanded' : 'normal'} view`);
+    }
+    
+    /**
+     * Update desktop and taskbar layout based on panel state
+     */
+    updateDesktopLayout() {
+        const desktop = document.querySelector('.desktop');
+        const taskbar = document.querySelector('.taskbar');
+        
+        if (!desktop || !taskbar) return;
+        
+        // Remove all classes first
+        desktop.classList.remove('assistant-open', 'pinned', 'full-view-25', 'full-view-33', 'full-view-50');
+        taskbar.classList.remove('assistant-pinned', 'full-view-25', 'full-view-33', 'full-view-50');
+        
+        if (this.isOpen && this.isPinned) {
+            desktop.classList.add('assistant-open', 'pinned');
+            taskbar.classList.add('assistant-pinned');
+            
+            if (this.isFullView) {
+                const sizeClass = this.fullViewSizes[this.config.fullViewSize].class;
+                desktop.classList.add(sizeClass);
+                taskbar.classList.add(sizeClass);
+            }
+        }
     }
     
     /**
@@ -239,10 +406,7 @@ class NebulaAssistant {
         if (!content) return;
         
         // Show loading
-        if (loading) {
-            loading.style.display = 'block';
-        }
-        this.isLoading = true;
+        this.showLoading();
         
         // Remove existing webview
         if (this.webview) {
@@ -299,11 +463,11 @@ class NebulaAssistant {
             console.log('Page title updated:', e.title);
         });
         
-        // Handle new windows (open in external browser)
+        // Handle new windows
         this.webview.addEventListener('new-window', (e) => {
             e.preventDefault();
-            // Could open in Nebula browser or external browser
             console.log('New window requested:', e.url);
+            // Could integrate with Nebula browser here
         });
     }
     
@@ -317,7 +481,8 @@ class NebulaAssistant {
         }
         
         this.currentAI = aiKey;
-        this.saveAIPreference();
+        this.config.currentAI = aiKey;
+        this.saveConfig();
         
         // Recreate webview with new service
         if (this.isOpen) {
@@ -328,6 +493,110 @@ class NebulaAssistant {
     }
     
     /**
+     * Show settings modal (placeholder for now)
+     */
+    showSettings() {
+        // Create a simple settings modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: var(--nebula-surface);
+                border: 1px solid var(--nebula-border);
+                border-radius: var(--nebula-radius-lg);
+                padding: 24px;
+                max-width: 400px;
+                width: 90%;
+                color: var(--nebula-text-primary);
+            ">
+                <h3 style="margin-bottom: 16px;">AI Assistant Settings</h3>
+                
+                <label style="display: block; margin-bottom: 12px;">
+                    Full View Size:
+                    <select id="fullViewSizeSelect" style="
+                        width: 100%;
+                        padding: 8px;
+                        margin-top: 4px;
+                        background: var(--nebula-bg-secondary);
+                        border: 1px solid var(--nebula-border);
+                        color: var(--nebula-text-primary);
+                        border-radius: 4px;
+                    ">
+                        ${Object.entries(this.fullViewSizes).map(([key, size]) => `
+                            <option value="${key}" ${key === this.config.fullViewSize ? 'selected' : ''}>
+                                ${size.label} width
+                            </option>
+                        `).join('')}
+                    </select>
+                </label>
+                
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                    <button id="cancelSettings" style="
+                        padding: 8px 16px;
+                        background: var(--nebula-surface-hover);
+                        border: 1px solid var(--nebula-border);
+                        color: var(--nebula-text-primary);
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Cancel</button>
+                    <button id="saveSettings" style="
+                        padding: 8px 16px;
+                        background: var(--nebula-primary);
+                        border: none;
+                        color: white;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Save</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Event handlers
+        modal.querySelector('#cancelSettings').onclick = () => modal.remove();
+        modal.querySelector('#saveSettings').onclick = () => {
+            const newSize = modal.querySelector('#fullViewSizeSelect').value;
+            this.config.fullViewSize = newSize;
+            this.saveConfig();
+            
+            // Update full view button tooltip
+            const fullViewBtn = document.getElementById('fullViewBtn');
+            if (fullViewBtn && !this.isFullView) {
+                const sizeInfo = this.fullViewSizes[newSize];
+                fullViewBtn.title = `Full view (${sizeInfo.label})`;
+            }
+            
+            // If currently in full view, update the class
+            if (this.isFullView) {
+                Object.values(this.fullViewSizes).forEach(size => {
+                    this.panel.classList.remove(size.class);
+                });
+                const sizeClass = this.fullViewSizes[newSize].class;
+                this.panel.classList.add(sizeClass);
+                this.updateDesktopLayout();
+            }
+            
+            modal.remove();
+            console.log(`Full view size changed to ${newSize}%`);
+        };
+        
+        // Close on background click
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+    }
+    
+    /**
      * Refresh the current webview
      */
     refreshWebview() {
@@ -335,37 +604,29 @@ class NebulaAssistant {
             this.webview.reload();
             this.updateStatus('Refreshing...');
         } else if (this.webview) {
-            // Fallback: recreate webview
             this.createWebview();
         }
     }
     
     /**
-     * Start a new chat (refresh the page)
+     * Start a new chat
      */
     startNewChat() {
         this.refreshWebview();
     }
     
     /**
-     * Show loading state
+     * Show/hide loading state
      */
     showLoading() {
         const loading = document.getElementById('assistantLoading');
-        if (loading) {
-            loading.style.display = 'block';
-        }
+        if (loading) loading.style.display = 'block';
         this.isLoading = true;
     }
     
-    /**
-     * Hide loading state
-     */
     hideLoading() {
         const loading = document.getElementById('assistantLoading');
-        if (loading) {
-            loading.style.display = 'none';
-        }
+        if (loading) loading.style.display = 'none';
         this.isLoading = false;
     }
     
@@ -380,33 +641,64 @@ class NebulaAssistant {
     }
     
     /**
-     * Save AI preference to localStorage
+     * Load configuration from localStorage
      */
-    saveAIPreference() {
+    loadConfig() {
         try {
-            localStorage.setItem('nebula-ai-service', this.currentAI);
+            const saved = localStorage.getItem('nebula-assistant-config');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                this.config = { ...this.config, ...parsed };
+                this.isPinned = this.config.isPinned;
+                this.isFullView = this.config.isFullView;
+                this.currentAI = this.config.currentAI;
+            }
         } catch (error) {
-            console.warn('Could not save AI preference:', error);
+            console.warn('Could not load assistant config:', error);
         }
     }
     
     /**
-     * Load saved AI preference
+     * Save configuration to localStorage
      */
-    loadSavedAI() {
+    saveConfig() {
         try {
-            const saved = localStorage.getItem('nebula-ai-service');
-            if (saved && this.aiServices[saved]) {
-                this.currentAI = saved;
-                
-                // Update selector
-                const selector = document.getElementById('aiSelector');
-                if (selector) {
-                    selector.value = saved;
-                }
-            }
+            localStorage.setItem('nebula-assistant-config', JSON.stringify(this.config));
         } catch (error) {
-            console.warn('Could not load AI preference:', error);
+            console.warn('Could not save assistant config:', error);
+        }
+    }
+    
+    /**
+     * Apply loaded configuration
+     */
+    applyConfig() {
+        // Apply pin state
+        if (this.isPinned) {
+            const pinBtn = document.getElementById('pinBtn');
+            if (pinBtn) {
+                pinBtn.classList.add('active');
+                pinBtn.title = 'Unpin panel';
+            }
+            this.panel.classList.add('pinned');
+        }
+        
+        // Apply full view state
+        if (this.isFullView) {
+            const fullViewBtn = document.getElementById('fullViewBtn');
+            if (fullViewBtn) {
+                fullViewBtn.classList.add('active');
+                fullViewBtn.title = 'Normal view';
+            }
+            
+            const sizeClass = this.fullViewSizes[this.config.fullViewSize].class;
+            this.panel.classList.add(sizeClass);
+        }
+        
+        // Update AI selector
+        const aiSelector = document.getElementById('aiSelector');
+        if (aiSelector) {
+            aiSelector.value = this.currentAI;
         }
     }
     
@@ -414,14 +706,34 @@ class NebulaAssistant {
      * Clean up resources
      */
     destroy() {
+        // Remove desktop layout classes
+        const desktop = document.querySelector('.desktop');
+        const taskbar = document.querySelector('.taskbar');
+        
+        if (desktop) {
+            desktop.classList.remove('assistant-open', 'pinned', 'full-view-25', 'full-view-33', 'full-view-50');
+        }
+        
+        if (taskbar) {
+            taskbar.classList.remove('assistant-pinned', 'full-view-25', 'full-view-33', 'full-view-50');
+        }
+        
+        // Remove webview
         if (this.webview) {
             this.webview.remove();
             this.webview = null;
         }
         
+        // Remove panel
         if (this.panel) {
             this.panel.remove();
             this.panel = null;
+        }
+        
+        // Remove button
+        const assistantBtn = document.getElementById('assistantBtn');
+        if (assistantBtn) {
+            assistantBtn.remove();
         }
         
         console.log('NebulaAssistant destroyed');

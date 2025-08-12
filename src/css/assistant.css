@@ -1,4 +1,4 @@
-/* AI Assistant Panel - Uses Nebula Theme Variables */
+/* AI Assistant Panel - Full Height with Pin & Full View - Uses Nebula Theme Variables */
 
 /* Assistant Button in Taskbar */
 .assistant-button {
@@ -22,32 +22,54 @@
     box-shadow: var(--nebula-shadow-md);
 }
 
+.assistant-button.active {
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    transform: none;
+}
+
 .assistant-button .icon {
     font-size: 18px;
 }
 
-/* Assistant Panel */
+/* Assistant Panel - Full Height */
 .assistant-panel {
     position: fixed;
-    bottom: 60px;
-    left: 24px;
-    width: 420px;
-    height: 600px;
+    top: 0;
+    left: 0;
+    width: 420px; /* Default width */
+    height: calc(100vh - 50px); /* Full height minus taskbar */
     background: var(--nebula-bg-primary);
-    border: 1px solid var(--nebula-border);
-    border-radius: var(--nebula-radius-lg);
+    border-right: 1px solid var(--nebula-border);
     box-shadow: var(--nebula-shadow-lg);
     z-index: 1000;
     transition: var(--nebula-transition);
     display: flex;
     flex-direction: column;
+    transform: translateX(-100%); /* Start hidden off-screen */
 }
 
-.assistant-panel.hidden {
-    opacity: 0;
-    transform: translateY(20px);
-    pointer-events: none;
-    visibility: hidden;
+.assistant-panel.visible {
+    transform: translateX(0); /* Slide in */
+}
+
+.assistant-panel.pinned {
+    z-index: 999; /* Lower than modals but persistent */
+}
+
+/* Full View Widths */
+.assistant-panel.full-view-25 {
+    width: 25vw;
+    min-width: 400px;
+}
+
+.assistant-panel.full-view-33 {
+    width: 33.333vw;
+    min-width: 400px;
+}
+
+.assistant-panel.full-view-50 {
+    width: 50vw;
+    min-width: 400px;
 }
 
 /* Assistant Header */
@@ -55,17 +77,24 @@
     padding: 16px;
     border-bottom: 1px solid var(--nebula-border);
     background: var(--nebula-surface);
-    border-radius: var(--nebula-radius-lg) var(--nebula-radius-lg) 0 0;
+    flex-shrink: 0;
+}
+
+.assistant-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
 }
 
 .assistant-title {
     font-size: 18px;
     font-weight: 700;
     color: var(--nebula-text-primary);
-    margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 1;
 }
 
 .assistant-title .icon {
@@ -75,6 +104,51 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
+}
+
+/* Header Control Buttons */
+.assistant-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.control-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-secondary);
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition-fast);
+    font-size: 14px;
+}
+
+.control-btn:hover {
+    background: var(--nebula-surface-active);
+    color: var(--nebula-text-primary);
+}
+
+.control-btn.active {
+    background: var(--nebula-primary);
+    color: white;
+}
+
+.control-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* Pin button specific styling */
+.pin-btn.active {
+    background: var(--nebula-success);
+    color: white;
+}
+
+.pin-btn.active .material-symbols-outlined {
+    transform: rotate(45deg);
 }
 
 /* AI Service Selector */
@@ -103,13 +177,13 @@
     background: var(--nebula-surface-hover);
 }
 
-/* Webview Container */
+/* Webview Container - Takes up remaining space */
 .assistant-content {
     flex: 1;
     position: relative;
     overflow: hidden;
     background: var(--nebula-bg-primary);
-    border-radius: 0 0 var(--nebula-radius-lg) var(--nebula-radius-lg);
+    min-height: 0; /* Important for flexbox */
 }
 
 .assistant-webview {
@@ -117,7 +191,6 @@
     height: 100%;
     border: none;
     background: var(--nebula-bg-primary);
-    border-radius: 0 0 var(--nebula-radius-lg) var(--nebula-radius-lg);
 }
 
 /* Loading State */
@@ -143,20 +216,21 @@
     to { transform: rotate(360deg); }
 }
 
-/* Footer Controls (Optional) */
+/* Footer Controls */
 .assistant-footer {
     padding: 12px 16px;
     border-top: 1px solid var(--nebula-border);
     background: var(--nebula-surface);
-    border-radius: 0 0 var(--nebula-radius-lg) var(--nebula-radius-lg);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .assistant-footer .status {
     font-size: 12px;
     color: var(--nebula-text-secondary);
+    flex: 1;
 }
 
 .assistant-footer .controls {
@@ -164,36 +238,106 @@
     gap: 8px;
 }
 
-.assistant-footer button {
+.footer-btn {
     background: var(--nebula-surface-hover);
     border: 1px solid var(--nebula-border);
     color: var(--nebula-text-primary);
-    padding: 6px 12px;
+    width: 28px;
+    height: 28px;
     border-radius: var(--nebula-radius-sm);
     cursor: pointer;
     font-size: 12px;
     transition: var(--nebula-transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.assistant-footer button:hover {
+.footer-btn:hover {
     background: var(--nebula-surface-active);
     border-color: var(--nebula-border-hover);
+}
+
+.footer-btn .material-symbols-outlined {
+    font-size: 14px;
+}
+
+/* Desktop Content Adjustment when Panel is Open */
+.desktop.assistant-open {
+    transition: var(--nebula-transition);
+}
+
+.desktop.assistant-open.pinned {
+    margin-left: 420px; /* Default width */
+}
+
+.desktop.assistant-open.pinned.full-view-25 {
+    margin-left: 25vw;
+}
+
+.desktop.assistant-open.pinned.full-view-33 {
+    margin-left: 33.333vw;
+}
+
+.desktop.assistant-open.pinned.full-view-50 {
+    margin-left: 50vw;
+}
+
+/* Taskbar adjustment when pinned */
+.taskbar.assistant-pinned {
+    transition: var(--nebula-transition);
+    margin-left: 420px; /* Default width */
+}
+
+.taskbar.assistant-pinned.full-view-25 {
+    margin-left: 25vw;
+}
+
+.taskbar.assistant-pinned.full-view-33 {
+    margin-left: 33.333vw;
+}
+
+.taskbar.assistant-pinned.full-view-50 {
+    margin-left: 50vw;
 }
 
 /* Responsive Design */
 @media (max-width: 1024px) {
     .assistant-panel {
         width: 380px;
-        height: 500px;
+    }
+    
+    .assistant-panel.full-view-25,
+    .assistant-panel.full-view-33 {
+        width: 40vw;
+        min-width: 350px;
+    }
+    
+    .assistant-panel.full-view-50 {
+        width: 60vw;
+        min-width: 350px;
+    }
+    
+    .desktop.assistant-open.pinned {
+        margin-left: 380px;
+    }
+    
+    .taskbar.assistant-pinned {
+        margin-left: 380px;
     }
 }
 
 @media (max-width: 768px) {
     .assistant-panel {
-        width: calc(100vw - 48px);
-        height: 450px;
-        left: 24px;
-        right: 24px;
+        width: calc(100vw - 60px);
+        left: 30px;
+        right: 30px;
+    }
+    
+    .assistant-panel.full-view-25,
+    .assistant-panel.full-view-33,
+    .assistant-panel.full-view-50 {
+        width: calc(100vw - 60px);
     }
     
     .assistant-button {
@@ -204,13 +348,29 @@
     .assistant-button .icon {
         font-size: 16px;
     }
+    
+    .control-btn {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .control-btn .material-symbols-outlined {
+        font-size: 14px;
+    }
+    
+    /* On mobile, don't adjust desktop/taskbar margins */
+    .desktop.assistant-open.pinned,
+    .taskbar.assistant-pinned {
+        margin-left: 0;
+    }
 }
 
 /* High Contrast Mode */
 @media (prefers-contrast: high) {
     .assistant-panel,
     .ai-selector,
-    .assistant-footer button {
+    .control-btn,
+    .footer-btn {
         border-width: 2px;
     }
 }
@@ -219,20 +379,40 @@
 @media (prefers-reduced-motion: reduce) {
     .assistant-panel,
     .assistant-button,
-    .ai-selector,
-    .assistant-footer button {
+    .control-btn,
+    .footer-btn,
+    .desktop,
+    .taskbar,
+    .ai-selector {
         transition: none;
     }
     
     .assistant-loading .icon {
         animation: none;
     }
+    
+    .pin-btn.active .material-symbols-outlined {
+        transform: none;
+    }
 }
 
 /* Focus Management */
 .assistant-button:focus,
 .ai-selector:focus,
-.assistant-footer button:focus {
+.control-btn:focus,
+.footer-btn:focus {
     outline: 2px solid var(--nebula-primary);
     outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .assistant-panel {
+        display: none;
+    }
+    
+    .desktop.assistant-open.pinned,
+    .taskbar.assistant-pinned {
+        margin-left: 0;
+    }
 }
