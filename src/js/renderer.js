@@ -351,39 +351,50 @@ class NebulaDesktop {
         }
     }
 
-    launchTerminal() {
-        // Placeholder terminal app
-        const windowId = this.windowManager.createWindow({
-            title: 'Terminal',
-            width: 800,
-            height: 500,
-            hasTabBar: false
-        });
+    // launchTerminal() {
+    //     // Placeholder terminal app
+    //     const windowId = this.windowManager.createWindow({
+    //         title: 'Terminal',
+    //         width: 800,
+    //         height: 500,
+    //         hasTabBar: false
+    //     });
 
-        this.windowManager.loadApp(windowId, {
-            render: () => {
-                const container = document.createElement('div');
-                container.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    background: #1a1a1a;
-                    color: #00ff00;
-                    padding: 16px;
-                    font-family: 'JetBrains Mono', monospace;
-                    font-size: 14px;
-                    overflow-y: auto;
-                `;
-                container.innerHTML = `
-                    <div>Nebula Terminal v1.0</div>
-                    <div>Coming soon... This will be a full terminal emulator.</div>
-                    <div>$ <span style="animation: blink 1s infinite;">█</span></div>
-                `;
-                return container;
-            },
-            getTitle: () => 'Terminal',
-            getIcon: () => '💻'
-        });
+    //     this.windowManager.loadApp(windowId, {
+    //         render: () => {
+    //             const container = document.createElement('div');
+    //             container.style.cssText = `
+    //                 width: 100%;
+    //                 height: 100%;
+    //                 background: #1a1a1a;
+    //                 color: #00ff00;
+    //                 padding: 16px;
+    //                 font-family: 'JetBrains Mono', monospace;
+    //                 font-size: 14px;
+    //                 overflow-y: auto;
+    //             `;
+    //             container.innerHTML = `
+    //                 <div>Nebula Terminal v1.0</div>
+    //                 <div>Coming soon... This will be a full terminal emulator.</div>
+    //                 <div>$ <span style="animation: blink 1s infinite;">█</span></div>
+    //             `;
+    //             return container;
+    //         },
+    //         getTitle: () => 'Terminal',
+    //         getIcon: () => '💻'
+    //     });
+    // }
+
+// Replace the launchTerminal method in your renderer.js with this:
+
+launchTerminal() {
+    // Use the new NebulaTerminal class
+    if (window.NebulaTerminal) {
+        new NebulaTerminal();
+    } else {
+        this.showError('Terminal app not available. Make sure NebulaTerminal.js is loaded.');
     }
+}
 
     launchCalculator() {
         // Simple calculator app
