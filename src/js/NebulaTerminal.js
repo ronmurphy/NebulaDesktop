@@ -221,7 +221,7 @@ class NebulaTerminal {
         this.writeLine('  help     - Show this help message');
         this.writeLine('  clear    - Clear the terminal');
         this.writeLine('  pwd      - Print working directory');
-        this.writeLine('  cd       - Change directory');
+        this.writeLine('  cd       - Change directory (supports ~, .., and absolute paths)');
         this.writeLine('  ls       - List directory contents');
         this.writeLine('  cat      - Display file contents');
         this.writeLine('  echo     - Print text');
@@ -231,22 +231,58 @@ class NebulaTerminal {
         this.writeLine('  js       - Execute JavaScript code');
         this.writeLine('  debug    - Debug commands (help, vars, console)');
         this.writeLine('  exit     - Close terminal');
+        this.writeLine('');
+        this.writeLine('Examples:');
+        this.writeLine('  cd ~           - Go to home directory');
+        this.writeLine('  cd ~/Documents - Go to Documents folder');
+        this.writeLine('  js 2 + 2       - Execute JavaScript');
     }
     
     /**
-     * Change directory (simulated)
+     * Change directory (now uses real home directory)
      */
-    changeDirectory(path) {
-        if (!path) path = '/home/user';
-        
-        // Simple path resolution
-        if (path.startsWith('/')) {
+    async changeDirectory(path) {
+        if (!path || path === '~') {
+            // Get real home directory from the system
+            if (window.nebula?.fs?.getHomeDir) {
+                try {
+                    this.currentPath = await window.nebula.fs.getHomeDir();
+                } catch (error) {
+                    this.currentPath = '/home/user'; // fallback
+                }
+            } else {
+                this.currentPath = '/home/user'; // fallback
+            }
+        } else if (path.startsWith('~/')) {
+            // Expand ~ to real home directory
+            if (window.nebula?.fs?.getHomeDir) {
+                try {
+                    const homeDir = await window.nebula.fs.getHomeDir();
+                    this.currentPath = homeDir + path.substring(1); // Replace ~ with home
+                } catch (error) {
+                    this.currentPath = '/home/user' + path.substring(1);
+                }
+            } else {
+                this.currentPath = '/home/user' + path.substring(1);
+            }
+        } else if (path.startsWith('/')) {
             this.currentPath = path;
         } else if (path === '..') {
             const parts = this.currentPath.split('/').filter(p => p);
             parts.pop();
             this.currentPath = '/' + parts.join('/');
-            if (this.currentPath === '/') this.currentPath = '/home/user';
+            if (this.currentPath === '/') {
+                // Go to real home directory instead of root
+                if (window.nebula?.fs?.getHomeDir) {
+                    try {
+                        this.currentPath = await window.nebula.fs.getHomeDir();
+                    } catch (error) {
+                        this.currentPath = '/home/user';
+                    }
+                } else {
+                    this.currentPath = '/home/user';
+                }
+            }
         } else {
             this.currentPath = this.currentPath.endsWith('/') ? 
                 this.currentPath + path : this.currentPath + '/' + path;
@@ -256,6 +292,9 @@ class NebulaTerminal {
         if (window.nebula?.terminal?.setCwd) {
             window.nebula.terminal.setCwd(this.currentPath);
         }
+        
+        // Show confirmation
+        this.writeLine(`Changed directory to: ${this.currentPath}`);
     }
     
     /**
