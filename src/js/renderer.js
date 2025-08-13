@@ -736,10 +736,6 @@ launchTerminal() {
         }
     }
 
-    // openSettings() {
-    //     this.showError('Settings panel coming soon!');
-    // }
-
     showError(message) {
         // Simple error notification
         const notification = document.createElement('div');
