@@ -1,6 +1,5 @@
 // Merging the best from both versions
 const { contextBridge, ipcRenderer } = require('electron');
-const path = require('path');
 
 contextBridge.exposeInMainWorld('nebula', {
     // System APIs (from WME1's completeness)
@@ -20,12 +19,17 @@ contextBridge.exposeInMainWorld('nebula', {
         focus: (id) => ipcRenderer.send('window:focus', id)
     },
 
-    // File System (from WME1)
+    // File System (enhanced for terminal)
     fs: {
         readDir: (path) => ipcRenderer.invoke('fs:readdir', path),
         readFile: (path) => ipcRenderer.invoke('fs:readfile', path),
         writeFile: (path, data) => ipcRenderer.invoke('fs:writefile', path, data),
-        getHomeDir: () => ipcRenderer.invoke('fs:homedir')
+        getHomeDir: () => ipcRenderer.invoke('fs:homedir'),
+        stat: (path) => ipcRenderer.invoke('fs:stat', path),
+        exists: (path) => ipcRenderer.invoke('fs:exists', path),
+        mkdir: (path, options) => ipcRenderer.invoke('fs:mkdir', path, options),
+        rmdir: (path) => ipcRenderer.invoke('fs:rmdir', path),
+        unlink: (path) => ipcRenderer.invoke('fs:unlink', path)
     },
 
     // Browser features (from EWM2)
@@ -37,14 +41,12 @@ contextBridge.exposeInMainWorld('nebula', {
         refresh: (tabId) => ipcRenderer.send('browser:refresh', tabId)
     },
 
-    // Terminal/Shell operations
+    // Terminal/Shell operations (enhanced)
     terminal: {
-        // Execute basic shell commands
-        exec: async (command, args, cwd) => {
+        // Execute shell commands
+        exec: async (command, args = [], options = {}) => {
             try {
-                // For now, we'll simulate shell commands using existing fs APIs
-                // Later we can add real process execution if needed
-                return { stdout: `Executed: ${command} ${args.join(' ')}`, stderr: '', exitCode: 0 };
+                return await ipcRenderer.invoke('terminal:exec', command, args, options);
             } catch (error) {
                 return { stdout: '', stderr: error.message, exitCode: 1 };
             }
@@ -52,7 +54,7 @@ contextBridge.exposeInMainWorld('nebula', {
 
         // Get current working directory
         getCwd: () => {
-            return localStorage.getItem('nebula-terminal-cwd') || '/home/user';
+            return localStorage.getItem('nebula-terminal-cwd') || process.env.HOME || '/home/user';
         },
 
         // Set current working directory  
@@ -60,14 +62,18 @@ contextBridge.exposeInMainWorld('nebula', {
             localStorage.setItem('nebula-terminal-cwd', path);
         },
 
+        // Get system info
+        getSystemInfo: () => ipcRenderer.invoke('system:info'),
+
         // Get environment info
         getEnv: () => {
             return {
-                USER: 'nebula-user',
-                HOME: '/home/user',
-                PATH: '/usr/local/bin:/usr/bin:/bin',
-                SHELL: '/bin/nebula-sh',
-                TERM: 'xterm-256color'
+                USER: process.env.USER || 'nebula-user',
+                HOME: process.env.HOME || '/home/user',
+                PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+                SHELL: process.env.SHELL || '/bin/sh',
+                TERM: 'xterm-256color',
+                PWD: localStorage.getItem('nebula-terminal-cwd') || process.env.HOME || '/home/user'
             };
         }
     },

@@ -28,8 +28,7 @@ class NebulaDesktop {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-               // preload: path.join(__dirname, 'src', 'preload.js'), // preload-minimal.js
-                preload: 'src/preload.js', // preload-minimal.js
+                preload: path.join(__dirname, 'src', 'preload.js'),
                 webviewTag: true  // Enable webview for web apps
             }
         });
@@ -120,6 +119,140 @@ class NebulaDesktop {
         ipcMain.handle('fs:homedir', () => {
             const os = require('os');
             return os.homedir();
+        });
+
+        // Enhanced file system operations for terminal
+        ipcMain.handle('fs:stat', async (event, filePath) => {
+            try {
+                const fs = require('fs').promises;
+                const stats = await fs.stat(filePath);
+                return {
+                    isDirectory: stats.isDirectory(),
+                    isFile: stats.isFile(),
+                    size: stats.size,
+                    mtime: stats.mtime,
+                    mode: stats.mode,
+                    uid: stats.uid,
+                    gid: stats.gid
+                };
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        ipcMain.handle('fs:exists', async (event, filePath) => {
+            try {
+                const fs = require('fs').promises;
+                await fs.access(filePath);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        });
+
+        ipcMain.handle('fs:mkdir', async (event, dirPath, options = {}) => {
+            try {
+                const fs = require('fs').promises;
+                await fs.mkdir(dirPath, options);
+                return true;
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        ipcMain.handle('fs:rmdir', async (event, dirPath) => {
+            try {
+                const fs = require('fs').promises;
+                await fs.rmdir(dirPath, { recursive: true });
+                return true;
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        ipcMain.handle('fs:unlink', async (event, filePath) => {
+            try {
+                const fs = require('fs').promises;
+                await fs.unlink(filePath);
+                return true;
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        // Terminal operations
+        ipcMain.handle('terminal:exec', async (event, command, args = [], options = {}) => {
+            try {
+                const { spawn } = require('child_process');
+                const os = require('os');
+                
+                return new Promise((resolve, reject) => {
+                    // Determine the shell and command
+                    let shell, shellArgs;
+                    
+                    if (os.platform() === 'win32') {
+                        shell = 'cmd.exe';
+                        shellArgs = ['/c', command, ...args];
+                    } else {
+                        shell = '/bin/sh';
+                        shellArgs = ['-c', `${command} ${args.join(' ')}`];
+                    }
+
+                    const proc = spawn(shell, shellArgs, {
+                        cwd: options.cwd || os.homedir(),
+                        env: { ...process.env, ...options.env },
+                        stdio: ['pipe', 'pipe', 'pipe']
+                    });
+
+                    let stdout = '';
+                    let stderr = '';
+
+                    proc.stdout.on('data', (data) => {
+                        stdout += data.toString();
+                    });
+
+                    proc.stderr.on('data', (data) => {
+                        stderr += data.toString();
+                    });
+
+                    proc.on('close', (code) => {
+                        resolve({
+                            stdout: stdout,
+                            stderr: stderr,
+                            exitCode: code || 0
+                        });
+                    });
+
+                    proc.on('error', (error) => {
+                        reject(error);
+                    });
+
+                    // Set a timeout to prevent hanging
+                    setTimeout(() => {
+                        if (!proc.killed) {
+                            proc.kill();
+                            reject(new Error('Command timeout'));
+                        }
+                    }, 30000); // 30 second timeout
+                });
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        // Get system information
+        ipcMain.handle('system:info', () => {
+            const os = require('os');
+            return {
+                platform: os.platform(),
+                arch: os.arch(),
+                release: os.release(),
+                hostname: os.hostname(),
+                username: os.userInfo().username,
+                shell: process.env.SHELL || '/bin/sh',
+                home: os.homedir(),
+                tmpdir: os.tmpdir()
+            };
         });
     }
 

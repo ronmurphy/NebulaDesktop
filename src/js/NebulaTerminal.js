@@ -1,28 +1,53 @@
-// NebulaTerminal.js - Simple terminal with xterm.js
+// NebulaTerminal.js - Real terminal with file system access
+
+// Path utilities (since we can't use Node's path in renderer)
+const pathUtils = {
+    join: (...parts) => {
+        const normalized = parts.join('/').replace(/\/+/g, '/');
+        return normalized === '/' ? '/' : normalized.replace(/\/$/, '');
+    },
+    
+    dirname: (path) => {
+        const parts = path.split('/').filter(p => p);
+        parts.pop();
+        return parts.length === 0 ? '/' : '/' + parts.join('/');
+    },
+    
+    isAbsolute: (path) => {
+        return path.startsWith('/');
+    }
+};
+
 class NebulaTerminal {
     constructor() {
         this.windowId = null;
         this.terminal = null;
-        this.currentPath = '/home/user';
+        this.currentPath = null; // Will be set to actual home directory
         this.commandHistory = [];
         this.historyIndex = -1;
         this.currentInput = '';
         
-        // Built-in commands
-        this.commands = {
+        // Built-in commands that we handle internally
+        this.builtinCommands = {
             help: () => this.showHelp(),
             clear: () => this.terminal.clear(),
             pwd: () => this.writeLine(this.currentPath),
-            cd: (args) => this.changeDirectory(args[0] || '/home/user'),
+            cd: (args) => this.changeDirectory(args[0] || '~'),
             ls: (args) => this.listDirectory(args[0] || this.currentPath),
+            ll: (args) => this.listDirectoryLong(args[0] || this.currentPath),
             cat: (args) => this.showFile(args[0]),
             echo: (args) => this.writeLine(args.join(' ')),
+            mkdir: (args) => this.makeDirectory(args[0]),
+            rmdir: (args) => this.removeDirectory(args[0]),
+            rm: (args) => this.removeFile(args[0]),
+            touch: (args) => this.touchFile(args[0]),
             date: () => this.writeLine(new Date().toString()),
-            whoami: () => this.writeLine('nebula-user'),
-            uname: () => this.writeLine('NebulaOS 1.0 (WebKit)'),
+            whoami: () => this.showWhoAmI(),
+            uname: () => this.showSystemInfo(),
             js: (args) => this.executeJS(args.join(' ')),
             debug: (args) => this.debugCommand(args),
-            exit: () => this.closeTerminal()
+            exit: () => this.closeTerminal(),
+            history: () => this.showHistory()
         };
         
         this.init();
@@ -32,6 +57,18 @@ class NebulaTerminal {
         if (!window.windowManager) {
             console.error('WindowManager not available');
             return;
+        }
+
+        // Get real home directory
+        try {
+            if (window.nebula?.fs?.getHomeDir) {
+                this.currentPath = await window.nebula.fs.getHomeDir();
+            } else {
+                this.currentPath = '/home/user';
+            }
+        } catch (error) {
+            console.error('Failed to get home directory:', error);
+            this.currentPath = '/home/user';
         }
         
         // Create terminal window
@@ -46,7 +83,7 @@ class NebulaTerminal {
         // Load terminal into window
         window.windowManager.loadApp(this.windowId, this);
         
-        console.log(`Terminal initialized with window ${this.windowId}`);
+        console.log(`Terminal initialized with window ${this.windowId}, cwd: ${this.currentPath}`);
     }
     
     /**
@@ -182,20 +219,74 @@ class NebulaTerminal {
     async executeCommand(input) {
         if (!input) return;
         
-        const parts = input.split(' ');
-        const command = parts[0];
-        const args = parts.slice(1);
+        const parts = this.parseCommand(input);
+        const command = parts.command;
+        const args = parts.args;
         
-        if (this.commands[command]) {
+        // Check if it's a built-in command
+        if (this.builtinCommands[command]) {
             try {
-                await this.commands[command](args);
+                await this.builtinCommands[command](args);
             } catch (error) {
                 this.writeLine(`Error: ${error.message}`);
             }
         } else {
-            this.writeLine(`Command not found: ${command}`);
-            this.writeLine('Type "help" for available commands');
+            // Execute as system command
+            await this.executeSystemCommand(command, args);
         }
+    }
+
+    /**
+     * Parse command line input
+     */
+    parseCommand(input) {
+        // Simple command parsing (could be enhanced for pipes, quotes, etc.)
+        const parts = input.trim().split(/\s+/);
+        return {
+            command: parts[0] || '',
+            args: parts.slice(1)
+        };
+    }
+
+    /**
+     * Execute system command
+     */
+    async executeSystemCommand(command, args) {
+        if (!window.nebula?.terminal?.exec) {
+            this.writeLine(`Command not found: ${command}`);
+            this.writeLine('System command execution not available');
+            return;
+        }
+
+        try {
+            this.writeLine(`Executing: ${command} ${args.join(' ')}`);
+            
+            const result = await window.nebula.terminal.exec(command, args, {
+                cwd: this.currentPath,
+                env: await this.getEnvironment()
+            });
+
+            if (result.stdout) {
+                this.writeLine(result.stdout.trim());
+            }
+            if (result.stderr) {
+                this.writeError(result.stderr.trim());
+            }
+            if (result.exitCode !== 0) {
+                this.writeLine(`Command exited with code: ${result.exitCode}`);
+            }
+        } catch (error) {
+            this.writeError(`Error executing command: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get environment variables
+     */
+    async getEnvironment() {
+        const env = window.nebula?.terminal?.getEnv() || {};
+        env.PWD = this.currentPath;
+        return env;
     }
     
     /**
@@ -212,135 +303,357 @@ class NebulaTerminal {
     writeLine(text) {
         this.terminal.write(text + '\r\n');
     }
+
+    /**
+     * Write error message to terminal
+     */
+    writeError(text) {
+        this.terminal.write('\x1b[31m' + text + '\x1b[0m\r\n');
+    }
     
     /**
      * Show help
      */
     showHelp() {
-        this.writeLine('Available commands:');
+        this.writeLine('Built-in commands:');
         this.writeLine('  help     - Show this help message');
         this.writeLine('  clear    - Clear the terminal');
         this.writeLine('  pwd      - Print working directory');
         this.writeLine('  cd       - Change directory (supports ~, .., and absolute paths)');
         this.writeLine('  ls       - List directory contents');
+        this.writeLine('  ll       - List directory contents (detailed)');
         this.writeLine('  cat      - Display file contents');
+        this.writeLine('  mkdir    - Create directory');
+        this.writeLine('  rmdir    - Remove directory');
+        this.writeLine('  rm       - Remove file');
+        this.writeLine('  touch    - Create empty file');
         this.writeLine('  echo     - Print text');
         this.writeLine('  date     - Show current date');
         this.writeLine('  whoami   - Show current user');
         this.writeLine('  uname    - Show system info');
+        this.writeLine('  history  - Show command history');
         this.writeLine('  js       - Execute JavaScript code');
-        this.writeLine('  debug    - Debug commands (help, vars, console)');
+        this.writeLine('  debug    - Debug commands');
         this.writeLine('  exit     - Close terminal');
         this.writeLine('');
+        this.writeLine('System commands:');
+        this.writeLine('  Any other command will be executed as a system command');
+        this.writeLine('  Examples: grep, find, ps, top, git, npm, python, etc.');
+        this.writeLine('');
         this.writeLine('Examples:');
-        this.writeLine('  cd ~           - Go to home directory');
         this.writeLine('  cd ~/Documents - Go to Documents folder');
+        this.writeLine('  ls -la         - List files with details');
+        this.writeLine('  cat file.txt   - Show file contents');
         this.writeLine('  js 2 + 2       - Execute JavaScript');
+        this.writeLine('  git status     - Check git repository status');
     }
     
     /**
-     * Change directory (now uses real home directory)
+     * Change directory (with real file system)
      */
     async changeDirectory(path) {
         if (!path || path === '~') {
-            // Get real home directory from the system
-            if (window.nebula?.fs?.getHomeDir) {
-                try {
-                    this.currentPath = await window.nebula.fs.getHomeDir();
-                } catch (error) {
-                    this.currentPath = '/home/user'; // fallback
-                }
-            } else {
-                this.currentPath = '/home/user'; // fallback
+            // Go to home directory
+            try {
+                this.currentPath = await window.nebula.fs.getHomeDir();
+            } catch (error) {
+                this.writeError(`Failed to get home directory: ${error.message}`);
+                return;
             }
         } else if (path.startsWith('~/')) {
-            // Expand ~ to real home directory
-            if (window.nebula?.fs?.getHomeDir) {
-                try {
-                    const homeDir = await window.nebula.fs.getHomeDir();
-                    this.currentPath = homeDir + path.substring(1); // Replace ~ with home
-                } catch (error) {
-                    this.currentPath = '/home/user' + path.substring(1);
-                }
-            } else {
-                this.currentPath = '/home/user' + path.substring(1);
+            // Expand ~ to home directory
+            try {
+                const homeDir = await window.nebula.fs.getHomeDir();
+                this.currentPath = pathUtils.join(homeDir, path.substring(2));
+            } catch (error) {
+                this.writeError(`Failed to expand path: ${error.message}`);
+                return;
             }
         } else if (path.startsWith('/')) {
+            // Absolute path
             this.currentPath = path;
         } else if (path === '..') {
-            const parts = this.currentPath.split('/').filter(p => p);
-            parts.pop();
-            this.currentPath = '/' + parts.join('/');
-            if (this.currentPath === '/') {
-                // Go to real home directory instead of root
-                if (window.nebula?.fs?.getHomeDir) {
-                    try {
-                        this.currentPath = await window.nebula.fs.getHomeDir();
-                    } catch (error) {
-                        this.currentPath = '/home/user';
-                    }
-                } else {
-                    this.currentPath = '/home/user';
-                }
-            }
+            // Go up one directory
+            this.currentPath = pathUtils.dirname(this.currentPath);
         } else {
-            this.currentPath = this.currentPath.endsWith('/') ? 
-                this.currentPath + path : this.currentPath + '/' + path;
+            // Relative path
+            this.currentPath = pathUtils.join(this.currentPath, path);
         }
         
-        // Update terminal working directory
-        if (window.nebula?.terminal?.setCwd) {
-            window.nebula.terminal.setCwd(this.currentPath);
+        // Verify the directory exists
+        try {
+            const exists = await window.nebula.fs.exists(this.currentPath);
+            if (!exists) {
+                this.writeError(`Directory does not exist: ${this.currentPath}`);
+                // Revert to previous directory
+                return;
+            }
+
+            const stats = await window.nebula.fs.stat(this.currentPath);
+            if (!stats.isDirectory) {
+                this.writeError(`Not a directory: ${this.currentPath}`);
+                return;
+            }
+
+            // Update terminal working directory
+            if (window.nebula?.terminal?.setCwd) {
+                window.nebula.terminal.setCwd(this.currentPath);
+            }
+            
+        } catch (error) {
+            this.writeError(`Cannot access directory: ${error.message}`);
         }
-        
-        // Show confirmation
-        this.writeLine(`Changed directory to: ${this.currentPath}`);
     }
     
     /**
-     * List directory (simulated)
+     * List directory (real file system)
      */
     async listDirectory(path) {
-        // For now, show simulated directory contents
-        const mockFiles = [
-            'Documents/',
-            'Desktop/',
-            'Downloads/',
-            'Pictures/',
-            'Videos/',
-            'nebula-app.js',
-            'README.md',
-            'package.json'
-        ];
-        
-        this.writeLine(`Contents of ${path}:`);
-        mockFiles.forEach(file => {
-            const color = file.endsWith('/') ? '\x1b[34m' : '\x1b[0m'; // Blue for directories
-            this.writeLine(`  ${color}${file}\x1b[0m`);
-        });
+        try {
+            const targetPath = path || this.currentPath;
+            const files = await window.nebula.fs.readDir(targetPath);
+            
+            if (files.length === 0) {
+                this.writeLine('Directory is empty');
+                return;
+            }
+
+            // Get file stats for each file
+            const fileStats = await Promise.all(
+                files.map(async (file) => {
+                    try {
+                        const filePath = pathUtils.join(targetPath, file);
+                        const stats = await window.nebula.fs.stat(filePath);
+                        return { name: file, stats };
+                    } catch (error) {
+                        return { name: file, stats: null };
+                    }
+                })
+            );
+
+            // Sort directories first, then files
+            fileStats.sort((a, b) => {
+                if (a.stats?.isDirectory && !b.stats?.isDirectory) return -1;
+                if (!a.stats?.isDirectory && b.stats?.isDirectory) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            // Display files
+            for (const { name, stats } of fileStats) {
+                if (stats?.isDirectory) {
+                    this.writeLine(`\x1b[34m${name}/\x1b[0m`);
+                } else {
+                    this.writeLine(`${name}`);
+                }
+            }
+        } catch (error) {
+            this.writeError(`Cannot list directory: ${error.message}`);
+        }
+    }
+
+    /**
+     * List directory with detailed info
+     */
+    async listDirectoryLong(path) {
+        try {
+            const targetPath = path || this.currentPath;
+            const files = await window.nebula.fs.readDir(targetPath);
+            
+            if (files.length === 0) {
+                this.writeLine('Directory is empty');
+                return;
+            }
+
+            // Get file stats for each file
+            const fileStats = await Promise.all(
+                files.map(async (file) => {
+                    try {
+                        const filePath = pathUtils.join(targetPath, file);
+                        const stats = await window.nebula.fs.stat(filePath);
+                        return { name: file, stats };
+                    } catch (error) {
+                        return { name: file, stats: null };
+                    }
+                })
+            );
+
+            // Sort directories first, then files
+            fileStats.sort((a, b) => {
+                if (a.stats?.isDirectory && !b.stats?.isDirectory) return -1;
+                if (!a.stats?.isDirectory && b.stats?.isDirectory) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            // Display files with details
+            for (const { name, stats } of fileStats) {
+                if (stats) {
+                    const type = stats.isDirectory ? 'd' : '-';
+                    const size = stats.size.toString().padStart(8);
+                    const date = new Date(stats.mtime).toISOString().split('T')[0];
+                    const time = new Date(stats.mtime).toTimeString().split(' ')[0];
+                    const displayName = stats.isDirectory ? `\x1b[34m${name}/\x1b[0m` : name;
+                    
+                    this.writeLine(`${type}rwxr-xr-x ${size} ${date} ${time} ${displayName}`);
+                } else {
+                    this.writeLine(`?????????? -------- ---- ---- ${name}`);
+                }
+            }
+        } catch (error) {
+            this.writeError(`Cannot list directory: ${error.message}`);
+        }
     }
     
     /**
-     * Show file contents (simulated)
+     * Show file contents (real file system)
      */
-    showFile(filename) {
+    async showFile(filename) {
         if (!filename) {
             this.writeLine('Usage: cat <filename>');
             return;
         }
         
-        // Mock file contents
-        const mockFiles = {
-            'README.md': '# Nebula Desktop\n\nA modern desktop environment built with Electron.',
-            'package.json': '{\n  "name": "nebula-desktop",\n  "version": "1.0.0"\n}',
-            'test.js': 'console.log("Hello from Nebula Terminal!");'
-        };
-        
-        if (mockFiles[filename]) {
-            this.writeLine(mockFiles[filename]);
-        } else {
-            this.writeLine(`File not found: ${filename}`);
+        try {
+            const filePath = pathUtils.isAbsolute(filename) ? 
+                filename : pathUtils.join(this.currentPath, filename);
+                
+            const exists = await window.nebula.fs.exists(filePath);
+            if (!exists) {
+                this.writeError(`File not found: ${filename}`);
+                return;
+            }
+
+            const stats = await window.nebula.fs.stat(filePath);
+            if (stats.isDirectory) {
+                this.writeError(`${filename} is a directory`);
+                return;
+            }
+
+            const content = await window.nebula.fs.readFile(filePath);
+            this.writeLine(content);
+        } catch (error) {
+            this.writeError(`Cannot read file: ${error.message}`);
         }
+    }
+
+    /**
+     * Create directory
+     */
+    async makeDirectory(dirname) {
+        if (!dirname) {
+            this.writeLine('Usage: mkdir <directory>');
+            return;
+        }
+
+        try {
+            const dirPath = pathUtils.isAbsolute(dirname) ? 
+                dirname : pathUtils.join(this.currentPath, dirname);
+                
+            await window.nebula.fs.mkdir(dirPath, { recursive: true });
+            this.writeLine(`Directory created: ${dirname}`);
+        } catch (error) {
+            this.writeError(`Cannot create directory: ${error.message}`);
+        }
+    }
+
+    /**
+     * Remove directory
+     */
+    async removeDirectory(dirname) {
+        if (!dirname) {
+            this.writeLine('Usage: rmdir <directory>');
+            return;
+        }
+
+        try {
+            const dirPath = pathUtils.isAbsolute(dirname) ? 
+                dirname : pathUtils.join(this.currentPath, dirname);
+                
+            await window.nebula.fs.rmdir(dirPath);
+            this.writeLine(`Directory removed: ${dirname}`);
+        } catch (error) {
+            this.writeError(`Cannot remove directory: ${error.message}`);
+        }
+    }
+
+    /**
+     * Remove file
+     */
+    async removeFile(filename) {
+        if (!filename) {
+            this.writeLine('Usage: rm <filename>');
+            return;
+        }
+
+        try {
+            const filePath = pathUtils.isAbsolute(filename) ? 
+                filename : pathUtils.join(this.currentPath, filename);
+                
+            await window.nebula.fs.unlink(filePath);
+            this.writeLine(`File removed: ${filename}`);
+        } catch (error) {
+            this.writeError(`Cannot remove file: ${error.message}`);
+        }
+    }
+
+    /**
+     * Create empty file
+     */
+    async touchFile(filename) {
+        if (!filename) {
+            this.writeLine('Usage: touch <filename>');
+            return;
+        }
+
+        try {
+            const filePath = pathUtils.isAbsolute(filename) ? 
+                filename : pathUtils.join(this.currentPath, filename);
+                
+            await window.nebula.fs.writeFile(filePath, '');
+            this.writeLine(`File created: ${filename}`);
+        } catch (error) {
+            this.writeError(`Cannot create file: ${error.message}`);
+        }
+    }
+
+    /**
+     * Show current user info
+     */
+    async showWhoAmI() {
+        try {
+            if (window.nebula?.terminal?.getSystemInfo) {
+                const info = await window.nebula.terminal.getSystemInfo();
+                this.writeLine(info.username || 'nebula-user');
+            } else {
+                this.writeLine('nebula-user');
+            }
+        } catch (error) {
+            this.writeLine('nebula-user');
+        }
+    }
+
+    /**
+     * Show system information
+     */
+    async showSystemInfo() {
+        try {
+            if (window.nebula?.terminal?.getSystemInfo) {
+                const info = await window.nebula.terminal.getSystemInfo();
+                this.writeLine(`${info.platform} ${info.hostname} ${info.release} ${info.arch}`);
+            } else {
+                this.writeLine('NebulaOS 1.0 (WebKit)');
+            }
+        } catch (error) {
+            this.writeLine('NebulaOS 1.0 (WebKit)');
+        }
+    }
+
+    /**
+     * Show command history
+     */
+    showHistory() {
+        this.commandHistory.forEach((cmd, index) => {
+            this.writeLine(`${(index + 1).toString().padStart(4)}: ${cmd}`);
+        });
     }
     
     /**
@@ -388,7 +701,7 @@ class NebulaTerminal {
     /**
      * Debug commands
      */
-    debugCommand(args) {
+    async debugCommand(args) {
         const subCommand = args[0];
         
         switch (subCommand) {
@@ -398,14 +711,18 @@ class NebulaTerminal {
                 this.writeLine('  debug vars     - Show environment variables');
                 this.writeLine('  debug console  - Test console output');
                 this.writeLine('  debug window   - Show window info');
+                this.writeLine('  debug system   - Show system info');
+                this.writeLine('  debug fs       - Test file system access');
                 break;
                 
             case 'vars':
-                if (window.nebula?.terminal?.getEnv) {
-                    const env = window.nebula.terminal.getEnv();
+                try {
+                    const env = await this.getEnvironment();
                     Object.entries(env).forEach(([key, value]) => {
                         this.writeLine(`${key}=${value}`);
                     });
+                } catch (error) {
+                    this.writeError(`Failed to get environment: ${error.message}`);
                 }
                 break;
                 
@@ -420,6 +737,39 @@ class NebulaTerminal {
                 this.writeLine(`Window ID: ${this.windowId}`);
                 this.writeLine(`Current Path: ${this.currentPath}`);
                 this.writeLine(`Command History: ${this.commandHistory.length} commands`);
+                break;
+
+            case 'system':
+                try {
+                    if (window.nebula?.terminal?.getSystemInfo) {
+                        const info = await window.nebula.terminal.getSystemInfo();
+                        Object.entries(info).forEach(([key, value]) => {
+                            this.writeLine(`${key}: ${value}`);
+                        });
+                    } else {
+                        this.writeLine('System info not available');
+                    }
+                } catch (error) {
+                    this.writeError(`Failed to get system info: ${error.message}`);
+                }
+                break;
+
+            case 'fs':
+                this.writeLine('Testing file system access...');
+                try {
+                    const home = await window.nebula.fs.getHomeDir();
+                    this.writeLine(`Home directory: ${home}`);
+                    
+                    const exists = await window.nebula.fs.exists(this.currentPath);
+                    this.writeLine(`Current path exists: ${exists}`);
+                    
+                    if (exists) {
+                        const files = await window.nebula.fs.readDir(this.currentPath);
+                        this.writeLine(`Files in current directory: ${files.length}`);
+                    }
+                } catch (error) {
+                    this.writeError(`File system test failed: ${error.message}`);
+                }
                 break;
                 
             default:
