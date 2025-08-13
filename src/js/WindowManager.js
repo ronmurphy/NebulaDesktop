@@ -1,4 +1,4 @@
-// WindowManager.js - FIXED - No Double Window Creation
+// WindowManager.js - Centralized window management system
 class WindowManager {
     constructor() {
         this.windows = new Map(); // windowId -> windowData
@@ -6,21 +6,16 @@ class WindowManager {
         this.nextId = 1;
         this.zIndexCounter = 100;
 
-        // APP MANAGEMENT - FIXED
-        this.appRegistry = new Map();      // appType -> config
-        this.runningApps = new Map();      // appType -> windowIds[]
-        this.singletonApps = new Set();    // Track singleton app types
-        this.stateCleanupDone = false;     // Prevent duplicate cleanups
-        
+        // this.setupGlobalListeners();
+        // Available desktop area (accounts for pinned panels, taskbars, etc.)
         this.availableArea = {
             x: 0,
             y: 0,
             width: window.innerWidth,
-            height: window.innerHeight - 50
+            height: window.innerHeight - 50 // Default: full screen minus taskbar
         };
 
         this.setupGlobalListeners();
-        this.setupAppRegistry();
 
         // Listen for window resize to update available area
         window.addEventListener('resize', () => {
@@ -31,415 +26,12 @@ class WindowManager {
                 window.innerHeight - this.availableArea.height - this.availableArea.y
             );
         });
-        
-        console.log('WindowManager with integrated App Management initialized');
-    }
-
-    // ========== APP REGISTRY SETUP ==========
-    
-    setupAppRegistry() {
-        // Register all available apps with their configs
-        this.registerApp('browser', {
-            class: 'NebulaBrowser',
-            name: 'Browser',
-            icon: '🌐',
-            singleton: false,      // Can have multiple instances
-            persistent: true,      // Save state across sessions
-            autoRestore: false,    // Don't auto-restore browsers (prevents duplication)
-            defaultConfig: {
-                title: 'Nebula Browser',
-                width: 1200,
-                height: 700,
-                hasTabBar: false,
-                resizable: true
-            }
-        });
-        
-        this.registerApp('terminal', {
-            class: 'NebulaTerminal',
-            name: 'Terminal', 
-            icon: '💻',
-            singleton: false,      // Can have multiple terminals
-            persistent: true,      // Remember working directory, command history
-            autoRestore: true,     // Restore terminals on startup
-            defaultConfig: {
-                title: 'Nebula Terminal',
-                width: 800,
-                height: 500,
-                hasTabBar: false,
-                resizable: true
-            }
-        });
-        
-        this.registerApp('settings', {
-            class: 'NebulaSettings',
-            name: 'Settings',
-            icon: '⚙️',
-            singleton: true,       // Only one Settings window allowed
-            persistent: true,
-            autoRestore: false,
-            defaultConfig: {
-                title: 'Settings',
-                width: 600,
-                height: 400,
-                hasTabBar: false,
-                resizable: true
-            }
-        });
-        
-        // Calculator now properly registered instead of dummy in renderer
-        this.registerApp('calculator', {
-            class: 'NebulaCalculator',
-            name: 'Calculator',
-            icon: '🧮',
-            singleton: true,       // Only one calculator needed
-            persistent: false,     // Don't persist calculator state
-            autoRestore: false,
-            defaultConfig: {
-                title: 'Calculator',
-                width: 300,
-                height: 400,
-                hasTabBar: false,
-                resizable: false
-            }
-        });
-        
-        console.log(`Registered ${this.appRegistry.size} app types`);
-    }
-    
-    registerApp(type, config) {
-        this.appRegistry.set(type, config);
-        this.runningApps.set(type, []);
-        
-        if (config.singleton) {
-            this.singletonApps.add(type);
-        }
-    }
-
-    // ========== APP LAUNCHING ==========
-    
-    /**
-     * Launch an app - main entry point from renderer.js
-     */
-    async launchApp(appType, options = {}) {
-        const appConfig = this.appRegistry.get(appType);
-        if (!appConfig) {
-            console.error(`Unknown app type: ${appType}`);
-            return null;
-        }
-        
-        // Check if it's a singleton app and already running
-        if (appConfig.singleton) {
-            const existingWindows = this.runningApps.get(appType);
-            if (existingWindows.length > 0) {
-                // Focus existing window instead of creating new one
-                const windowId = existingWindows[0];
-                this.focusWindow(windowId);
-                console.log(`Focused existing ${appType} window`);
-                return windowId;
-            }
-        }
-        
-        // Only restore state if explicitly requested, not by default
-        let restoredState = null;
-        if (appConfig.persistent && options.restore === true) {
-            restoredState = this.loadAppState(appType, options.instanceId);
-            console.log(`Loading saved state for ${appType}:`, restoredState ? 'Found' : 'None');
-        }
-        
-        // Merge options with restored state and defaults
-        const finalConfig = {
-            ...appConfig.defaultConfig,
-            ...restoredState?.windowConfig,
-            ...options,
-            appType: appType,
-            appConfig: appConfig
-        };
-        
-        // FIXED: Create the window and app in one step to prevent duplication
-        const windowId = this.createManagedAppWindow(finalConfig, restoredState);
-        
-        if (windowId) {
-            // Track this app instance
-            this.runningApps.get(appType).push(windowId);
-            console.log(`✅ Launched ${appType} (window: ${windowId})`);
-        }
-        
-        return windowId;
-    }
-    
-    /**
-     * FIXED: Create window and app without letting app create its own window
-     */
-    createManagedAppWindow(config, restoredState = null) {
-        // Create the window first
-        const windowId = this.createWindow(config);
-        
-        if (!windowId) {
-            console.error('Failed to create window');
-            return null;
-        }
-        
-        // Store window data with app info
-        const windowData = this.windows.get(windowId);
-        if (windowData) {
-            windowData.appType = config.appType;
-            windowData.appConfig = config.appConfig;
-            windowData.instanceId = `${config.appType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        }
-        
-        // Handle special apps that don't have classes yet
-        if (config.appType === 'calculator') {
-            this.loadCalculatorApp(windowId);
-        } else if (config.appType === 'settings') {
-            this.loadSettingsApp(windowId);
-        } else {
-            // Load external app class but prevent it from creating its own window
-            this.loadExternalApp(windowId, config, restoredState);
-        }
-        
-        // Restore maximized state if needed
-        if (restoredState?.windowConfig?.isMaximized) {
-            setTimeout(() => {
-                this.toggleMaximizeWindow(windowId);
-            }, 100);
-        }
-        
-        return windowId;
     }
 
     /**
-     * FIXED: Load external app without letting it create its own window
-     */
-    loadExternalApp(windowId, config, restoredState) {
-        const AppClass = window[config.appConfig.class];
-        if (!AppClass) {
-            console.error(`App class ${config.appConfig.class} not found`);
-            this.closeWindow(windowId);
-            return;
-        }
-        
-        const windowData = this.windows.get(windowId);
-        
-        try {
-            // FIXED: Create app instance and inject the windowId so it doesn't create its own
-            const appConstructorArg = restoredState?.appState || config.initialUrl || null;
-            
-            // Create app instance but tell it to use our windowId
-            const appInstance = new AppClass(appConstructorArg);
-            
-            // CRITICAL FIX: Override the app's windowId before it calls init()
-            if (appInstance) {
-                appInstance.windowId = windowId;
-                appInstance.instanceId = windowData.instanceId;
-                appInstance._managedByWindowManager = true; // Flag to prevent double window creation
-                
-                // Store app reference
-                windowData.appInstance = appInstance;
-                
-                // Load the app content into our window
-                this.loadApp(windowId, appInstance);
-            }
-            
-        } catch (error) {
-            console.error(`Failed to create ${config.appType} instance:`, error);
-            this.closeWindow(windowId);
-        }
-    }
-
-    // ========== BUILT-IN APPS ==========
-
-    /**
-     * Calculator app from renderer.js to WindowManager
-     */
-    loadCalculatorApp(windowId) {
-        const windowData = this.windows.get(windowId);
-        if (!windowData) return;
-
-        this.loadApp(windowId, {
-            render: () => {
-                const container = document.createElement('div');
-                container.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    background: var(--nebula-bg-primary);
-                    padding: 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                `;
-
-                container.innerHTML = `
-                    <div class="calc-display" style="background: var(--nebula-surface); padding: 16px; border-radius: 8px; text-align: right; font-size: 24px; font-family: monospace; border: 1px solid var(--nebula-border);">0</div>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: 1;">
-                        <button class="calc-btn" data-action="clear" style="background: var(--nebula-surface-hover); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">C</button>
-                        <button class="calc-btn" data-action="sign" style="background: var(--nebula-surface-hover); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">±</button>
-                        <button class="calc-btn" data-action="percent" style="background: var(--nebula-surface-hover); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">%</button>
-                        <button class="calc-btn" data-action="divide" style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">÷</button>
-                        <button class="calc-btn" data-value="7" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">7</button>
-                        <button class="calc-btn" data-value="8" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">8</button>
-                        <button class="calc-btn" data-value="9" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">9</button>
-                        <button class="calc-btn" data-action="multiply" style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">×</button>
-                        <button class="calc-btn" data-value="4" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">4</button>
-                        <button class="calc-btn" data-value="5" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">5</button>
-                        <button class="calc-btn" data-value="6" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">6</button>
-                        <button class="calc-btn" data-action="subtract" style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">−</button>
-                        <button class="calc-btn" data-value="1" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">1</button>
-                        <button class="calc-btn" data-value="2" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">2</button>
-                        <button class="calc-btn" data-value="3" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">3</button>
-                        <button class="calc-btn" data-action="add" style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">+</button>
-                        <button class="calc-btn" data-value="0" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer; grid-column: span 2;">0</button>
-                        <button class="calc-btn" data-value="." style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">.</button>
-                        <button class="calc-btn" data-action="equals" style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">=</button>
-                    </div>
-                `;
-
-                // Add calculator functionality
-                let display = container.querySelector('.calc-display');
-                let currentValue = '0';
-                let previousValue = null;
-                let operator = null;
-                let waitingForNewValue = false;
-
-                container.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('calc-btn')) {
-                        const value = e.target.dataset.value;
-                        const action = e.target.dataset.action;
-
-                        if (value) {
-                            // Number or decimal point
-                            if (waitingForNewValue) {
-                                currentValue = value;
-                                waitingForNewValue = false;
-                            } else {
-                                currentValue = currentValue === '0' ? value : currentValue + value;
-                            }
-                            display.textContent = currentValue;
-                        } else if (action) {
-                            switch (action) {
-                                case 'clear':
-                                    currentValue = '0';
-                                    previousValue = null;
-                                    operator = null;
-                                    waitingForNewValue = false;
-                                    display.textContent = currentValue;
-                                    break;
-                                case 'equals':
-                                    if (operator && previousValue !== null) {
-                                        const result = this.calculateResult(previousValue, currentValue, operator);
-                                        currentValue = result.toString();
-                                        display.textContent = currentValue;
-                                        previousValue = null;
-                                        operator = null;
-                                        waitingForNewValue = true;
-                                    }
-                                    break;
-                                case 'add':
-                                case 'subtract':
-                                case 'multiply':
-                                case 'divide':
-                                    if (operator && previousValue !== null && !waitingForNewValue) {
-                                        const result = this.calculateResult(previousValue, currentValue, operator);
-                                        currentValue = result.toString();
-                                        display.textContent = currentValue;
-                                    }
-                                    previousValue = parseFloat(currentValue);
-                                    operator = action;
-                                    waitingForNewValue = true;
-                                    break;
-                            }
-                        }
-                    }
-                });
-
-                return container;
-            },
-            getTitle: () => 'Calculator',
-            getIcon: () => '🧮',
-            calculateResult: (prev, curr, op) => {
-                const a = parseFloat(prev);
-                const b = parseFloat(curr);
-                switch (op) {
-                    case 'add': return a + b;
-                    case 'subtract': return a - b;
-                    case 'multiply': return a * b;
-                    case 'divide': return b !== 0 ? a / b : 0;
-                    default: return b;
-                }
-            }
-        });
-    }
-
-    /**
-     * Placeholder settings app
-     */
-    loadSettingsApp(windowId) {
-        const windowData = this.windows.get(windowId);
-        if (!windowData) return;
-
-        this.loadApp(windowId, {
-            render: () => {
-                const container = document.createElement('div');
-                container.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    background: var(--nebula-bg-primary);
-                    padding: 24px;
-                    overflow-y: auto;
-                `;
-
-                container.innerHTML = `
-                    <h1 style="color: var(--nebula-text-primary); margin-bottom: 24px;">Settings</h1>
-                    
-                    <div style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; padding: 20px; margin-bottom: 16px;">
-                        <h2 style="color: var(--nebula-text-primary); margin-bottom: 16px;">Theme</h2>
-                        <button id="themeBtn" style="background: var(--nebula-primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Cycle Theme</button>
-                    </div>
-                    
-                    <div style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; padding: 20px; margin-bottom: 16px;">
-                        <h2 style="color: var(--nebula-text-primary); margin-bottom: 16px;">App Data</h2>
-                        <button id="clearDataBtn" style="background: var(--nebula-danger); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 10px;">Clear All App Data</button>
-                        <button id="saveDataBtn" style="background: var(--nebula-success); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Save All States</button>
-                        <p style="color: var(--nebula-text-secondary); font-size: 12px; margin-top: 8px;">Clear saved window positions, app states, and session data.</p>
-                    </div>
-                    
-                    <div style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 8px; padding: 20px;">
-                        <h2 style="color: var(--nebula-text-primary); margin-bottom: 16px;">About</h2>
-                        <p style="color: var(--nebula-text-secondary);">NebulaDesktop v3.0</p>
-                        <p style="color: var(--nebula-text-secondary);">Integrated Window & App Management</p>
-                    </div>
-                `;
-
-                // Add event listeners
-                container.querySelector('#themeBtn').addEventListener('click', () => {
-                    if (window.desktop && window.desktop.cycleTheme) {
-                        window.desktop.cycleTheme();
-                    }
-                });
-
-                container.querySelector('#clearDataBtn').addEventListener('click', () => {
-                    if (confirm('Clear all saved app data? This will remove window positions, app states, and session data.')) {
-                        this.clearAllAppData();
-                        alert('All app data cleared successfully!');
-                    }
-                });
-
-                container.querySelector('#saveDataBtn').addEventListener('click', () => {
-                    const saved = this.saveAllStates();
-                    alert(`Saved ${saved} app states successfully!`);
-                });
-
-                return container;
-            },
-            getTitle: () => 'Settings',
-            getIcon: () => '⚙️'
-        });
-    }
-
-    // ========== WINDOW LIFECYCLE OVERRIDES ==========
-    
-    /**
-     * Enhanced window creation with app support
+     * Creates a new window that can host apps
+     * @param {Object} options - Window configuration
+     * @returns {string} windowId - Unique identifier for the window
      */
     createWindow(options = {}) {
         const windowId = `window-${this.nextId++}`;
@@ -451,20 +43,20 @@ class WindowManager {
             height: options.height || 600,
             x: options.x || this.calculateDefaultPosition().x,
             y: options.y || this.calculateDefaultPosition().y,
-            resizable: options.resizable !== false,
+            resizable: options.resizable !== false, // Default to true
             maximizable: options.maximizable !== false,
             minimizable: options.minimizable !== false,
-            hasTabBar: options.hasTabBar || false,
+            hasTabBar: options.hasTabBar || false, // For multi-tab apps like browser
             ...options
         };
 
-        console.log(`Creating window: ${windowId}`);
+        console.log(`Creating window with config:`, config);
 
         // Create window DOM structure
         const windowElement = this.createWindowElement(windowId, config);
         document.getElementById('desktop').appendChild(windowElement);
 
-        // Store window data
+        // Store window data FIRST
         const windowData = {
             id: windowId,
             element: windowElement,
@@ -473,343 +65,24 @@ class WindowManager {
             isMinimized: false,
             savedPosition: null,
             savedSize: null,
-            tabs: new Map(),
+            tabs: new Map(), // For multi-tab support
             activeTab: null,
-            app: null,
-            // APP DATA
-            appType: null,
-            appInstance: null,
-            appConfig: null,
-            instanceId: null,
-            createdAt: Date.now()
+            app: null // Reference to the app instance
         };
 
         this.windows.set(windowId, windowData);
 
-        // Set up listeners and resize handles
+        // THEN set up listeners and resize handles (after windowData exists)
         this.setupWindowListeners(windowElement, windowId);
         this.focusWindow(windowId);
 
         console.log(`Created window: ${windowId}`);
         return windowId;
     }
-    
+
     /**
-     * Enhanced window closing with app cleanup
+     * Creates the DOM structure for a window
      */
-    closeWindow(windowId) {
-        const windowData = this.windows.get(windowId);
-        if (!windowData) return;
-
-        // APP CLEANUP
-        if (windowData.appType && windowData.appConfig) {
-            // Save state before cleanup if app supports persistence
-            if (windowData.appConfig.persistent && windowData.appInstance) {
-                this.saveAppState(windowData);
-            }
-            
-            // Remove from running apps tracking
-            const runningApps = this.runningApps.get(windowData.appType);
-            const index = runningApps.indexOf(windowId);
-            if (index !== -1) {
-                runningApps.splice(index, 1);
-            }
-            
-            console.log(`🧹 Cleaned up ${windowData.appType} app (${windowData.instanceId})`);
-        }
-
-        // Clean up all tabs
-        if (windowData.config.hasTabBar) {
-            windowData.tabs.forEach((_, tabId) => {
-                this.closeTab(windowId, tabId);
-            });
-        }
-
-        // Clean up main app
-        if (windowData.app && windowData.app.cleanup) {
-            windowData.app.cleanup();
-        }
-        
-        // Clean up app instance
-        if (windowData.appInstance && windowData.appInstance.cleanup) {
-            windowData.appInstance.cleanup();
-        }
-
-        // Remove from DOM
-        windowData.element.remove();
-
-        // Remove from windows map
-        this.windows.delete(windowId);
-
-        // Update active window
-        if (this.activeWindow === windowId) {
-            this.activeWindow = null;
-        }
-
-        console.log(`Closed window: ${windowId}`);
-    }
-
-    // ========== STATE PERSISTENCE ==========
-    
-    /**
-     * Save app state to localStorage
-     */
-    saveAppState(windowData) {
-        try {
-            const { appType, instanceId, appInstance, isMaximized } = windowData;
-            
-            if (!instanceId) {
-                console.warn(`No instanceId for ${appType}, cannot save state`);
-                return;
-            }
-            
-            // Get window state
-            const element = windowData.element;
-            const windowState = {
-                width: parseInt(element.style.width) || windowData.config.width,
-                height: parseInt(element.style.height) || windowData.config.height,
-                x: parseInt(element.style.left) || windowData.config.x,
-                y: parseInt(element.style.top) || windowData.config.y,
-                isMaximized: isMaximized
-            };
-            
-            // Get app state if app supports it
-            let appState = null;
-            if (appInstance && typeof appInstance.getState === 'function') {
-                appState = appInstance.getState();
-            }
-            
-            const stateData = {
-                appType,
-                instanceId,
-                windowConfig: windowState,
-                appState: appState,
-                savedAt: Date.now()
-            };
-            
-            const key = `nebula-window-${appType}-${instanceId}`;
-            localStorage.setItem(key, JSON.stringify(stateData));
-            console.log(`💾 Saved state for ${appType} (${instanceId})`);
-            
-        } catch (error) {
-            console.warn(`Failed to save app state: ${error.message}`);
-        }
-    }
-    
-    /**
-     * Load app state from localStorage
-     */
-    loadAppState(appType, instanceId = null) {
-        try {
-            if (instanceId) {
-                // Load specific instance state
-                const key = `nebula-window-${appType}-${instanceId}`;
-                const saved = localStorage.getItem(key);
-                return saved ? JSON.parse(saved) : null;
-            } else {
-                // Load most recent state for this app type
-                const states = this.getAllAppStates(appType);
-                if (states.length > 0) {
-                    states.sort((a, b) => b.savedAt - a.savedAt);
-                    return states[0];
-                }
-            }
-        } catch (error) {
-            console.warn(`Failed to load app state: ${error.message}`);
-        }
-        return null;
-    }
-    
-    /**
-     * Get all saved states for an app type
-     */
-    getAllAppStates(appType) {
-        const states = [];
-        const prefix = `nebula-window-${appType}-`;
-        
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(prefix)) {
-                try {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    states.push(data);
-                } catch (error) {
-                    console.warn(`Invalid state data in ${key}`);
-                }
-            }
-        }
-        
-        return states;
-    }
-
-    // ========== SESSION MANAGEMENT ==========
-    
-    /**
-     * Restore apps on desktop startup - FIXED to prevent duplication
-     */
-    async restoreSession() {
-        console.log('🔄 Restoring previous session...');
-        let restored = 0;
-        
-        // Only restore apps marked for autoRestore and limit quantity
-        for (const [appType, config] of this.appRegistry) {
-            if (config.autoRestore) {
-                const states = this.getAllAppStates(appType);
-                
-                // Restore only the most recent state for each app type to prevent duplication
-                if (states.length > 0) {
-                    // Sort by most recent and take only the first one
-                    states.sort((a, b) => b.savedAt - a.savedAt);
-                    const mostRecent = states[0];
-                    
-                    try {
-                        await this.launchApp(appType, {
-                            instanceId: mostRecent.instanceId,
-                            restore: true
-                        });
-                        restored++;
-                        // Small delay between restorations
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                    } catch (error) {
-                        console.warn(`Failed to restore ${appType}: ${error.message}`);
-                    }
-                }
-            }
-        }
-        
-        if (restored > 0) {
-            console.log(`✅ Restored ${restored} app instances`);
-        } else {
-            console.log('No apps to restore');
-        }
-    }
-    
-    /**
-     * Save all currently running app states
-     */
-    saveAllStates() {
-        let saved = 0;
-        
-        this.windows.forEach((windowData) => {
-            if (windowData.appType && windowData.appConfig && windowData.appConfig.persistent) {
-                this.saveAppState(windowData);
-                saved++;
-            }
-        });
-        
-        console.log(`💾 Manually saved ${saved} app states`);
-        return saved;
-    }
-    
-    /**
-     * Clear all app data - fixes duplication issues
-     */
-    clearAllAppData() {
-        console.log('🧹 Clearing all app data...');
-        const toRemove = [];
-        
-        // Find all nebula app state keys
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (key.startsWith('nebula-window-') || key.startsWith('nebula-app-'))) {
-                toRemove.push(key);
-            }
-        }
-        
-        // Remove all app data
-        toRemove.forEach(key => {
-            localStorage.removeItem(key);
-        });
-        
-        console.log(`🧹 Cleared ${toRemove.length} saved app states`);
-        return toRemove.length;
-    }
-    
-    /**
-     * Clean old app states
-     */
-    cleanupOldStates(maxAge = 7 * 24 * 60 * 60 * 1000) {
-        if (this.stateCleanupDone) return; // Prevent multiple cleanups
-        
-        const cutoff = Date.now() - maxAge;
-        const toRemove = [];
-        
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('nebula-window-')) {
-                try {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    if (data.savedAt < cutoff) {
-                        toRemove.push(key);
-                    }
-                } catch (error) {
-                    toRemove.push(key);
-                }
-            }
-        }
-        
-        toRemove.forEach(key => {
-            localStorage.removeItem(key);
-        });
-        
-        if (toRemove.length > 0) {
-            console.log(`Cleaned up ${toRemove.length} old app states`);
-        }
-        
-        this.stateCleanupDone = true;
-    }
-
-    // ========== APP MANAGEMENT UTILITIES ==========
-    
-    /**
-     * Get all running apps (for taskbar, debugging)
-     */
-    getAllRunningApps() {
-        const running = [];
-        
-        this.windows.forEach((windowData) => {
-            if (windowData.appType) {
-                running.push({
-                    windowId: windowData.id,
-                    appType: windowData.appType,
-                    instanceId: windowData.instanceId,
-                    title: windowData.appInstance?.getTitle?.() || windowData.config.title,
-                    icon: windowData.appInstance?.getIcon?.() || windowData.appConfig?.icon || '🪟',
-                    isMinimized: windowData.isMinimized,
-                    createdAt: windowData.createdAt
-                });
-            }
-        });
-        
-        return running;
-    }
-    
-    /**
-     * Get debug information
-     */
-    getDebugInfo() {
-        const running = this.getAllRunningApps();
-        const stateKeys = [];
-        
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('nebula-window-')) {
-                stateKeys.push(key);
-            }
-        }
-        
-        return {
-            totalWindows: this.windows.size,
-            runningApps: running.length,
-            registeredTypes: Array.from(this.appRegistry.keys()),
-            savedStates: stateKeys.length,
-            singletonApps: Array.from(this.singletonApps),
-            running: running
-        };
-    }
-
-    // ========== EXISTING WINDOW MANAGER METHODS (unchanged) ==========
-    
     createWindowElement(windowId, config) {
         const window = document.createElement('div');
         window.className = 'nebula-window';
@@ -845,9 +118,16 @@ class WindowManager {
             </div>
         `;
 
+        // DON'T call setupWindowListeners here - do it after windowData is stored
         return window;
     }
 
+    /**
+     * Loads an app into a window
+     * @param {string} windowId - Target window
+     * @param {Object} app - App instance
+     * @param {string} tabId - Optional tab ID for multi-tab apps
+     */
     loadApp(windowId, app, tabId = null) {
         const windowData = this.windows.get(windowId);
         if (!windowData) {
@@ -856,48 +136,198 @@ class WindowManager {
         }
 
         if (windowData.config.hasTabBar && tabId) {
+            // Multi-tab app (like browser)
             this.loadAppInTab(windowId, app, tabId);
         } else {
+            // Single-window app (like file manager)
             this.loadAppInWindow(windowId, app);
         }
     }
 
+    /**
+     * Loads app content directly into window (single-app windows)
+     */
     loadAppInWindow(windowId, app) {
         const windowData = this.windows.get(windowId);
         const contentArea = windowData.element.querySelector('.window-content');
 
+        // Clear existing content
         contentArea.innerHTML = '';
 
+        // Let the app render its content
         if (app.render) {
             const appContent = app.render();
             contentArea.appendChild(appContent);
         }
 
+        // Store app reference
         windowData.app = app;
 
+        // Update window title if app provides one
         if (app.getTitle) {
             this.setWindowTitle(windowId, app.getTitle());
         }
     }
 
-    calculateDefaultPosition() {
-        const area = this.availableArea || { x: 0, y: 0 };
-        const offset = (this.windows.size % 10) * 30;
+    /**
+     * Creates a new tab and loads app content (multi-tab apps)
+     */
+    createTab(windowId, options = {}) {
+        const windowData = this.windows.get(windowId);
+        if (!windowData || !windowData.config.hasTabBar) {
+            console.error(`Window ${windowId} doesn't support tabs`);
+            return null;
+        }
 
-        return {
-            x: area.x + 100 + offset,
-            y: area.y + 100 + offset
+        const tabId = `tab-${Date.now()}`;
+        const tabData = {
+            id: tabId,
+            title: options.title || 'New Tab',
+            icon: options.icon || '🌐',
+            content: null,
+            app: null
         };
+
+        // Create tab button
+        const tabButton = document.createElement('div');
+        tabButton.className = 'window-tab';
+        tabButton.dataset.tabId = tabId;
+        tabButton.dataset.windowId = windowId;
+        tabButton.innerHTML = `
+            <div class="tab-icon">${tabData.icon}</div>
+            <div class="tab-title">${tabData.title}</div>
+            <button class="tab-close" data-action="close-tab" data-tab-id="${tabId}">×</button>
+        `;
+
+        // Create tab content container
+        const tabContent = document.createElement('div');
+        tabContent.className = 'tab-content';
+        tabContent.dataset.tabId = tabId;
+        tabContent.style.display = 'none';
+
+        // Add to DOM
+        const tabList = windowData.element.querySelector('.tab-list');
+        const contentArea = windowData.element.querySelector('.window-content');
+
+        tabList.appendChild(tabButton);
+        contentArea.appendChild(tabContent);
+
+        // Store tab data
+        tabData.element = tabButton;
+        tabData.content = tabContent;
+        windowData.tabs.set(tabId, tabData);
+
+        // Activate this tab
+        this.activateTab(windowId, tabId);
+
+        return tabId;
     }
 
+    /**
+     * Loads an app into a specific tab
+     */
+    loadAppInTab(windowId, app, tabId) {
+        const windowData = this.windows.get(windowId);
+        const tabData = windowData.tabs.get(tabId);
+
+        if (!tabData) {
+            console.error(`Tab ${tabId} not found in window ${windowId}`);
+            return;
+        }
+
+        // Let the app render its content
+        if (app.render) {
+            const appContent = app.render();
+            tabData.content.innerHTML = '';
+            tabData.content.appendChild(appContent);
+        }
+
+        // Store app reference
+        tabData.app = app;
+
+        // Update tab title if app provides one
+        if (app.getTitle) {
+            this.setTabTitle(windowId, tabId, app.getTitle());
+        }
+
+        // Update tab icon if app provides one
+        if (app.getIcon) {
+            this.setTabIcon(windowId, tabId, app.getIcon());
+        }
+    }
+
+    /**
+     * Activates a specific tab
+     */
+    activateTab(windowId, tabId) {
+        const windowData = this.windows.get(windowId);
+
+        // Deactivate all tabs
+        windowData.tabs.forEach((tab, id) => {
+            tab.element.classList.remove('active');
+            tab.content.style.display = 'none';
+        });
+
+        // Activate selected tab
+        const activeTab = windowData.tabs.get(tabId);
+        if (activeTab) {
+            activeTab.element.classList.add('active');
+            activeTab.content.style.display = 'block';
+            windowData.activeTab = tabId;
+        }
+    }
+
+    /**
+     * Closes a specific tab
+     */
+    closeTab(windowId, tabId) {
+        const windowData = this.windows.get(windowId);
+        const tabData = windowData.tabs.get(tabId);
+
+        if (!tabData) return;
+
+        // Clean up app if it has cleanup method
+        if (tabData.app && tabData.app.cleanup) {
+            tabData.app.cleanup();
+        }
+
+        // Remove from DOM
+        tabData.element.remove();
+        tabData.content.remove();
+
+        // Remove from tabs map
+        windowData.tabs.delete(tabId);
+
+        // If this was the active tab, activate another one
+        if (windowData.activeTab === tabId) {
+            const remainingTabs = Array.from(windowData.tabs.keys());
+            if (remainingTabs.length > 0) {
+                this.activateTab(windowId, remainingTabs[0]);
+            } else {
+                windowData.activeTab = null;
+            }
+        }
+
+        // If no tabs left, close the window
+        if (windowData.tabs.size === 0 && windowData.config.hasTabBar) {
+            this.closeWindow(windowId);
+        }
+    }
+
+    /**
+     * Brings a window to the front
+     */
     focusWindow(windowId) {
         const windowData = this.windows.get(windowId);
         if (!windowData || windowData.isMinimized) return;
 
+        // Only update z-index if this window isn't already active
         if (this.activeWindow !== windowId) {
+            // Update z-index to bring to front
             windowData.element.style.zIndex = this.zIndexCounter++;
             this.activeWindow = windowId;
 
+            // Update visual state efficiently
             requestAnimationFrame(() => {
                 this.windows.forEach((data, id) => {
                     if (id !== windowId) {
@@ -911,13 +341,18 @@ class WindowManager {
         }
     }
 
+    /**
+     * Minimizes a window with animation
+     */
     minimizeWindow(windowId) {
         const windowData = this.windows.get(windowId);
         if (!windowData) return;
 
         windowData.element.classList.add('minimizing');
 
+        // Use animation event instead of timeout for better performance
         const handleAnimationEnd = () => {
+            // Use CSS class instead of inline style to avoid display conflicts
             windowData.element.classList.add('window-hidden');
             windowData.element.classList.remove('minimizing');
             windowData.isMinimized = true;
@@ -926,6 +361,7 @@ class WindowManager {
 
         windowData.element.addEventListener('animationend', handleAnimationEnd);
 
+        // Fallback timeout in case animation doesn't fire
         setTimeout(() => {
             if (windowData.isMinimized) return;
             handleAnimationEnd();
@@ -934,14 +370,19 @@ class WindowManager {
         console.log(`Minimized window: ${windowId}`);
     }
 
+    /**
+     * Restores a minimized window
+     */
     restoreWindow(windowId) {
         const windowData = this.windows.get(windowId);
         if (!windowData || !windowData.isMinimized) return;
 
+        // Use CSS class instead of inline style to avoid display conflicts
         windowData.element.classList.remove('window-hidden');
         windowData.element.classList.add('restoring');
         windowData.isMinimized = false;
 
+        // Remove animation class after animation completes
         setTimeout(() => {
             windowData.element.classList.remove('restoring');
         }, 300);
@@ -951,11 +392,15 @@ class WindowManager {
         console.log(`Restored window: ${windowId}`);
     }
 
+    /**
+     * Maximizes or restores a window (checks for pinned assistant)
+     */
     toggleMaximizeWindow(windowId) {
         const windowData = this.windows.get(windowId);
         if (!windowData) return;
 
         if (windowData.isMaximized) {
+            // Restore to previous size/position
             if (windowData.savedPosition) {
                 Object.assign(windowData.element.style, {
                     width: windowData.savedSize.width,
@@ -963,10 +408,13 @@ class WindowManager {
                     left: windowData.savedPosition.x,
                     top: windowData.savedPosition.y
                 });
+
+                console.log(`Restored window ${windowId} to saved position: ${windowData.savedPosition.x}, size: ${windowData.savedSize.width}`);
             }
             windowData.element.classList.remove('maximized');
             windowData.isMaximized = false;
         } else {
+            // Save current CSS position/size (not screen position)
             const computedStyle = window.getComputedStyle(windowData.element);
             windowData.savedPosition = {
                 x: windowData.element.style.left || computedStyle.left,
@@ -977,6 +425,7 @@ class WindowManager {
                 height: windowData.element.style.height || computedStyle.height
             };
 
+            // Check if assistant is pinned by looking at CSS classes
             const desktop = document.querySelector('.desktop');
             const isAssistantPinned = desktop && desktop.classList.contains('assistant-open') && desktop.classList.contains('pinned');
 
@@ -984,7 +433,8 @@ class WindowManager {
             let maxLeft = '0px';
 
             if (isAssistantPinned) {
-                let assistantWidth = 420;
+                // Calculate assistant width based on CSS classes
+                let assistantWidth = 420; // default width
 
                 if (desktop.classList.contains('full-view-25')) {
                     assistantWidth = Math.floor(window.innerWidth * 0.25);
@@ -994,23 +444,66 @@ class WindowManager {
                     assistantWidth = Math.floor(window.innerWidth * 0.5);
                 }
 
+                // Maximize to available space only
                 const availableWidth = window.innerWidth - assistantWidth;
                 maxWidth = availableWidth + 'px';
-                maxLeft = '0px';
+                maxLeft = '0px'; // CSS margin will push it to the right spot
+
+                console.log(`Assistant pinned at ${assistantWidth}px, maximizing to ${availableWidth}px width`);
             }
 
+            // Maximize with calculated dimensions
             Object.assign(windowData.element.style, {
                 width: maxWidth,
-                height: 'calc(100vh - 50px)',
+                height: 'calc(100vh - 50px)', // Account for taskbar
                 left: maxLeft,
                 top: '0px'
             });
 
             windowData.element.classList.add('maximized');
             windowData.isMaximized = true;
+
+            console.log(`Maximized window ${windowId} - Width: ${maxWidth}, Left: ${maxLeft}, Saved CSS position: ${windowData.savedPosition.x}`);
         }
     }
 
+
+    /**
+     * Closes a window and cleans up
+     */
+    closeWindow(windowId) {
+        const windowData = this.windows.get(windowId);
+        if (!windowData) return;
+
+        // Clean up all tabs
+        if (windowData.config.hasTabBar) {
+            windowData.tabs.forEach((_, tabId) => {
+                this.closeTab(windowId, tabId);
+            });
+        }
+
+        // Clean up main app
+        if (windowData.app && windowData.app.cleanup) {
+            windowData.app.cleanup();
+        }
+
+        // Remove from DOM
+        windowData.element.remove();
+
+        // Remove from windows map
+        this.windows.delete(windowId);
+
+        // Update active window
+        if (this.activeWindow === windowId) {
+            this.activeWindow = null;
+        }
+
+        console.log(`Closed window: ${windowId}`);
+    }
+
+    /**
+     * Helper methods for updating window/tab properties
+     */
     setWindowTitle(windowId, title) {
         const windowData = this.windows.get(windowId);
         if (windowData) {
@@ -1018,13 +511,48 @@ class WindowManager {
         }
     }
 
+    setTabTitle(windowId, tabId, title) {
+        const windowData = this.windows.get(windowId);
+        const tabData = windowData?.tabs.get(tabId);
+        if (tabData) {
+            tabData.element.querySelector('.tab-title').textContent = title;
+        }
+    }
+
+    setTabIcon(windowId, tabId, icon) {
+        const windowData = this.windows.get(windowId);
+        const tabData = windowData?.tabs.get(tabId);
+        if (tabData) {
+            tabData.element.querySelector('.tab-icon').textContent = icon;
+        }
+    }
+
+    /**
+     * Calculate default position that respects available area
+     */
+    calculateDefaultPosition() {
+        const area = this.availableArea || { x: 0, y: 0 };
+        const offset = (this.windows.size % 10) * 30;
+
+        return {
+            x: area.x + 100 + offset,
+            y: area.y + 100 + offset
+        };
+    }
+
+    /**
+     * Sets up global event listeners for window management
+     */
     setupGlobalListeners() {
+        // Throttled focus handler for better performance
         let focusTimeout = null;
         document.addEventListener('mousedown', (e) => {
+            // Clear any pending focus update
             if (focusTimeout) {
                 clearTimeout(focusTimeout);
             }
 
+            // Use a small delay to batch focus updates
             focusTimeout = setTimeout(() => {
                 const windowElement = e.target.closest('.nebula-window');
                 if (windowElement) {
@@ -1033,12 +561,15 @@ class WindowManager {
             }, 0);
         }, { passive: true });
 
+        // Efficient event delegation for window controls
         document.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
             const windowId = e.target.dataset.windowId;
+            const tabId = e.target.dataset.tabId;
 
             if (!action || !windowId) return;
 
+            // Prevent event bubbling for control actions
             e.stopPropagation();
 
             switch (action) {
@@ -1051,19 +582,108 @@ class WindowManager {
                 case 'close':
                     this.closeWindow(windowId);
                     break;
+                case 'close-tab':
+                    if (tabId) this.closeTab(windowId, tabId);
+                    break;
             }
         });
 
+        // Emergency fix - add direct span click handling
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('material-symbols-outlined')) {
                 const button = e.target.closest('.window-btn');
                 if (button) {
-                    button.click();
+                    button.click(); // Trigger button click
+                    console.log('Span click redirected to button');
+                }
+            }
+        });
+
+        // Handle tab switching with delegation
+        document.addEventListener('click', (e) => {
+            const tabElement = e.target.closest('.window-tab');
+            if (tabElement && !e.target.classList.contains('tab-close')) {
+                const windowId = tabElement.dataset.windowId;
+                const tabId = tabElement.dataset.tabId;
+                if (windowId && tabId) {
+                    this.activateTab(windowId, tabId);
+                }
+            }
+        });
+
+        // Handle new tab button efficiently
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('new-tab-btn')) {
+                const windowId = e.target.dataset.windowId;
+                const tabId = this.createTab(windowId);
+
+                // Notify the app about new tab creation
+                const windowData = this.windows.get(windowId);
+                if (windowData.app && windowData.app.onNewTab) {
+                    windowData.app.onNewTab(tabId);
+                }
+
+                e.stopPropagation();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Alt+Tab window switching
+            if (e.altKey && e.key === 'Tab') {
+                e.preventDefault();
+                this.switchToNextWindow();
+            }
+
+            // Ctrl+W close tab/window
+            if (e.ctrlKey && e.key === 'w') {
+                e.preventDefault();
+                if (this.activeWindow) {
+                    const windowData = this.windows.get(this.activeWindow);
+                    if (windowData && windowData.config.hasTabBar && windowData.activeTab) {
+                        this.closeTab(this.activeWindow, windowData.activeTab);
+                    } else {
+                        this.closeWindow(this.activeWindow);
+                    }
+                }
+            }
+
+            // Ctrl+T new tab
+            if (e.ctrlKey && e.key === 't') {
+                e.preventDefault();
+                if (this.activeWindow) {
+                    const windowData = this.windows.get(this.activeWindow);
+                    if (windowData && windowData.config.hasTabBar) {
+                        const tabId = this.createTab(this.activeWindow);
+                        if (windowData.app && windowData.app.onNewTab) {
+                            windowData.app.onNewTab(tabId);
+                        }
+                    }
                 }
             }
         });
     }
 
+    /**
+     * Switches to the next window (Alt+Tab functionality)
+     */
+    switchToNextWindow() {
+        const visibleWindows = Array.from(this.windows.entries())
+            .filter(([id, data]) => !data.isMinimized)
+            .map(([id]) => id);
+
+        if (visibleWindows.length <= 1) return;
+
+        const currentIndex = visibleWindows.indexOf(this.activeWindow);
+        const nextIndex = (currentIndex + 1) % visibleWindows.length;
+        const nextWindowId = visibleWindows[nextIndex];
+
+        this.focusWindow(nextWindowId);
+    }
+
+    /**
+     * Sets up drag functionality for a specific window
+     */
     setupWindowListeners(windowElement, windowId) {
         const titlebar = windowElement.querySelector('.window-titlebar');
         let isDragging = false;
@@ -1071,24 +691,30 @@ class WindowManager {
         let animationFrame = null;
 
         titlebar.addEventListener('mousedown', (e) => {
+            // Don't start drag if clicking on window controls
             if (e.target.closest('.window-controls')) return;
 
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
 
+            // Get current position from computed style
             const computedStyle = window.getComputedStyle(windowElement);
             initialX = parseInt(computedStyle.left) || 0;
             initialY = parseInt(computedStyle.top) || 0;
 
+            // Add dragging class for visual feedback
             windowElement.classList.add('dragging');
             titlebar.style.cursor = 'grabbing';
 
+            // Bring window to front immediately
             this.focusWindow(windowId);
 
+            // Add global event listeners
             document.addEventListener('mousemove', handleDrag, { passive: false });
             document.addEventListener('mouseup', stopDrag);
 
+            // Prevent text selection and default behaviors
             e.preventDefault();
             e.stopPropagation();
         });
@@ -1096,10 +722,12 @@ class WindowManager {
         const handleDrag = (e) => {
             if (!isDragging) return;
 
+            // Cancel any pending animation frame
             if (animationFrame) {
                 cancelAnimationFrame(animationFrame);
             }
 
+            // Use requestAnimationFrame for smooth movement
             animationFrame = requestAnimationFrame(() => {
                 const deltaX = e.clientX - startX;
                 const deltaY = e.clientY - startY;
@@ -1107,18 +735,21 @@ class WindowManager {
                 const newX = initialX + deltaX;
                 const newY = initialY + deltaY;
 
-                const maxX = window.innerWidth - 100;
+                // Constrain to viewport bounds
+                const maxX = window.innerWidth - 100; // Keep at least 100px visible
                 const maxY = window.innerHeight - 100;
-                const minX = -windowElement.offsetWidth + 100;
-                const minY = 0;
+                const minX = -windowElement.offsetWidth + 100; // Allow dragging mostly off-screen
+                const minY = 0; // Don't allow dragging above viewport
 
                 const constrainedX = Math.max(minX, Math.min(maxX, newX));
                 const constrainedY = Math.max(minY, Math.min(maxY, newY));
 
+                // Apply position immediately for smooth movement
                 windowElement.style.left = constrainedX + 'px';
                 windowElement.style.top = constrainedY + 'px';
             });
 
+            // Prevent default to avoid any lag
             e.preventDefault();
         };
 
@@ -1127,44 +758,70 @@ class WindowManager {
 
             isDragging = false;
 
+            // Cancel any pending animation
             if (animationFrame) {
                 cancelAnimationFrame(animationFrame);
                 animationFrame = null;
             }
 
+            // Remove visual feedback
             windowElement.classList.remove('dragging');
             titlebar.style.cursor = '';
 
+            // Remove event listeners
             document.removeEventListener('mousemove', handleDrag);
             document.removeEventListener('mouseup', stopDrag);
 
             e.preventDefault();
         };
 
+        // Handle double-click on titlebar to maximize/restore
         titlebar.addEventListener('dblclick', (e) => {
             if (e.target.closest('.window-controls')) return;
             this.toggleMaximizeWindow(windowId);
         });
 
+        // Add resize handles
         this.addResizeHandles(windowElement, windowId);
     }
 
+    /**
+     * Adds resize handles to a window
+     */
     addResizeHandles(windowElement, windowId) {
         const windowData = this.windows.get(windowId);
-        if (!windowData || !windowData.config.resizable) return;
+        if (!windowData) {
+            console.error(`No windowData found for window ${windowId}`);
+            return;
+        }
 
+        if (!windowData.config.resizable) {
+            console.log(`Skipping resize handles for window ${windowId} - not resizable`);
+            return;
+        }
+
+        console.log(`✅ Adding resize handles to window ${windowId} (resizable: ${windowData.config.resizable})`);
+
+        // Create resize handles
         const handles = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
 
         handles.forEach(direction => {
             const handle = document.createElement('div');
             handle.className = `resize-handle resize-${direction}`;
             handle.dataset.direction = direction;
+            handle.title = `Resize ${direction.toUpperCase()}`; // Add tooltip for debugging
             windowElement.appendChild(handle);
 
             this.setupResizeHandle(handle, windowElement, windowId, direction);
+            console.log(`  📐 Created ${direction} resize handle`);
         });
+
+        console.log(`✅ All resize handles added for window ${windowId}`);
     }
 
+    /**
+     * Sets up a single resize handle
+     */
     setupResizeHandle(handle, windowElement, windowId, direction) {
         let isResizing = false;
         let startX, startY, startWidth, startHeight, startLeft, startTop;
@@ -1207,6 +864,7 @@ class WindowManager {
                 let newLeft = startLeft;
                 let newTop = startTop;
 
+                // Apply resize based on direction
                 if (direction.includes('e')) {
                     newWidth = Math.max(300, startWidth + deltaX);
                 }
@@ -1222,6 +880,7 @@ class WindowManager {
                     newTop = startTop + (startHeight - newHeight);
                 }
 
+                // Apply the new dimensions
                 windowElement.style.width = newWidth + 'px';
                 windowElement.style.height = newHeight + 'px';
                 windowElement.style.left = newLeft + 'px';
@@ -1245,18 +904,69 @@ class WindowManager {
         };
     }
 
+    /**
+     * Gets all windows (useful for taskbar integration)
+     */
     getAllWindows() {
         return Array.from(this.windows.values());
     }
 
+    /**
+     * Gets active window
+     */
     getActiveWindow() {
         return this.windows.get(this.activeWindow);
     }
 
+    /**
+     * Exposes restoreWindow method for external use (like taskbar)
+     */
     restoreWindowById(windowId) {
         this.restoreWindow(windowId);
     }
 
+
+    /**
+     * Simple repositioning: just ensure windows don't go past right edge of screen
+     * @param {number} leftMargin - Assistant panel width (not used in this simple approach)
+     */
+    repositionWindowsForDesktopResize(leftMargin = 0) {
+        const screenWidth = window.innerWidth;
+
+        console.log(`🔧 Simple reposition check: Screen width = ${screenWidth}px`);
+
+        this.windows.forEach((windowData, windowId) => {
+            if (windowData.isMinimized || windowData.isMaximized) {
+                console.log(`⏭️ Skipping ${windowId} (minimized: ${windowData.isMinimized}, maximized: ${windowData.isMaximized})`);
+                return;
+            }
+
+            const windowElement = windowData.element;
+            const rect = windowElement.getBoundingClientRect();
+            const currentLeft = parseInt(windowElement.style.left) || rect.left;
+            const currentWidth = parseInt(windowElement.style.width) || rect.width;
+            const currentRight = currentLeft + currentWidth;
+
+            console.log(`📏 Window ${windowId}: left=${currentLeft}px, width=${currentWidth}px, right=${currentRight}px`);
+
+            // Simple check: if window extends past screen edge, move it left
+            if (currentRight > screenWidth) {
+                const newLeft = screenWidth - currentWidth;
+                windowElement.style.left = newLeft + 'px';
+                console.log(`✅ Moved window ${windowId} from ${currentLeft}px to ${newLeft}px (was extending past screen)`);
+            } else {
+                console.log(`✅ Window ${windowId} is fine, no movement needed`);
+            }
+        });
+    }
+
+    /**
+     * Updates the maximum available area for windows (affects maximize behavior)
+     * @param {number} leftMargin - Space taken from left side
+     * @param {number} rightMargin - Space taken from right side  
+     * @param {number} topMargin - Space taken from top
+     * @param {number} bottomMargin - Space taken from bottom (usually taskbar = 50px)
+     */
     updateAvailableArea(leftMargin = 0, rightMargin = 0, topMargin = 0, bottomMargin = 50) {
         this.availableArea = {
             x: leftMargin,
@@ -1265,13 +975,20 @@ class WindowManager {
             height: window.innerHeight - topMargin - bottomMargin
         };
 
+        console.log('Updated available area:', this.availableArea);
+
+        // Update any currently maximized windows to fit new area
         this.windows.forEach((windowData, windowId) => {
             if (windowData.isMaximized) {
                 this.applyMaximizedSize(windowData);
+                console.log(`Resized maximized window ${windowId} to new available area`);
             }
         });
     }
 
+    /**
+     * Applies maximized size based on current available area
+     */
     applyMaximizedSize(windowData) {
         const area = this.availableArea || {
             x: 0, y: 0,
@@ -1279,13 +996,21 @@ class WindowManager {
             height: window.innerHeight - 50
         };
 
+        console.log(`Applying maximized size. Area:`, area);
+
         Object.assign(windowData.element.style, {
             width: area.width + 'px',
             height: area.height + 'px',
             left: area.x + 'px',
             top: area.y + 'px'
         });
+
+        console.log(`Maximized window positioned at: left=${area.x}px, width=${area.width}px`);
     }
+
+
+
+
 }
 
 // Make WindowManager available globally
