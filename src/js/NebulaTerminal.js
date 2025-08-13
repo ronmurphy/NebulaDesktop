@@ -173,7 +173,7 @@ class NebulaTerminal {
             whoami: () => this.showWhoAmI(),
             uname: () => this.showSystemInfo(),
             js: (args) => this.executeJS(args.join(' ')),
-            nfetch: () => this.showNFetch(),
+            nfetch: () => this.showNFetch("random"),
             mdr: (args) => this.openMarkdownReader(args[0]),
             debug: (args) => this.debugCommand(args),
             exit: () => this.closeTerminal(),
@@ -829,42 +829,137 @@ class NebulaTerminal {
     /**
      * Show NFetch - stylized system information display (web-terminal optimized)
      */
-    async showNFetch() {
-        try {
-            // Get system info
-            let systemInfo = {};
-            if (window.nebula?.terminal?.getSystemInfo) {
-                systemInfo = await window.nebula.terminal.getSystemInfo();
-            }
+    // async showNFetch() {
+    //     try {
+    //         // Get system info
+    //         let systemInfo = {};
+    //         if (window.nebula?.terminal?.getSystemInfo) {
+    //             systemInfo = await window.nebula.terminal.getSystemInfo();
+    //         }
 
-            // Get current time and info
-            const uptime = this.getUptime();
-            const memoryInfo = this.getMemoryInfo();
+    //         // Get current time and info
+    //         const uptime = this.getUptime();
+    //         const memoryInfo = this.getMemoryInfo();
 
-            // Super simple layout - no fancy ASCII art, just clean info display
-            this.writeLine('');
-            this.writeLine('\x1b[35m╭─── NEBULA OS ───╮\x1b[0m');
-            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mOS:\x1b[0m NebulaOS v1.0     \x1b[35m│\x1b[0m');
-            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mHost:\x1b[0m nebula-desktop  \x1b[35m│\x1b[0m');
-            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mKernel:\x1b[0m NebulaKernel    \x1b[35m│\x1b[0m');
-            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mArch:\x1b[0m x64             \x1b[35m│\x1b[0m');
-            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mShell:\x1b[0m nebula-sh      \x1b[35m│\x1b[0m');
-            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mTerm:\x1b[0m NebulaTerminal  \x1b[35m│\x1b[0m');
-            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mUptime:\x1b[0m ' + uptime.padEnd(12) + ' \x1b[35m│\x1b[0m');
-            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mMemory:\x1b[0m ' + memoryInfo.padEnd(12) + ' \x1b[35m│\x1b[0m');
-            this.writeLine('\x1b[35m╰─────────────────╯\x1b[0m');
+    //         // Super simple layout - no fancy ASCII art, just clean info display
+    //         this.writeLine('');
+    //         this.writeLine('\x1b[35m╭─── NEBULA OS ───╮\x1b[0m');
+    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mOS:\x1b[0m NebulaOS v1.0     \x1b[35m│\x1b[0m');
+    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mHost:\x1b[0m nebula-desktop  \x1b[35m│\x1b[0m');
+    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mKernel:\x1b[0m NebulaKernel    \x1b[35m│\x1b[0m');
+    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mArch:\x1b[0m x64             \x1b[35m│\x1b[0m');
+    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mShell:\x1b[0m nebula-sh      \x1b[35m│\x1b[0m');
+    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mTerm:\x1b[0m NebulaTerminal  \x1b[35m│\x1b[0m');
+    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mUptime:\x1b[0m ' + uptime.padEnd(12) + ' \x1b[35m│\x1b[0m');
+    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mMemory:\x1b[0m ' + memoryInfo.padEnd(12) + ' \x1b[35m│\x1b[0m');
+    //         this.writeLine('\x1b[35m╰─────────────────╯\x1b[0m');
 
-            // Color palette display
-            this.writeLine('');
-            this.writeLine('\x1b[35mColors:\x1b[0m');
-            this.writeLine('        \x1b[30m███\x1b[0m \x1b[31m███\x1b[0m \x1b[32m███\x1b[0m \x1b[33m███\x1b[0m \x1b[34m███\x1b[0m \x1b[35m███\x1b[0m \x1b[36m███\x1b[0m \x1b[37m███\x1b[0m');
-            this.writeLine('        BLK RED GRN YLW BLU MAG CYN WHT');
-            this.writeLine('');
+    //         // Color palette display
+    //         this.writeLine('');
+    //         this.writeLine('\x1b[35mColors:\x1b[0m');
+    //         this.writeLine('        \x1b[30m███\x1b[0m \x1b[31m███\x1b[0m \x1b[32m███\x1b[0m \x1b[33m███\x1b[0m \x1b[34m███\x1b[0m \x1b[35m███\x1b[0m \x1b[36m███\x1b[0m \x1b[37m███\x1b[0m');
+    //         this.writeLine('        BLK RED GRN YLW BLU MAG CYN WHT');
+    //         this.writeLine('');
 
-        } catch (error) {
-            this.writeError(`NFetch error: ${error.message}`);
+    //     } catch (error) {
+    //         this.writeError(`NFetch error: ${error.message}`);
+    //     }
+    // }
+
+    async showNFetch(style = "classic") {
+    try {
+        // Gather system info
+        let systemInfo = {};
+        if (window.nebula?.terminal?.getSystemInfo) {
+            systemInfo = await window.nebula.terminal.getSystemInfo();
         }
+
+        const uptime = this.getUptime();
+        const memoryInfo = this.getMemoryInfo();
+
+        // ASCII art options
+        const asciiStyles = {
+            minimal: [
+                "\x1b[35m╭─── NEBULA ───╮\x1b[0m",
+                "\x1b[35m│\x1b[0m \x1b[36mOS:\x1b[0m Nebula v1.0     \x1b[35m│\x1b[0m",
+                "\x1b[35m│\x1b[0m \x1b[36mHost:\x1b[0m nebula-desktop  \x1b[35m│\x1b[0m",
+                "\x1b[35m│\x1b[0m \x1b[36mKernel:\x1b[0m NebulaKernel    \x1b[35m│\x1b[0m",
+                "\x1b[35m│\x1b[0m \x1b[36mArch:\x1b[0m x64             \x1b[35m│\x1b[0m",
+                "\x1b[35m│\x1b[0m \x1b[36mShell:\x1b[0m nebula-sh      \x1b[35m│\x1b[0m",
+                "\x1b[35m│\x1b[0m \x1b[36mTerm:\x1b[0m NebulaTerminal  \x1b[35m│\x1b[0m",
+                `\x1b[35m│\x1b[0m \x1b[36mUptime:\x1b[0m ${uptime.padEnd(12)} \x1b[35m│\x1b[0m`,
+                `\x1b[35m│\x1b[0m \x1b[36mMemory:\x1b[0m ${memoryInfo.padEnd(12)} \x1b[35m│\x1b[0m`,
+                "\x1b[35m╰─────────────────╯\x1b[0m"
+            ],
+            classic: [
+                "\x1b[35m        _   _      _           \x1b[0m",
+                "\x1b[35m  _ __ | \\ | | ___| |__   __ _ \x1b[0m",
+                "\x1b[35m | '_ \\|  \\| |/ _ \\ '_ \\ / _` |\x1b[0m",
+                "\x1b[35m | | | | |\\  |  __/ | | | (_| |\x1b[0m",
+                "\x1b[35m |_| |_|_| \\_|\\___|_| |_|\\__,_|\x1b[0m"
+            ],
+            swirl: [
+                "\x1b[35m           .        *        .    \x1b[0m",
+                "\x1b[35m      *        .    .   *         \x1b[0m",
+                "\x1b[35m    .     _   _      _       *    \x1b[0m",
+                "\x1b[35m   *   | \\ | | ___ | |__   __ _   \x1b[0m",
+                "\x1b[35m       |  \\| |/ _ \\| '_ \\ / _` |  \x1b[0m",
+                "\x1b[35m   *   | |\\  |  __/| | | | (_| |  \x1b[0m",
+                "\x1b[35m       |_| \\_|\\___||_| |_|\\__,_|  \x1b[0m",
+                "\x1b[35m     .      *    .    *     .     \x1b[0m"
+            ],
+            gradient: [
+                "\x1b[35m        _   _      _           \x1b[0m",
+                "\x1b[35m  _ __ \x1b[95m| \\ | |\x1b[94m ___| |__   __ _ \x1b[0m",
+                "\x1b[95m | '_ \\ \x1b[94m|  \\| |/ _ \\ '_ \\ / _` |\x1b[0m",
+                "\x1b[94m | | | |\x1b[96m |\\  |  __/ | | | (_| |\x1b[0m",
+                "\x1b[96m |_| |_|_| \\_|\\___|_| |_|\\__,_|\x1b[0m"
+            ]
+        };
+
+        // Info lines for all styles except minimal
+        const infoLines = [
+            `\x1b[36mOS:\x1b[0m       Nebula v1.0`,
+            `\x1b[36mHost:\x1b[0m     nebula-desktop`,
+            `\x1b[36mKernel:\x1b[0m   NebulaKernel`,
+            `\x1b[36mArch:\x1b[0m     x64`,
+            `\x1b[36mShell:\x1b[0m    nebula-sh`,
+            `\x1b[36mTerm:\x1b[0m     NebulaTerminal`,
+            `\x1b[36mUptime:\x1b[0m   ${uptime}`,
+            `\x1b[36mMemory:\x1b[0m   ${memoryInfo}`
+        ];
+
+        // Random mode handling
+        if (style === "random") {
+            const keys = Object.keys(asciiStyles);
+            style = keys[Math.floor(Math.random() * keys.length)];
+        }
+
+        this.writeLine("");
+
+        if (style === "minimal") {
+            asciiStyles.minimal.forEach(line => this.writeLine(line));
+        } else {
+            const art = asciiStyles[style] || asciiStyles.classic;
+            for (let i = 0; i < Math.max(art.length, infoLines.length); i++) {
+                const a = art[i] || " ".repeat(32);
+                const info = infoLines[i] || "";
+                this.writeLine(a + "   " + info);
+            }
+        }
+
+        // Colors row
+        this.writeLine("");
+        this.writeLine("\x1b[35mColors:\x1b[0m");
+        this.writeLine("  \x1b[30m███\x1b[0m \x1b[31m███\x1b[0m \x1b[32m███\x1b[0m \x1b[33m███\x1b[0m \x1b[34m███\x1b[0m \x1b[35m███\x1b[0m \x1b[36m███\x1b[0m \x1b[37m███\x1b[0m");
+        this.writeLine("  BLK RED GRN YLW BLU MAG CYN WHT");
+        this.writeLine("");
+
+    } catch (error) {
+        this.writeError(`NFetch error: ${error.message}`);
     }
+}
+
 
     /**
      * Get simulated uptime
