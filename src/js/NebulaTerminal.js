@@ -826,46 +826,6 @@ class NebulaTerminal {
         });
     }
 
-    /**
-     * Show NFetch - stylized system information display (web-terminal optimized)
-     */
-    // async showNFetch() {
-    //     try {
-    //         // Get system info
-    //         let systemInfo = {};
-    //         if (window.nebula?.terminal?.getSystemInfo) {
-    //             systemInfo = await window.nebula.terminal.getSystemInfo();
-    //         }
-
-    //         // Get current time and info
-    //         const uptime = this.getUptime();
-    //         const memoryInfo = this.getMemoryInfo();
-
-    //         // Super simple layout - no fancy ASCII art, just clean info display
-    //         this.writeLine('');
-    //         this.writeLine('\x1b[35m╭─── NEBULA OS ───╮\x1b[0m');
-    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mOS:\x1b[0m NebulaOS v1.0     \x1b[35m│\x1b[0m');
-    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mHost:\x1b[0m nebula-desktop  \x1b[35m│\x1b[0m');
-    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mKernel:\x1b[0m NebulaKernel    \x1b[35m│\x1b[0m');
-    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mArch:\x1b[0m x64             \x1b[35m│\x1b[0m');
-    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mShell:\x1b[0m nebula-sh      \x1b[35m│\x1b[0m');
-    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mTerm:\x1b[0m NebulaTerminal  \x1b[35m│\x1b[0m');
-    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mUptime:\x1b[0m ' + uptime.padEnd(12) + ' \x1b[35m│\x1b[0m');
-    //         this.writeLine('\x1b[35m│\x1b[0m \x1b[36mMemory:\x1b[0m ' + memoryInfo.padEnd(12) + ' \x1b[35m│\x1b[0m');
-    //         this.writeLine('\x1b[35m╰─────────────────╯\x1b[0m');
-
-    //         // Color palette display
-    //         this.writeLine('');
-    //         this.writeLine('\x1b[35mColors:\x1b[0m');
-    //         this.writeLine('        \x1b[30m███\x1b[0m \x1b[31m███\x1b[0m \x1b[32m███\x1b[0m \x1b[33m███\x1b[0m \x1b[34m███\x1b[0m \x1b[35m███\x1b[0m \x1b[36m███\x1b[0m \x1b[37m███\x1b[0m');
-    //         this.writeLine('        BLK RED GRN YLW BLU MAG CYN WHT');
-    //         this.writeLine('');
-
-    //     } catch (error) {
-    //         this.writeError(`NFetch error: ${error.message}`);
-    //     }
-    // }
-
     async showNFetch(style = "classic") {
     try {
         // Gather system info
