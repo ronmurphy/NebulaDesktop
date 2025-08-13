@@ -1,4 +1,4 @@
-// WindowManager.js - FIXED - No Double Window Creation
+// WindowManager.js - FIXED - Integrated App Management System
 class WindowManager {
     constructor() {
         this.windows = new Map(); // windowId -> windowData
@@ -45,7 +45,7 @@ class WindowManager {
             icon: '🌐',
             singleton: false,      // Can have multiple instances
             persistent: true,      // Save state across sessions
-            autoRestore: false,    // Don't auto-restore browsers (prevents duplication)
+            autoRestore: false,    // FIXED: Don't auto-restore browsers (prevents duplication)
             defaultConfig: {
                 title: 'Nebula Browser',
                 width: 1200,
@@ -87,7 +87,7 @@ class WindowManager {
             }
         });
         
-        // Calculator now properly registered instead of dummy in renderer
+        // MOVED: Calculator now properly registered instead of dummy in renderer
         this.registerApp('calculator', {
             class: 'NebulaCalculator',
             name: 'Calculator',
@@ -140,7 +140,7 @@ class WindowManager {
             }
         }
         
-        // Only restore state if explicitly requested, not by default
+        // FIXED: Only restore state if explicitly requested, not by default
         let restoredState = null;
         if (appConfig.persistent && options.restore === true) {
             restoredState = this.loadAppState(appType, options.instanceId);
@@ -156,8 +156,8 @@ class WindowManager {
             appConfig: appConfig
         };
         
-        // FIXED: Create the window and app in one step to prevent duplication
-        const windowId = this.createManagedAppWindow(finalConfig, restoredState);
+        // Create the window
+        const windowId = this.createAppWindow(finalConfig, restoredState);
         
         if (windowId) {
             // Track this app instance
@@ -169,10 +169,9 @@ class WindowManager {
     }
     
     /**
-     * FIXED: Create window and app without letting app create its own window
+     * Create window and load app - enhanced version
      */
-    createManagedAppWindow(config, restoredState = null) {
-        // Create the window first
+    createAppWindow(config, restoredState = null) {
         const windowId = this.createWindow(config);
         
         if (!windowId) {
@@ -180,22 +179,43 @@ class WindowManager {
             return null;
         }
         
-        // Store window data with app info
-        const windowData = this.windows.get(windowId);
-        if (windowData) {
-            windowData.appType = config.appType;
-            windowData.appConfig = config.appConfig;
-            windowData.instanceId = `${config.appType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        }
-        
         // Handle special apps that don't have classes yet
         if (config.appType === 'calculator') {
+            // Create built-in calculator app
             this.loadCalculatorApp(windowId);
         } else if (config.appType === 'settings') {
+            // Create placeholder settings app
             this.loadSettingsApp(windowId);
         } else {
-            // Load external app class but prevent it from creating its own window
-            this.loadExternalApp(windowId, config, restoredState);
+            // Get the app class for other apps
+            const AppClass = window[config.appConfig.class];
+            if (!AppClass) {
+                console.error(`App class ${config.appConfig.class} not found`);
+                this.closeWindow(windowId);
+                return null;
+            }
+            
+            // Create app instance with restored state if available
+            const appConstructorArg = restoredState?.appState || config.initialUrl || null;
+            const appInstance = new AppClass(appConstructorArg);
+            
+            // Store app info in window data
+            const windowData = this.windows.get(windowId);
+            if (windowData) {
+                windowData.appType = config.appType;
+                windowData.appInstance = appInstance;
+                windowData.appConfig = config.appConfig;
+                windowData.instanceId = `${config.appType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                
+                // Set the windowId in the app instance for compatibility
+                if (appInstance) {
+                    appInstance.windowId = windowId;
+                    appInstance.instanceId = windowData.instanceId;
+                }
+            }
+            
+            // Load the app into the window
+            this.loadApp(windowId, appInstance);
         }
         
         // Restore maximized state if needed
@@ -208,53 +228,17 @@ class WindowManager {
         return windowId;
     }
 
-    /**
-     * FIXED: Load external app without letting it create its own window
-     */
-    loadExternalApp(windowId, config, restoredState) {
-        const AppClass = window[config.appConfig.class];
-        if (!AppClass) {
-            console.error(`App class ${config.appConfig.class} not found`);
-            this.closeWindow(windowId);
-            return;
-        }
-        
-        const windowData = this.windows.get(windowId);
-        
-        try {
-            // FIXED: Create app instance and inject the windowId so it doesn't create its own
-            const appConstructorArg = restoredState?.appState || config.initialUrl || null;
-            
-            // Create app instance but tell it to use our windowId
-            const appInstance = new AppClass(appConstructorArg);
-            
-            // CRITICAL FIX: Override the app's windowId before it calls init()
-            if (appInstance) {
-                appInstance.windowId = windowId;
-                appInstance.instanceId = windowData.instanceId;
-                appInstance._managedByWindowManager = true; // Flag to prevent double window creation
-                
-                // Store app reference
-                windowData.appInstance = appInstance;
-                
-                // Load the app content into our window
-                this.loadApp(windowId, appInstance);
-            }
-            
-        } catch (error) {
-            console.error(`Failed to create ${config.appType} instance:`, error);
-            this.closeWindow(windowId);
-        }
-    }
-
     // ========== BUILT-IN APPS ==========
 
     /**
-     * Calculator app from renderer.js to WindowManager
+     * MOVED: Calculator app from renderer.js to WindowManager
      */
     loadCalculatorApp(windowId) {
         const windowData = this.windows.get(windowId);
         if (!windowData) return;
+
+        windowData.appType = 'calculator';
+        windowData.instanceId = `calculator-${Date.now()}`;
 
         this.loadApp(windowId, {
             render: () => {
@@ -377,6 +361,9 @@ class WindowManager {
         const windowData = this.windows.get(windowId);
         if (!windowData) return;
 
+        windowData.appType = 'settings';
+        windowData.instanceId = `settings-${Date.now()}`;
+
         this.loadApp(windowId, {
             render: () => {
                 const container = document.createElement('div');
@@ -458,7 +445,7 @@ class WindowManager {
             ...options
         };
 
-        console.log(`Creating window: ${windowId}`);
+        console.log(`Creating app window with config:`, config);
 
         // Create window DOM structure
         const windowElement = this.createWindowElement(windowId, config);
@@ -651,12 +638,12 @@ class WindowManager {
         console.log('🔄 Restoring previous session...');
         let restored = 0;
         
-        // Only restore apps marked for autoRestore and limit quantity
+        // FIXED: Only restore apps marked for autoRestore and limit quantity
         for (const [appType, config] of this.appRegistry) {
             if (config.autoRestore) {
                 const states = this.getAllAppStates(appType);
                 
-                // Restore only the most recent state for each app type to prevent duplication
+                // FIXED: Restore only the most recent state for each app type to prevent duplication
                 if (states.length > 0) {
                     // Sort by most recent and take only the first one
                     states.sort((a, b) => b.savedAt - a.savedAt);
@@ -702,7 +689,7 @@ class WindowManager {
     }
     
     /**
-     * Clear all app data - fixes duplication issues
+     * ADDED: Clear all app data - fixes duplication issues
      */
     clearAllAppData() {
         console.log('🧹 Clearing all app data...');

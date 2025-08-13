@@ -1,4 +1,4 @@
-// renderer.js - FIXED - Debounced launcher to prevent double app launches
+// renderer.js - FIXED - Updated for integrated WindowManager with App Management
 class NebulaDesktop {
     constructor() {
         this.taskbar = null;
@@ -6,7 +6,6 @@ class NebulaDesktop {
         this.powerMenu = null;
         this.windowManager = null;
         this.assistant = null;
-        this.launchDebounce = new Map(); // ADDED: Debounce mechanism for app launching
 
         this.init();
     }
@@ -180,27 +179,15 @@ class NebulaDesktop {
             this.cycleTheme();
         });
 
-        // FIXED: App icons with debouncing and proper event handling
+        // App icons
         this.launcher.addEventListener('click', (e) => {
-            // Prevent double-firing and bubbling
-            e.preventDefault();
-            e.stopPropagation();
-            
             const appIcon = e.target.closest('.app-icon');
             if (appIcon) {
                 const appId = appIcon.dataset.app;
-                
-                // ADDED: Debounce mechanism to prevent double launches
-                if (this.isLaunchDebounced(appId)) {
-                    console.log(`🛑 Prevented duplicate launch of ${appId}`);
-                    return;
-                }
-                
-                console.log(`🚀 Launching ${appId} from launcher`);
-                this.launchAppDebounced(appId);
+                this.launchApp(appId);
                 this.hideLauncher();
             }
-        }, true); // ADDED: Use capture phase to prevent bubbling issues
+        });
 
         // Click outside to close menus
         document.addEventListener('click', (e) => {
@@ -238,6 +225,7 @@ class NebulaDesktop {
                 this.showAppManagerStatus();
             }
             
+            // FIXED: Changed shortcut from Ctrl+Alt+R to Ctrl+Alt+E to avoid conflict with refresh
             // Ctrl + Alt + E - Restore session manually
             if (e.ctrlKey && e.altKey && e.key === 'e') {
                 e.preventDefault();
@@ -259,7 +247,7 @@ class NebulaDesktop {
                 console.log(this.windowManager.getDebugInfo());
             }
 
-            // Ctrl + Alt + C - Clear all app data (emergency)
+            // ADDED: Ctrl + Alt + C - Clear all app data (emergency)
             if (e.ctrlKey && e.altKey && e.key === 'c') {
                 e.preventDefault();
                 if (confirm('Clear all saved app data? This will remove all window positions and app states.')) {
@@ -268,39 +256,6 @@ class NebulaDesktop {
                 }
             }
         });
-    }
-
-    // ADDED: Debouncing mechanism for app launches
-    isLaunchDebounced(appId) {
-        const now = Date.now();
-        const lastLaunch = this.launchDebounce.get(appId) || 0;
-        
-        // Prevent launches within 1 second of each other
-        return (now - lastLaunch) < 1000;
-    }
-
-    setLaunchDebounce(appId) {
-        this.launchDebounce.set(appId, Date.now());
-        
-        // Clear debounce after 2 seconds
-        setTimeout(() => {
-            this.launchDebounce.delete(appId);
-        }, 2000);
-    }
-
-    // ADDED: Debounced app launching wrapper
-    async launchAppDebounced(appId) {
-        // Set debounce immediately
-        this.setLaunchDebounce(appId);
-        
-        try {
-            await this.launchApp(appId);
-        } catch (error) {
-            console.error(`Failed to launch ${appId}:`, error);
-            this.showError(`Failed to launch ${appId}: ${error.message}`);
-            // Clear debounce on error so user can retry
-            this.launchDebounce.delete(appId);
-        }
     }
 
     setupLauncherSearch() {
@@ -325,21 +280,13 @@ class NebulaDesktop {
             }
         });
 
-        // FIXED: Handle Enter key in search with debouncing
+        // Handle Enter key in search
         searchBox.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const firstApp = this.launcher.querySelector('.app-icon');
+                const firstApp = appGrid.querySelector('.app-icon');
                 if (firstApp) {
-                    const appId = firstApp.dataset.app;
-                    
-                    if (!this.isLaunchDebounced(appId)) {
-                        console.log(`🚀 Launching ${appId} from search`);
-                        this.launchAppDebounced(appId);
-                        this.hideLauncher();
-                    }
+                    this.launchApp(firstApp.dataset.app);
+                    this.hideLauncher();
                 }
             }
         });
@@ -390,74 +337,60 @@ class NebulaDesktop {
 
     // SIMPLIFIED APP LAUNCHING - Uses integrated WindowManager
     async launchApp(appId) {
-        console.log(`📱 Starting launch process for: ${appId}`);
+        console.log('Launching app:', appId);
 
         const apps = this.getDefaultApps();
         const appConfig = apps.find(app => app.id === appId);
 
         if (!appConfig) {
             console.error('App not found:', appId);
-            throw new Error(`App not found: ${appId}`);
+            return;
         }
 
         try {
-            let result = null;
-            
             switch (appId) {
                 case 'browser':
-                    console.log(`🌐 Launching browser via WindowManager`);
-                    result = await this.windowManager.launchApp('browser');
+                    await this.windowManager.launchApp('browser');
                     break;
 
                 case 'terminal':
-                    console.log(`💻 Launching terminal via WindowManager`);
-                    result = await this.windowManager.launchApp('terminal');
+                    await this.windowManager.launchApp('terminal');
                     break;
 
                 case 'settings':
-                    console.log(`⚙️ Launching settings via WindowManager`);
-                    result = await this.windowManager.launchApp('settings');
+                    await this.windowManager.launchApp('settings');
                     break;
 
                 case 'calculator':
-                    console.log(`🧮 Launching calculator via WindowManager`);
-                    result = await this.windowManager.launchApp('calculator');
+                    // FIXED: Now uses WindowManager instead of local implementation
+                    await this.windowManager.launchApp('calculator');
                     break;
 
                 case 'files':
                     // Keep using direct instantiation until we rewrite file manager
-                    console.log(`📁 Launching file manager directly`);
                     if (window.NebulaFileManager) {
                         new NebulaFileManager();
-                        result = true; // Indicate success
                     } else {
-                        throw new Error('File Manager app not available. Make sure filemanager.js is loaded.');
+                        this.showError('File Manager app not available. Make sure filemanager.js is loaded.');
                     }
                     break;
 
                 default:
                     // For web apps, open in browser with URL
                     if (appConfig.url) {
-                        console.log(`🌐 Launching web app ${appId} in browser: ${appConfig.url}`);
-                        result = await this.windowManager.launchApp('browser', { initialUrl: appConfig.url });
+                        await this.windowManager.launchApp('browser', { initialUrl: appConfig.url });
                     } else {
-                        throw new Error(`App "${appConfig.name}" is not yet implemented.`);
+                        this.showError(`App "${appConfig.name}" is not yet implemented.`);
                     }
                     break;
             }
-            
-            if (result) {
-                console.log(`✅ Successfully launched ${appId}`);
-            } else {
-                console.warn(`⚠️ Launch of ${appId} returned no result`);
-            }
-            
         } catch (error) {
-            console.error(`❌ Error launching ${appId}:`, error);
+            console.error('Error launching app:', error);
             this.showError(`Failed to launch ${appConfig.name}: ${error.message}`);
-            throw error; // Re-throw so debounce can be cleared
         }
     }
+
+    // REMOVED: launchCalculator() method since it's now in WindowManager
 
     showAppManagerStatus() {
         const debugInfo = this.windowManager.getDebugInfo();
@@ -499,7 +432,7 @@ class NebulaDesktop {
         this.renderAppGrid(this.getDefaultApps());
     }
 
-    // Enhanced Power menu with app data management
+    // ENHANCED: Power menu with app data management
     showPowerMenu() {
         this.closePowerMenu(); // Close any existing menu
 
@@ -564,7 +497,7 @@ class NebulaDesktop {
         }
     }
 
-    // Enhanced power actions with app data management
+    // ENHANCED: Power actions with app data management
     handlePowerAction(action) {
         switch (action) {
             case 'settings':
@@ -706,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.desktop = new NebulaDesktop();
 });
 
-// Updated CSS with improved launcher styling
+// FIXED: Updated CSS animations and taskbar layout
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -736,7 +669,7 @@ style.textContent = `
         51%, 100% { opacity: 0; }
     }
     
-    /* Horizontal taskbar layout */
+    /* FIXED: Horizontal taskbar layout */
     .task-list {
         display: flex;
         flex-direction: row;
@@ -802,25 +735,7 @@ style.textContent = `
         flex: 1;
     }
 
-    /* Enhanced app-icon styling to prevent double-click issues */
-    .app-icon {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        cursor: pointer;
-        transition: var(--nebula-transition-fast);
-    }
-    
-    .app-icon * {
-        pointer-events: none; /* Prevent child elements from firing separate events */
-    }
-    
-    .app-icon:active {
-        transform: scale(0.95);
-    }
-
-    /* Power menu styling */
+    /* ENHANCED: Power menu with separators */
     .power-menu-separator {
         height: 1px;
         background: var(--nebula-border);

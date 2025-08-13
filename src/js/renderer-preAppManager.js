@@ -1,23 +1,21 @@
-// renderer.js - FIXED - Debounced launcher to prevent double app launches
+// Updated renderer.js - Desktop Environment with WindowManager integration
 class NebulaDesktop {
     constructor() {
         this.taskbar = null;
         this.launcher = null;
         this.powerMenu = null;
         this.windowManager = null;
-        this.assistant = null;
-        this.launchDebounce = new Map(); // ADDED: Debounce mechanism for app launching
+        this.assistant = null; // Add this line
 
         this.init();
     }
-    
     async init() {
-        console.log('Initializing NebulaDesk v3 with Integrated WindowManager...');
+        console.log('Initializing NebulaDesk v3 with WindowManager...');
 
         // Track startup time for jfetch
         window.nebulaStartTime = Date.now();
 
-        // Initialize the window manager with integrated app management
+        // Initialize the window manager first
         this.windowManager = new WindowManager();
         window.windowManager = this.windowManager; // Make it globally available
 
@@ -34,15 +32,7 @@ class NebulaDesktop {
 
         this.assistant = new NebulaAssistant();
 
-        // Restore previous session using integrated WindowManager
-        await this.windowManager.restoreSession();
-        
-        // Cleanup old app states periodically (once per day)
-        setInterval(() => {
-            this.windowManager.cleanupOldStates();
-        }, 24 * 60 * 60 * 1000);
-
-        console.log('NebulaDesk ready with Integrated WindowManager!');
+        console.log('NebulaDesk ready with WindowManager!');
     }
 
     createTaskbar() {
@@ -53,7 +43,7 @@ class NebulaDesktop {
                 <span>⚡</span> Nebula
             </button>
             <div class="task-list" id="taskList">
-                <!-- Running app buttons will be added here -->
+                <!-- Window buttons will be added here -->
             </div>
             <div class="system-tray">
                 <button class="theme-toggle" id="themeToggle" title="Switch Theme">🎨</button>
@@ -180,27 +170,15 @@ class NebulaDesktop {
             this.cycleTheme();
         });
 
-        // FIXED: App icons with debouncing and proper event handling
+        // App icons
         this.launcher.addEventListener('click', (e) => {
-            // Prevent double-firing and bubbling
-            e.preventDefault();
-            e.stopPropagation();
-            
             const appIcon = e.target.closest('.app-icon');
             if (appIcon) {
                 const appId = appIcon.dataset.app;
-                
-                // ADDED: Debounce mechanism to prevent double launches
-                if (this.isLaunchDebounced(appId)) {
-                    console.log(`🛑 Prevented duplicate launch of ${appId}`);
-                    return;
-                }
-                
-                console.log(`🚀 Launching ${appId} from launcher`);
-                this.launchAppDebounced(appId);
+                this.launchApp(appId);
                 this.hideLauncher();
             }
-        }, true); // ADDED: Use capture phase to prevent bubbling issues
+        });
 
         // Click outside to close menus
         document.addEventListener('click', (e) => {
@@ -231,76 +209,7 @@ class NebulaDesktop {
                 this.hideLauncher();
                 this.closePowerMenu();
             }
-
-            // Alt + Q - Show running apps
-            if (e.altKey && e.key === 'q') {
-                e.preventDefault();
-                this.showAppManagerStatus();
-            }
-            
-            // Ctrl + Alt + E - Restore session manually
-            if (e.ctrlKey && e.altKey && e.key === 'e') {
-                e.preventDefault();
-                this.windowManager.restoreSession();
-                this.showError('Session restoration requested');
-            }
-
-            // Ctrl + Alt + S - Save all app states
-            if (e.ctrlKey && e.altKey && e.key === 's') {
-                e.preventDefault();
-                const saved = this.windowManager.saveAllStates();
-                this.showError(`Saved ${saved} app states`);
-            }
-
-            // Ctrl + Alt + D - Debug info
-            if (e.ctrlKey && e.altKey && e.key === 'd') {
-                e.preventDefault();
-                console.log('=== WindowManager Debug Info ===');
-                console.log(this.windowManager.getDebugInfo());
-            }
-
-            // Ctrl + Alt + C - Clear all app data (emergency)
-            if (e.ctrlKey && e.altKey && e.key === 'c') {
-                e.preventDefault();
-                if (confirm('Clear all saved app data? This will remove all window positions and app states.')) {
-                    const cleared = this.windowManager.clearAllAppData();
-                    this.showError(`Cleared ${cleared} saved states`);
-                }
-            }
         });
-    }
-
-    // ADDED: Debouncing mechanism for app launches
-    isLaunchDebounced(appId) {
-        const now = Date.now();
-        const lastLaunch = this.launchDebounce.get(appId) || 0;
-        
-        // Prevent launches within 1 second of each other
-        return (now - lastLaunch) < 1000;
-    }
-
-    setLaunchDebounce(appId) {
-        this.launchDebounce.set(appId, Date.now());
-        
-        // Clear debounce after 2 seconds
-        setTimeout(() => {
-            this.launchDebounce.delete(appId);
-        }, 2000);
-    }
-
-    // ADDED: Debounced app launching wrapper
-    async launchAppDebounced(appId) {
-        // Set debounce immediately
-        this.setLaunchDebounce(appId);
-        
-        try {
-            await this.launchApp(appId);
-        } catch (error) {
-            console.error(`Failed to launch ${appId}:`, error);
-            this.showError(`Failed to launch ${appId}: ${error.message}`);
-            // Clear debounce on error so user can retry
-            this.launchDebounce.delete(appId);
-        }
     }
 
     setupLauncherSearch() {
@@ -325,21 +234,13 @@ class NebulaDesktop {
             }
         });
 
-        // FIXED: Handle Enter key in search with debouncing
+        // Handle Enter key in search
         searchBox.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const firstApp = this.launcher.querySelector('.app-icon');
+                const firstApp = appGrid.querySelector('.app-icon');
                 if (firstApp) {
-                    const appId = firstApp.dataset.app;
-                    
-                    if (!this.isLaunchDebounced(appId)) {
-                        console.log(`🚀 Launching ${appId} from search`);
-                        this.launchAppDebounced(appId);
-                        this.hideLauncher();
-                    }
+                    this.launchApp(firstApp.dataset.app);
+                    this.hideLauncher();
                 }
             }
         });
@@ -355,131 +256,230 @@ class NebulaDesktop {
         `).join('');
     }
 
-    // FIXED: Taskbar integration with horizontal layout
     setupTaskbarIntegration() {
         const taskList = document.getElementById('taskList');
 
+        // Create a task button for each window
         const updateTaskbar = () => {
-            const runningApps = this.windowManager.getAllRunningApps();
+            const windows = this.windowManager.getAllWindows();
             taskList.innerHTML = '';
 
-            runningApps.forEach(appData => {
-                // Show all running apps, highlight minimized ones
+            windows.forEach(windowData => {
+                if (!windowData.isMinimized) return; // Only show minimized windows for now
+
                 const taskButton = document.createElement('button');
-                taskButton.className = `task-button ${appData.isMinimized ? 'minimized' : ''}`;
+                taskButton.className = 'task-button';
                 taskButton.innerHTML = `
-                    <span class="task-icon">${appData.icon}</span>
-                    <span class="task-title">${appData.title}</span>
+                    <span class="task-icon">${windowData.config.icon || '🪟'}</span>
+                    <span class="task-title">${windowData.config.title}</span>
                 `;
 
                 taskButton.addEventListener('click', () => {
-                    if (appData.isMinimized) {
-                        this.windowManager.restoreWindow(appData.windowId);
-                    } else {
-                        this.windowManager.focusWindow(appData.windowId);
-                    }
+                    this.restoreWindow(windowData.id);
                 });
 
                 taskList.appendChild(taskButton);
             });
         };
 
-        // Update taskbar when apps change
+        // Update taskbar when windows change (this is a simple implementation)
+        // In a real app, you'd want proper event listening
         setInterval(updateTaskbar, 1000);
     }
 
-    // SIMPLIFIED APP LAUNCHING - Uses integrated WindowManager
+    restoreWindow(windowId) {
+        this.windowManager.restoreWindowById(windowId);
+    }
+
     async launchApp(appId) {
-        console.log(`📱 Starting launch process for: ${appId}`);
+        console.log('Launching app:', appId);
 
         const apps = this.getDefaultApps();
         const appConfig = apps.find(app => app.id === appId);
 
         if (!appConfig) {
             console.error('App not found:', appId);
-            throw new Error(`App not found: ${appId}`);
+            return;
         }
 
         try {
-            let result = null;
-            
             switch (appId) {
                 case 'browser':
-                    console.log(`🌐 Launching browser via WindowManager`);
-                    result = await this.windowManager.launchApp('browser');
-                    break;
-
-                case 'terminal':
-                    console.log(`💻 Launching terminal via WindowManager`);
-                    result = await this.windowManager.launchApp('terminal');
-                    break;
-
-                case 'settings':
-                    console.log(`⚙️ Launching settings via WindowManager`);
-                    result = await this.windowManager.launchApp('settings');
-                    break;
-
-                case 'calculator':
-                    console.log(`🧮 Launching calculator via WindowManager`);
-                    result = await this.windowManager.launchApp('calculator');
+                    // Check if NebulaBrowser class is available
+                    if (window.NebulaBrowser) {
+                        new NebulaBrowser();
+                    } else {
+                        this.showError('Browser app not available. Make sure browser.js is loaded.');
+                    }
                     break;
 
                 case 'files':
-                    // Keep using direct instantiation until we rewrite file manager
-                    console.log(`📁 Launching file manager directly`);
+                    // Launch file manager
                     if (window.NebulaFileManager) {
                         new NebulaFileManager();
-                        result = true; // Indicate success
                     } else {
-                        throw new Error('File Manager app not available. Make sure filemanager.js is loaded.');
+                        this.showError('File Manager app not available. Make sure filemanager.js is loaded.');
                     }
+                    break;
+
+                case 'terminal':
+                    this.launchTerminal();
+                    break;
+
+                case 'calculator':
+                    this.launchCalculator();
+                    break;
+
+                case 'settings':
+                    this.openSettings();
                     break;
 
                 default:
-                    // For web apps, open in browser with URL
+                    // For web apps, open in browser
                     if (appConfig.url) {
-                        console.log(`🌐 Launching web app ${appId} in browser: ${appConfig.url}`);
-                        result = await this.windowManager.launchApp('browser', { initialUrl: appConfig.url });
+                        if (window.NebulaBrowser) {
+                            new NebulaBrowser(appConfig.url);
+                        } else {
+                            // Fallback: open in external browser
+                            window.open(appConfig.url, '_blank');
+                        }
                     } else {
-                        throw new Error(`App "${appConfig.name}" is not yet implemented.`);
+                        this.showError(`App "${appConfig.name}" is not yet implemented.`);
                     }
                     break;
             }
-            
-            if (result) {
-                console.log(`✅ Successfully launched ${appId}`);
-            } else {
-                console.warn(`⚠️ Launch of ${appId} returned no result`);
-            }
-            
         } catch (error) {
-            console.error(`❌ Error launching ${appId}:`, error);
+            console.error('Error launching app:', error);
             this.showError(`Failed to launch ${appConfig.name}: ${error.message}`);
-            throw error; // Re-throw so debounce can be cleared
         }
     }
 
-    showAppManagerStatus() {
-        const debugInfo = this.windowManager.getDebugInfo();
-        
-        console.log('=== WindowManager Status ===');
-        console.log(`Total windows: ${debugInfo.totalWindows}`);
-        console.log(`Running apps: ${debugInfo.runningApps}`);
-        console.log(`Registered types: ${debugInfo.registeredTypes.join(', ')}`);
-        console.log(`Saved states: ${debugInfo.savedStates}`);
-        console.log(`Singleton apps: ${debugInfo.singletonApps.join(', ')}`);
-        
-        debugInfo.running.forEach(app => {
-            console.log(`- ${app.appType} (${app.instanceId}): ${app.title}`);
+    // launchTerminal() {
+    //     // Placeholder terminal app
+    //     const windowId = this.windowManager.createWindow({
+    //         title: 'Terminal',
+    //         width: 800,
+    //         height: 500,
+    //         hasTabBar: false
+    //     });
+
+    //     this.windowManager.loadApp(windowId, {
+    //         render: () => {
+    //             const container = document.createElement('div');
+    //             container.style.cssText = `
+    //                 width: 100%;
+    //                 height: 100%;
+    //                 background: #1a1a1a;
+    //                 color: #00ff00;
+    //                 padding: 16px;
+    //                 font-family: 'JetBrains Mono', monospace;
+    //                 font-size: 14px;
+    //                 overflow-y: auto;
+    //             `;
+    //             container.innerHTML = `
+    //                 <div>Nebula Terminal v1.0</div>
+    //                 <div>Coming soon... This will be a full terminal emulator.</div>
+    //                 <div>$ <span style="animation: blink 1s infinite;">█</span></div>
+    //             `;
+    //             return container;
+    //         },
+    //         getTitle: () => 'Terminal',
+    //         getIcon: () => '💻'
+    //     });
+    // }
+
+// Replace the launchTerminal method in your renderer.js with this:
+
+launchTerminal() {
+    // Use the new NebulaTerminal class
+    if (window.NebulaTerminal) {
+        new NebulaTerminal();
+    } else {
+        this.showError('Terminal app not available. Make sure NebulaTerminal.js is loaded.');
+    }
+}
+
+    launchCalculator() {
+        // Simple calculator app
+        const windowId = this.windowManager.createWindow({
+            title: 'Calculator',
+            width: 300,
+            height: 400,
+            hasTabBar: false,
+            resizable: false
         });
-        
-        // Show notification
-        if (debugInfo.runningApps === 0) {
-            this.showError('No apps currently running');
-        } else {
-            const message = `Running: ${debugInfo.running.map(app => app.appType).join(', ')} (${debugInfo.runningApps} total)`;
-            this.showError(message); // Using showError for notification
-        }
+
+        this.windowManager.loadApp(windowId, {
+            render: () => {
+                const container = document.createElement('div');
+                container.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                    background: var(--nebula-bg-primary);
+                    padding: 16px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                `;
+
+                container.innerHTML = `
+                    <div style="background: var(--nebula-surface); padding: 16px; border-radius: 8px; text-align: right; font-size: 24px; font-family: monospace;">0</div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: 1;">
+                        <button style="background: var(--nebula-surface-hover); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">C</button>
+                        <button style="background: var(--nebula-surface-hover); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">±</button>
+                        <button style="background: var(--nebula-surface-hover); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">%</button>
+                        <button style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">÷</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">7</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">8</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">9</button>
+                        <button style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">×</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">4</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">5</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">6</button>
+                        <button style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">−</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">1</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">2</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">3</button>
+                        <button style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">+</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer; grid-column: span 2;">0</button>
+                        <button style="background: var(--nebula-surface); border: none; border-radius: 8px; color: var(--nebula-text-primary); font-size: 18px; cursor: pointer;">.</button>
+                        <button style="background: var(--nebula-primary); border: none; border-radius: 8px; color: white; font-size: 18px; cursor: pointer;">=</button>
+                    </div>
+                `;
+
+                // Add basic calculator functionality
+                let display = container.querySelector('div');
+                let currentValue = '0';
+                let operator = null;
+                let waitingForNewValue = false;
+
+                container.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') {
+                        const value = e.target.textContent;
+
+                        if ('0123456789'.includes(value)) {
+                            if (waitingForNewValue) {
+                                currentValue = value;
+                                waitingForNewValue = false;
+                            } else {
+                                currentValue = currentValue === '0' ? value : currentValue + value;
+                            }
+                            display.textContent = currentValue;
+                        } else if (value === 'C') {
+                            currentValue = '0';
+                            operator = null;
+                            waitingForNewValue = false;
+                            display.textContent = currentValue;
+                        }
+                        // Add more calculator logic here...
+                    }
+                });
+
+                return container;
+            },
+            getTitle: () => 'Calculator',
+            getIcon: () => '🧮'
+        });
     }
 
     toggleLauncher() {
@@ -499,27 +499,12 @@ class NebulaDesktop {
         this.renderAppGrid(this.getDefaultApps());
     }
 
-    // Enhanced Power menu with app data management
     showPowerMenu() {
         this.closePowerMenu(); // Close any existing menu
 
         this.powerMenu = document.createElement('div');
         this.powerMenu.className = 'power-menu';
         this.powerMenu.innerHTML = `
-            <div class="power-menu-item" data-action="settings">
-                <span class="icon">⚙️</span>
-                <span>Settings</span>
-            </div>
-            <div class="power-menu-separator"></div>
-            <div class="power-menu-item" data-action="save-states">
-                <span class="icon">💾</span>
-                <span>Save All States</span>
-            </div>
-            <div class="power-menu-item" data-action="clear-data">
-                <span class="icon">🧹</span>
-                <span>Clear App Data</span>
-            </div>
-            <div class="power-menu-separator"></div>
             <div class="power-menu-item" data-action="logout">
                 <span class="icon">🚪</span>
                 <span>Logout</span>
@@ -564,30 +549,10 @@ class NebulaDesktop {
         }
     }
 
-    // Enhanced power actions with app data management
     handlePowerAction(action) {
         switch (action) {
-            case 'settings':
-                this.windowManager.launchApp('settings');
-                break;
-
-            case 'save-states':
-                const saved = this.windowManager.saveAllStates();
-                this.showError(`Saved ${saved} app states successfully!`);
-                break;
-
-            case 'clear-data':
-                if (confirm('Clear all saved app data?\n\nThis will remove:\n• Window positions and sizes\n• App states and preferences\n• Session restore data\n\nThis action cannot be undone.')) {
-                    const cleared = this.windowManager.clearAllAppData();
-                    this.showError(`Cleared ${cleared} saved app states!`);
-                }
-                break;
-
             case 'logout':
                 if (confirm('Logout from NebulaDesk?')) {
-                    // Save all states before logout
-                    this.windowManager.saveAllStates();
-                    
                     if (window.nebula?.system) {
                         window.nebula.system.logout();
                     } else {
@@ -597,9 +562,6 @@ class NebulaDesktop {
                 break;
             case 'restart':
                 if (confirm('Restart the system?')) {
-                    // Save all states before restart
-                    this.windowManager.saveAllStates();
-                    
                     if (window.nebula?.system) {
                         window.nebula.system.reboot();
                     } else {
@@ -609,9 +571,6 @@ class NebulaDesktop {
                 break;
             case 'shutdown':
                 if (confirm('Shutdown the system?')) {
-                    // Save all states before shutdown
-                    this.windowManager.saveAllStates();
-                    
                     if (window.nebula?.system) {
                         window.nebula.system.shutdown();
                     } else {
@@ -623,8 +582,7 @@ class NebulaDesktop {
     }
 
     openSettings() {
-        // Use the WindowManager to launch settings
-        this.windowManager.launchApp('settings');
+        this.showError('Settings panel coming soon!');
     }
 
     showError(message) {
@@ -706,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.desktop = new NebulaDesktop();
 });
 
-// Updated CSS with improved launcher styling
+// Add CSS animations for notifications
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -736,17 +694,6 @@ style.textContent = `
         51%, 100% { opacity: 0; }
     }
     
-    /* Horizontal taskbar layout */
-    .task-list {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-        flex: 1;
-        overflow-x: auto;
-        padding: 0 8px;
-    }
-    
     .task-button {
         background: var(--nebula-surface);
         border: 1px solid var(--nebula-border);
@@ -755,115 +702,26 @@ style.textContent = `
         border-radius: var(--nebula-radius-sm);
         cursor: pointer;
         display: flex;
-        flex-direction: row;
         align-items: center;
         gap: 8px;
         font-size: 12px;
         transition: var(--nebula-transition-fast);
-        position: relative;
-        white-space: nowrap;
-        flex-shrink: 0;
-        min-width: 120px;
-        max-width: 200px;
+        margin-right: 8px;
     }
     
     .task-button:hover {
         background: var(--nebula-surface-hover);
-        transform: translateY(-1px);
-    }
-    
-    .task-button.minimized {
-        background: var(--nebula-bg-secondary);
-        border-style: dashed;
-        opacity: 0.8;
-    }
-    
-    .task-button.minimized::after {
-        content: '';
-        position: absolute;
-        bottom: 2px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 20px;
-        height: 2px;
-        background: var(--nebula-primary);
-        border-radius: 1px;
     }
     
     .task-icon {
         font-size: 14px;
-        flex-shrink: 0;
     }
     
     .task-title {
+        max-width: 100px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        flex: 1;
-    }
-
-    /* Enhanced app-icon styling to prevent double-click issues */
-    .app-icon {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        cursor: pointer;
-        transition: var(--nebula-transition-fast);
-    }
-    
-    .app-icon * {
-        pointer-events: none; /* Prevent child elements from firing separate events */
-    }
-    
-    .app-icon:active {
-        transform: scale(0.95);
-    }
-
-    /* Power menu styling */
-    .power-menu-separator {
-        height: 1px;
-        background: var(--nebula-border);
-        margin: 4px 8px;
-    }
-
-    .power-menu-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        cursor: pointer;
-        transition: var(--nebula-transition);
-        color: var(--nebula-text-primary);
-        border: none;
-        background: transparent;
-        width: 100%;
-        text-align: left;
-        font-size: 14px;
-        min-width: 180px;
-    }
-
-    .power-menu-item:hover {
-        background: var(--nebula-surface-hover);
-    }
-
-    .power-menu-item .icon {
-        font-size: 16px;
-        width: 16px;
-        text-align: center;
-    }
-
-    /* Special styling for destructive actions */
-    .power-menu-item[data-action="clear-data"]:hover {
-        background: var(--nebula-danger);
-        color: white;
-    }
-
-    .power-menu-item[data-action="logout"]:hover,
-    .power-menu-item[data-action="restart"]:hover,
-    .power-menu-item[data-action="shutdown"]:hover {
-        background: var(--nebula-warning);
-        color: white;
     }
 `;
 document.head.appendChild(style);
