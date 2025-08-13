@@ -15,8 +15,136 @@ const pathUtils = {
     
     isAbsolute: (path) => {
         return path.startsWith('/');
+    },
+
+    extname: (path) => {
+        const basename = path.split('/').pop();
+        const lastDot = basename.lastIndexOf('.');
+        return lastDot === -1 ? '' : basename.slice(lastDot);
     }
 };
+
+// Nerd Font icons for different file types (with Unicode fallbacks)
+const nerdIcons = {
+    // Folders
+    folder: '📁', // fallback: 📁
+    folderOpen: '📂', // fallback: 📂
+    
+    // Programming files
+    '.js': '⚡', // fallback: ⚡
+    '.ts': '🔷', // fallback: 🔷
+    '.jsx': '⚛️', // fallback: ⚛️
+    '.tsx': '⚛️', // fallback: ⚛️
+    '.vue': '💚', // fallback: 💚
+    '.py': '🐍', // fallback: 🐍
+    '.java': '☕', // fallback: ☕
+    '.cpp': '⚙️', // fallback: ⚙️
+    '.c': '🔧', // fallback: 🔧
+    '.h': '📄', // fallback: 📄
+    '.cs': '🔷', // fallback: 🔷
+    '.php': '🐘', // fallback: 🐘
+    '.rb': '💎', // fallback: 💎
+    '.go': '🐹', // fallback: 🐹
+    '.rs': '🦀', // fallback: 🦀
+    '.swift': '🐦', // fallback: 🐦
+    '.kt': '🟣', // fallback: 🟣
+    '.scala': '🔴', // fallback: 🔴
+    '.sh': '🐚', // fallback: 🐚
+    '.bash': '🐚', // fallback: 🐚
+    '.zsh': '🐚', // fallback: 🐚
+    '.fish': '🐠', // fallback: 🐠
+    
+    // Web files
+    '.html': '🌐', // fallback: 🌐
+    '.css': '🎨', // fallback: 🎨
+    '.scss': '🎨', // fallback: 🎨
+    '.sass': '🎨', // fallback: 🎨
+    '.less': '🎨', // fallback: 🎨
+    
+    // Data files
+    '.json': '📋', // fallback: 📋
+    '.xml': '📄', // fallback: 📄
+    '.yaml': '⚙️', // fallback: ⚙️
+    '.yml': '⚙️', // fallback: ⚙️
+    '.toml': '⚙️', // fallback: ⚙️
+    '.csv': '📊', // fallback: 📊
+    
+    // Documentation
+    '.md': '📝', // fallback: 📝
+    '.txt': '📄', // fallback: 📄
+    '.pdf': '📕', // fallback: 📕
+    '.doc': '📘', // fallback: 📘
+    '.docx': '📘', // fallback: 📘
+    
+    // Images
+    '.png': '🖼️', // fallback: 🖼️
+    '.jpg': '🖼️', // fallback: 🖼️
+    '.jpeg': '🖼️', // fallback: 🖼️
+    '.gif': '🎞️', // fallback: 🎞️
+    '.svg': '🔶', // fallback: 🔶
+    '.ico': '🖼️', // fallback: 🖼️
+    '.bmp': '🖼️', // fallback: 🖼️
+    
+    // Audio/Video
+    '.mp3': '🎵', // fallback: 🎵
+    '.wav': '🎵', // fallback: 🎵
+    '.mp4': '🎬', // fallback: 🎬
+    '.avi': '🎬', // fallback: 🎬
+    '.mov': '🎬', // fallback: 🎬
+    '.mkv': '🎬', // fallback: 🎬
+    
+    // Archives
+    '.zip': '📦', // fallback: 📦
+    '.tar': '📦', // fallback: 📦
+    '.gz': '📦', // fallback: 📦
+    '.rar': '📦', // fallback: 📦
+    '.7z': '📦', // fallback: 📦
+    
+    // Config files
+    '.gitignore': '🙈', // fallback: 🙈
+    '.env': '🔐', // fallback: 🔐
+    '.config': '⚙️', // fallback: ⚙️
+    '.conf': '⚙️', // fallback: ⚙️
+    '.ini': '⚙️', // fallback: ⚙️
+    
+    // Executables
+    '.exe': '⚙️', // fallback: ⚙️
+    '.app': '📱', // fallback: 📱
+    '.deb': '📦', // fallback: 📦
+    '.rpm': '📦', // fallback: 📦
+    
+    // Default
+    default: '📄' // fallback: 📄
+};
+
+// Get icon for file/folder
+function getFileIcon(name, isDirectory) {
+    if (isDirectory) {
+        return nerdIcons.folder;
+    }
+    
+    // Special files
+    const lowerName = name.toLowerCase();
+    if (lowerName === 'readme.md' || lowerName === 'readme.txt' || lowerName === 'readme') {
+        return '📖'; // fallback: 📖
+    }
+    if (lowerName === 'package.json') {
+        return '📦'; // fallback: 📦
+    }
+    if (lowerName === 'dockerfile') {
+        return '🐳'; // fallback: 🐳
+    }
+    if (lowerName.startsWith('.git')) {
+        return '🌿'; // fallback: 🌿
+    }
+    if (lowerName === 'makefile') {
+        return '🔨'; // fallback: 🔨
+    }
+    
+    // By extension
+    const ext = pathUtils.extname(name).toLowerCase();
+    return nerdIcons[ext] || nerdIcons.default;
+}
 
 class NebulaTerminal {
     constructor() {
@@ -45,6 +173,8 @@ class NebulaTerminal {
             whoami: () => this.showWhoAmI(),
             uname: () => this.showSystemInfo(),
             js: (args) => this.executeJS(args.join(' ')),
+            nfetch: () => this.showNFetch(),
+            mdr: (args) => this.openMarkdownReader(args[0]),
             debug: (args) => this.debugCommand(args),
             exit: () => this.closeTerminal(),
             history: () => this.showHistory()
@@ -98,7 +228,8 @@ class NebulaTerminal {
             background: #1a1a1a;
             padding: 16px;
             overflow: hidden;
-            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+            font-family: 'FiraCode Nerd Font Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'SF Mono', 'Monaco', monospace;
+            font-feature-settings: "liga" 1, "calt" 1;
         `;
         
         // Create terminal element
@@ -151,9 +282,11 @@ class NebulaTerminal {
                 brightWhite: '#ffffff'
             },
             fontSize: 14,
-            fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", monospace',
+            fontFamily: '"FiraCode Nerd Font Mono", "Fira Code", "JetBrains Mono", "Cascadia Code", "SF Mono", "Monaco", monospace',
             cursorBlink: true,
-            cursorStyle: 'block'
+            cursorStyle: 'block',
+            fontWeight: 'normal',
+            fontWeightBold: 'bold'
         });
         
         // Fit addon for resizing
@@ -179,6 +312,8 @@ class NebulaTerminal {
         this.writeLine('│                                         │');
         this.writeLine('│  Type "help" for available commands    │');
         this.writeLine('│  Type "js" to execute JavaScript       │');
+        this.writeLine('│  Type "nfetch" for system info          │');
+        this.writeLine('│  Type "mdr" to read markdown files     │');
         this.writeLine('│  Type "debug" for debug commands       │');
         this.writeLine('╰─────────────────────────────────────────╯');
         this.writeLine('');
@@ -333,6 +468,8 @@ class NebulaTerminal {
         this.writeLine('  uname    - Show system info');
         this.writeLine('  history  - Show command history');
         this.writeLine('  js       - Execute JavaScript code');
+        this.writeLine('  nfetch    - Show system information (Nebula fetch)');
+        this.writeLine('  mdr      - Open markdown file in reader (mdr ./README.md)');
         this.writeLine('  debug    - Debug commands');
         this.writeLine('  exit     - Close terminal');
         this.writeLine('');
@@ -344,7 +481,9 @@ class NebulaTerminal {
         this.writeLine('  cd ~/Documents - Go to Documents folder');
         this.writeLine('  ls -la         - List files with details');
         this.writeLine('  cat file.txt   - Show file contents');
+        this.writeLine('  mdr README.md  - Open markdown in reader window');
         this.writeLine('  js 2 + 2       - Execute JavaScript');
+        this.writeLine('  nfetch          - Show stylized system info');
         this.writeLine('  git status     - Check git repository status');
     }
     
@@ -406,7 +545,7 @@ class NebulaTerminal {
     }
     
     /**
-     * List directory (real file system)
+     * List directory (real file system) - 4 column layout
      */
     async listDirectory(path) {
         try {
@@ -414,6 +553,7 @@ class NebulaTerminal {
             const files = await window.nebula.fs.readDir(targetPath);
             
             if (files.length === 0) {
+                this.writeLine('');
                 this.writeLine('Directory is empty');
                 return;
             }
@@ -438,14 +578,43 @@ class NebulaTerminal {
                 return a.name.localeCompare(b.name);
             });
 
-            // Display files
-            for (const { name, stats } of fileStats) {
-                if (stats?.isDirectory) {
-                    this.writeLine(`\x1b[34m${name}/\x1b[0m`);
-                } else {
-                    this.writeLine(`${name}`);
+            // Prepare items with icons and formatting
+            const items = fileStats.map(({ name, stats }) => {
+                const icon = getFileIcon(name, stats?.isDirectory);
+                const displayName = stats?.isDirectory ? `${name}/` : name;
+                const colorCode = stats?.isDirectory ? '\x1b[34m' : '';
+                const resetCode = stats?.isDirectory ? '\x1b[0m' : '';
+                
+                return {
+                    display: `${icon} ${displayName}`,
+                    colored: `${colorCode}${icon} ${displayName}${resetCode}`,
+                    length: displayName.length + 2 // icon + space + name
+                };
+            });
+
+            // Calculate column width (find the longest item + some padding)
+            const maxLength = Math.max(...items.map(item => item.length));
+            const columnWidth = Math.min(maxLength + 2, 25); // Max width of 25 chars per column
+            const columns = 4;
+
+            // Add carriage return before first item (as requested)
+            this.writeLine('');
+
+            // Display items in 4-column layout
+            for (let i = 0; i < items.length; i += columns) {
+                let line = '';
+                
+                for (let j = 0; j < columns && (i + j) < items.length; j++) {
+                    const item = items[i + j];
+                    const padding = columnWidth - item.length;
+                    const paddingSpaces = ' '.repeat(Math.max(0, padding));
+                    
+                    line += item.colored + paddingSpaces;
                 }
+                
+                this.writeLine(line.trimEnd()); // Remove trailing spaces
             }
+
         } catch (error) {
             this.writeError(`Cannot list directory: ${error.message}`);
         }
@@ -487,11 +656,12 @@ class NebulaTerminal {
             // Display files with details
             for (const { name, stats } of fileStats) {
                 if (stats) {
+                    const icon = getFileIcon(name, stats.isDirectory);
                     const type = stats.isDirectory ? 'd' : '-';
                     const size = stats.size.toString().padStart(8);
                     const date = new Date(stats.mtime).toISOString().split('T')[0];
                     const time = new Date(stats.mtime).toTimeString().split(' ')[0];
-                    const displayName = stats.isDirectory ? `\x1b[34m${name}/\x1b[0m` : name;
+                    const displayName = stats.isDirectory ? `\x1b[34m${icon} ${name}/\x1b[0m` : `${icon} ${name}`;
                     
                     this.writeLine(`${type}rwxr-xr-x ${size} ${date} ${time} ${displayName}`);
                 } else {
@@ -655,6 +825,132 @@ class NebulaTerminal {
             this.writeLine(`${(index + 1).toString().padStart(4)}: ${cmd}`);
         });
     }
+
+    /**
+     * Show NFetch - stylized system information display (web-terminal optimized)
+     */
+    async showNFetch() {
+        try {
+            // Get system info
+            let systemInfo = {};
+            if (window.nebula?.terminal?.getSystemInfo) {
+                systemInfo = await window.nebula.terminal.getSystemInfo();
+            }
+
+            // Get current time and info
+            const uptime = this.getUptime();
+            const memoryInfo = this.getMemoryInfo();
+
+            // Super simple layout - no fancy ASCII art, just clean info display
+            this.writeLine('');
+            this.writeLine('\x1b[35m╭─── NEBULA OS ───╮\x1b[0m');
+            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mOS:\x1b[0m NebulaOS v1.0     \x1b[35m│\x1b[0m');
+            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mHost:\x1b[0m nebula-desktop  \x1b[35m│\x1b[0m');
+            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mKernel:\x1b[0m NebulaKernel    \x1b[35m│\x1b[0m');
+            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mArch:\x1b[0m x64             \x1b[35m│\x1b[0m');
+            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mShell:\x1b[0m nebula-sh      \x1b[35m│\x1b[0m');
+            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mTerm:\x1b[0m NebulaTerminal  \x1b[35m│\x1b[0m');
+            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mUptime:\x1b[0m ' + uptime.padEnd(12) + ' \x1b[35m│\x1b[0m');
+            this.writeLine('\x1b[35m│\x1b[0m \x1b[36mMemory:\x1b[0m ' + memoryInfo.padEnd(12) + ' \x1b[35m│\x1b[0m');
+            this.writeLine('\x1b[35m╰─────────────────╯\x1b[0m');
+
+            // Color palette display
+            this.writeLine('');
+            this.writeLine('\x1b[35mColors:\x1b[0m');
+            this.writeLine('        \x1b[30m███\x1b[0m \x1b[31m███\x1b[0m \x1b[32m███\x1b[0m \x1b[33m███\x1b[0m \x1b[34m███\x1b[0m \x1b[35m███\x1b[0m \x1b[36m███\x1b[0m \x1b[37m███\x1b[0m');
+            this.writeLine('        BLK RED GRN YLW BLU MAG CYN WHT');
+            this.writeLine('');
+
+        } catch (error) {
+            this.writeError(`NFetch error: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get simulated uptime
+     */
+    getUptime() {
+        const now = Date.now();
+        const startTime = window.nebulaStartTime || now;
+        const uptimeMs = now - startTime;
+        
+        const seconds = Math.floor(uptimeMs / 1000) % 60;
+        const minutes = Math.floor(uptimeMs / (1000 * 60)) % 60;
+        const hours = Math.floor(uptimeMs / (1000 * 60 * 60)) % 24;
+        const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
+        
+        if (days > 0) {
+            return `${days}d ${hours}h ${minutes}m`;
+        } else if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        } else {
+            return `${minutes}m ${seconds}s`;
+        }
+    }
+
+    /**
+     * Get simulated memory info
+     */
+    getMemoryInfo() {
+        // Simulate memory usage
+        const totalMB = 8192; // 8GB
+        const usedMB = Math.floor(Math.random() * 4096) + 1024; // 1-5GB used
+        const usedPercent = Math.floor((usedMB / totalMB) * 100);
+        
+        return `${usedMB}MB / ${totalMB}MB (${usedPercent}%)`;
+    }
+
+    /**
+     * Open markdown file in reader window
+     */
+    async openMarkdownReader(filename) {
+        if (!filename) {
+            this.writeLine('Usage: mdr <filename.md>');
+            this.writeLine('Example: mdr ./README.md');
+            return;
+        }
+
+        try {
+            // Resolve file path
+            const filePath = pathUtils.isAbsolute(filename) ? 
+                filename : pathUtils.join(this.currentPath, filename);
+                
+            // Check if file exists
+            const exists = await window.nebula.fs.exists(filePath);
+            if (!exists) {
+                this.writeError(`File not found: ${filename}`);
+                return;
+            }
+
+            // Check if it's a file (not directory)
+            const stats = await window.nebula.fs.stat(filePath);
+            if (stats.isDirectory) {
+                this.writeError(`${filename} is a directory`);
+                return;
+            }
+
+            // Read the markdown file
+            const content = await window.nebula.fs.readFile(filePath);
+            
+            // Create markdown reader window
+            const windowId = window.windowManager.createWindow({
+                title: `Markdown Reader - ${filename}`,
+                width: 900,
+                height: 700,
+                hasTabBar: false,
+                resizable: true
+            });
+
+            // Create markdown reader app instance
+            const markdownReader = new MarkdownReader(content, filename);
+            window.windowManager.loadApp(windowId, markdownReader);
+            
+            this.writeLine(`Opened ${filename} in Markdown Reader`);
+
+        } catch (error) {
+            this.writeError(`Cannot open markdown file: ${error.message}`);
+        }
+    }
     
     /**
      * Execute JavaScript code
@@ -806,5 +1102,118 @@ class NebulaTerminal {
     }
 }
 
-// Make NebulaTerminal available globally
+// MarkdownReader class for displaying markdown files
+class MarkdownReader {
+    constructor(content, filename) {
+        this.content = content;
+        this.filename = filename;
+    }
+
+    /**
+     * Called by WindowManager to render the markdown reader
+     */
+    render() {
+        const container = document.createElement('div');
+        container.className = 'markdown-reader-container';
+        container.style.cssText = `
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        `;
+
+        // Header
+        const header = document.createElement('div');
+        header.style.cssText = `
+            background: #2d2d2d;
+            padding: 12px 16px;
+            border-bottom: 1px solid #404040;
+            font-weight: 600;
+            font-size: 14px;
+            color: #ffffff;
+            flex-shrink: 0;
+        `;
+        header.textContent = this.filename;
+        container.appendChild(header);
+
+        // Content area
+        const contentArea = document.createElement('div');
+        contentArea.style.cssText = `
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            line-height: 1.6;
+        `;
+
+        // Parse and render markdown
+        const htmlContent = this.parseMarkdown(this.content);
+        contentArea.innerHTML = htmlContent;
+
+        container.appendChild(contentArea);
+        return container;
+    }
+
+    /**
+     * Simple markdown parser
+     */
+    parseMarkdown(markdown) {
+        let html = markdown;
+
+        // Headers
+        html = html.replace(/^### (.*$)/gm, '<h3 style="color: #66d9ef; margin: 20px 0 10px 0; font-size: 18px;">$1</h3>');
+        html = html.replace(/^## (.*$)/gm, '<h2 style="color: #a6e22e; margin: 25px 0 15px 0; font-size: 22px;">$1</h2>');
+        html = html.replace(/^# (.*$)/gm, '<h1 style="color: #f92672; margin: 30px 0 20px 0; font-size: 28px;">$1</h1>');
+
+        // Bold and italic
+        html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em style="color: #fd971f;">$1</em></strong>');
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #f8f8f2; font-weight: 600;">$1</strong>');
+        html = html.replace(/\*(.*?)\*/g, '<em style="color: #fd971f;">$1</em>');
+
+        // Code blocks
+        html = html.replace(/```([\s\S]*?)```/g, '<pre style="background: #272822; border: 1px solid #404040; border-radius: 4px; padding: 15px; margin: 15px 0; overflow-x: auto; font-family: \'Fira Code\', monospace; color: #f8f8f2;"><code>$1</code></pre>');
+        html = html.replace(/`([^`]+)`/g, '<code style="background: #49483e; color: #a6e22e; padding: 2px 4px; border-radius: 3px; font-family: \'Fira Code\', monospace; font-size: 90%;">$1</code>');
+
+        // Links
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="#" style="color: #66d9ef; text-decoration: none;" onclick="alert(\'Link: $2\'); return false;">$1</a>');
+
+        // Lists
+        html = html.replace(/^\* (.*$)/gm, '<li style="margin: 5px 0; color: #f8f8f2;">$1</li>');
+        html = html.replace(/^- (.*$)/gm, '<li style="margin: 5px 0; color: #f8f8f2;">$1</li>');
+        
+        // Wrap consecutive list items in ul
+        html = html.replace(/(<li[^>]*>.*<\/li>\s*)+/g, '<ul style="margin: 10px 0; padding-left: 20px;">$&</ul>');
+
+        // Line breaks
+        html = html.replace(/\n\n/g, '<br><br>');
+        html = html.replace(/\n/g, '<br>');
+
+        // Blockquotes
+        html = html.replace(/^> (.*$)/gm, '<blockquote style="border-left: 4px solid #66d9ef; margin: 15px 0; padding: 10px 15px; background: #2d2d2d; color: #f8f8f2; font-style: italic;">$1</blockquote>');
+
+        return html;
+    }
+
+    /**
+     * App interface methods
+     */
+    getTitle() {
+        return `Markdown Reader - ${this.filename}`;
+    }
+
+    getIcon() {
+        return '📝';
+    }
+
+    cleanup() {
+        // Clean up any resources if needed
+        console.log('Markdown reader cleaned up');
+    }
+}
+
+// Make NebulaTerminal and MarkdownReader available globally
 window.NebulaTerminal = NebulaTerminal;
+window.MarkdownReader = MarkdownReader;

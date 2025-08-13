@@ -12,6 +12,9 @@ class NebulaDesktop {
     async init() {
         console.log('Initializing NebulaDesk v3 with WindowManager...');
 
+        // Track startup time for jfetch
+        window.nebulaStartTime = Date.now();
+
         // Initialize the window manager first
         this.windowManager = new WindowManager();
         window.windowManager = this.windowManager; // Make it globally available
