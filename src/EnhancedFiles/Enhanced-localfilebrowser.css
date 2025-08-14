@@ -1,0 +1,481 @@
+/* Local File Browser Styles */
+
+.localfilebrowser-window {
+    width: 1000px;
+    height: 650px;
+    min-width: 800px;
+    min-height: 500px;
+}
+
+.localfilebrowser-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 32px);
+    background: var(--nebula-bg-primary);
+}
+
+.localfilebrowser-toolbar {
+    height: 48px;
+    background: var(--nebula-surface);
+    border-bottom: 1px solid var(--nebula-border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+}
+
+.localfilebrowser-toolbar button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--nebula-radius-sm);
+    background: var(--nebula-surface-secondary);
+    color: var(--nebula-text-primary);
+    cursor: pointer;
+    transition: var(--nebula-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.localfilebrowser-toolbar button:hover {
+    background: var(--nebula-surface-hover);
+    transform: translateY(-1px);
+}
+
+.new-folder-btn,
+.new-file-btn {
+    width: auto !important;
+    padding: 0 12px;
+    font-size: 12px;
+}
+
+.path-bar {
+    flex: 1;
+    margin: 0 8px;
+}
+
+.path-input {
+    width: 100%;
+    height: 32px;
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-sm);
+    background: var(--nebula-surface-secondary);
+    color: var(--nebula-text-primary);
+    padding: 0 12px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+}
+
+.path-input:focus {
+    outline: none;
+    border-color: var(--nebula-primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.localfilebrowser-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 200px;
+    background: var(--nebula-surface-secondary);
+    border-right: 1px solid var(--nebula-border);
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.sidebar-section {
+    margin-bottom: 24px;
+}
+
+.sidebar-section h3 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nebula-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    transition: var(--nebula-transition);
+    margin-bottom: 2px;
+}
+
+.sidebar-item:hover {
+    background: var(--nebula-surface-hover);
+}
+
+.sidebar-item .icon {
+    font-size: 16px;
+}
+
+.sidebar-item .label {
+    font-size: 13px;
+    color: var(--nebula-text-primary);
+}
+
+.storage-info {
+    background: var(--nebula-surface);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-sm);
+    padding: 12px;
+}
+
+.storage-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.storage-item:last-child {
+    margin-bottom: 0;
+}
+
+.storage-item .label {
+    color: var(--nebula-text-secondary);
+}
+
+.storage-item .value {
+    color: var(--nebula-text-primary);
+    font-weight: 500;
+}
+
+.file-list-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.file-list-header {
+    display: grid;
+    grid-template-columns: 40px 1fr 80px 100px 140px 80px;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--nebula-surface);
+    border-bottom: 1px solid var(--nebula-border);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nebula-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.file-list {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--nebula-bg-primary);
+}
+
+.file-item {
+    display: grid;
+    grid-template-columns: 40px 1fr 80px 100px 140px 80px;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--nebula-border);
+    cursor: pointer;
+    transition: var(--nebula-transition);
+    align-items: center;
+}
+
+.file-item:hover {
+    background: var(--nebula-surface-hover);
+}
+
+.file-item.directory {
+    font-weight: 500;
+}
+
+.file-item.parent {
+    color: var(--nebula-text-secondary);
+}
+
+.file-icon {
+    font-size: 18px;
+    text-align: center;
+}
+
+.file-name {
+    font-size: 13px;
+    color: var(--nebula-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-type {
+    font-size: 11px;
+    color: var(--nebula-text-secondary);
+    text-transform: capitalize;
+}
+
+.file-size {
+    font-size: 11px;
+    color: var(--nebula-text-secondary);
+    text-align: right;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.file-modified {
+    font-size: 11px;
+    color: var(--nebula-text-secondary);
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.file-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.action-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: var(--nebula-radius-sm);
+    background: transparent;
+    cursor: pointer;
+    transition: var(--nebula-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.action-btn:hover {
+    background: var(--nebula-surface-hover);
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.delete-btn:hover {
+    background: var(--nebula-danger);
+    color: white;
+}
+
+.loading,
+.error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--nebula-text-secondary);
+    font-style: italic;
+}
+
+.error {
+    color: var(--nebula-danger);
+}
+
+/* Modal Styles */
+.file-viewer-modal,
+.file-editor-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--nebula-surface);
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-lg);
+    box-shadow: var(--nebula-shadow-lg);
+    width: 90%;
+    max-width: 800px;
+    max-height: 80%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--nebula-border);
+    background: var(--nebula-surface-secondary);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--nebula-text-primary);
+}
+
+.modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--nebula-radius-sm);
+    background: transparent;
+    color: var(--nebula-text-secondary);
+    cursor: pointer;
+    transition: var(--nebula-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.modal-close:hover {
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-primary);
+}
+
+.modal-body {
+    flex: 1;
+    padding: 20px;
+    overflow: hidden;
+}
+
+.file-content,
+.file-content-editor {
+    width: 100%;
+    height: 400px;
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-sm);
+    background: var(--nebula-bg-primary);
+    color: var(--nebula-text-primary);
+    padding: 16px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+}
+
+.file-content-editor:focus {
+    border-color: var(--nebula-primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.modal-footer {
+    display: flex;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--nebula-border);
+    background: var(--nebula-surface-secondary);
+    justify-content: flex-end;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    transition: var(--nebula-transition);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.save-file-btn,
+.edit-file-btn {
+    background: var(--nebula-primary);
+    color: white;
+}
+
+.save-file-btn:hover,
+.edit-file-btn:hover {
+    background: var(--nebula-accent);
+}
+
+.close-modal-btn,
+.cancel-edit-btn {
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-primary);
+}
+
+.close-modal-btn:hover,
+.cancel-edit-btn:hover {
+    background: var(--nebula-surface-active);
+}
+
+/* Scrollbar Styling */
+.file-list::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.file-list::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track {
+    background: var(--nebula-surface-secondary);
+}
+
+.file-list::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb {
+    background: var(--nebula-border);
+    border-radius: 4px;
+}
+
+.file-list::-webkit-scrollbar-thumb:hover,
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--nebula-text-secondary);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .localfilebrowser-window {
+        width: 95%;
+        height: 90%;
+    }
+    
+    .sidebar {
+        width: 180px;
+    }
+    
+    .file-list-header,
+    .file-item {
+        grid-template-columns: 30px 1fr 60px 80px 100px 60px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 160px;
+    }
+    
+    .file-list-header,
+    .file-item {
+        grid-template-columns: 30px 1fr 50px 60px 80px 50px;
+    }
+    
+    .localfilebrowser-toolbar {
+        padding: 0 8px;
+        gap: 4px;
+    }
+    
+    .localfilebrowser-toolbar button {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+}
+

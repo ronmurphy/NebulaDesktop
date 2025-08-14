@@ -1,0 +1,5 @@
+macos-theme.css
+themes.txt
+ubuntu-theme.css
+windows10-theme.css
+windows11-theme.css

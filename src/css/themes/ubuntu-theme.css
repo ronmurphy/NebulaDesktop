@@ -1,0 +1,348 @@
+/* Ubuntu Theme for NebulaDesktop */
+[data-theme="ubuntu"] {
+  /* Ubuntu Color Palette */
+  --nebula-bg-primary: #ffffff;
+  --nebula-bg-secondary: #f6f6f6;
+  --nebula-bg-tertiary: #eeeeee;
+  --nebula-surface: #ffffff;
+  --nebula-surface-elevated: #ffffff;
+  --nebula-surface-hover: #f6f6f6;
+  --nebula-surface-active: #eeeeee;
+  
+  --nebula-text-primary: #2e3436;
+  --nebula-text-secondary: #555753;
+  --nebula-text-muted: #888a85;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #2e3436;
+  
+  --nebula-border: #d3d7cf;
+  --nebula-border-hover: #babdb6;
+  --nebula-divider: #eeeeee;
+  
+  /* Ubuntu Accent Colors */
+  --nebula-primary: #e95420;
+  --nebula-secondary: #772953;
+  --nebula-accent: #e95420;
+  --nebula-success: #38a169;
+  --nebula-warning: #dd6b20;
+  --nebula-danger: #e53e3e;
+  
+  /* Ubuntu Window Controls */
+  --window-control-bg: transparent;
+  --window-control-hover: #f6f6f6;
+  --window-control-active: #eeeeee;
+  --window-close-hover: #e95420;
+  --window-close-active: #cc4125;
+  --window-minimize-hover: #f57900;
+  --window-minimize-active: #ce5c00;
+  --window-maximize-hover: #73d216;
+  --window-maximize-active: #4e9a06;
+  
+  /* Ubuntu Taskbar & Launcher */
+  --taskbar-bg: rgba(46, 52, 54, 0.95);
+  --taskbar-border: rgba(255, 255, 255, 0.1);
+  --launcher-bg: rgba(255, 255, 255, 0.95);
+  --launcher-border: rgba(0, 0, 0, 0.1);
+  
+  /* Ubuntu Shadows */
+  --nebula-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --nebula-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --nebula-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.2);
+  
+  /* Ubuntu Border Radius */
+  --nebula-radius-sm: 3px;
+  --nebula-radius-md: 6px;
+  --nebula-radius-lg: 9px;
+  --nebula-radius-xl: 12px;
+}
+
+/* Ubuntu Dark Mode (Yaru Dark) */
+[data-theme="ubuntu-dark"] {
+  --nebula-bg-primary: #2c2c2c;
+  --nebula-bg-secondary: #383838;
+  --nebula-bg-tertiary: #404040;
+  --nebula-surface: #383838;
+  --nebula-surface-elevated: #404040;
+  --nebula-surface-hover: #4a4a4a;
+  --nebula-surface-active: #525252;
+  
+  --nebula-text-primary: #ffffff;
+  --nebula-text-secondary: #d3d7cf;
+  --nebula-text-muted: #888a85;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #ffffff;
+  
+  --nebula-border: #525252;
+  --nebula-border-hover: #5a5a5a;
+  --nebula-divider: #404040;
+  
+  /* Ubuntu Dark Accent Colors */
+  --nebula-primary: #ff7139;
+  --nebula-secondary: #9c4668;
+  --nebula-accent: #ff7139;
+  --nebula-success: #68d391;
+  --nebula-warning: #f6ad55;
+  --nebula-danger: #fc8181;
+  
+  /* Ubuntu Dark Window Controls */
+  --window-control-bg: transparent;
+  --window-control-hover: #4a4a4a;
+  --window-control-active: #525252;
+  --window-close-hover: #ff7139;
+  --window-close-active: #e95420;
+  --window-minimize-hover: #f57900;
+  --window-minimize-active: #ce5c00;
+  --window-maximize-hover: #73d216;
+  --window-maximize-active: #4e9a06;
+  
+  /* Ubuntu Dark Taskbar & Launcher */
+  --taskbar-bg: rgba(44, 44, 44, 0.95);
+  --taskbar-border: rgba(255, 255, 255, 0.1);
+  --launcher-bg: rgba(56, 56, 56, 0.95);
+  --launcher-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Ubuntu Window Controls Styling */
+[data-theme="ubuntu"] .window-controls,
+[data-theme="ubuntu-dark"] .window-controls {
+  gap: 6px;
+  order: -1; /* Move to left side like Ubuntu */
+  padding-left: 12px;
+}
+
+[data-theme="ubuntu"] .window-titlebar,
+[data-theme="ubuntu-dark"] .window-titlebar {
+  flex-direction: row-reverse; /* Put controls on left */
+}
+
+[data-theme="ubuntu"] .window-controls button,
+[data-theme="ubuntu-dark"] .window-controls button {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  font-size: 0;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-theme="ubuntu"] .window-controls .close,
+[data-theme="ubuntu-dark"] .window-controls .close {
+  background: #ff5f56;
+  order: 1;
+}
+
+[data-theme="ubuntu"] .window-controls .minimize,
+[data-theme="ubuntu-dark"] .window-controls .minimize {
+  background: #ffbd2e;
+  order: 2;
+}
+
+[data-theme="ubuntu"] .window-controls .maximize,
+[data-theme="ubuntu-dark"] .window-controls .maximize {
+  background: #27ca3f;
+  order: 3;
+}
+
+/* Ubuntu Window Controls Hover Effects */
+[data-theme="ubuntu"] .window-controls button:hover::after,
+[data-theme="ubuntu-dark"] .window-controls button:hover::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Material Symbols Outlined';
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="ubuntu"] .window-controls .close:hover::after,
+[data-theme="ubuntu-dark"] .window-controls .close:hover::after {
+  content: '×';
+}
+
+[data-theme="ubuntu"] .window-controls .minimize:hover::after,
+[data-theme="ubuntu-dark"] .window-controls .minimize:hover::after {
+  content: '−';
+}
+
+[data-theme="ubuntu"] .window-controls .maximize:hover::after,
+[data-theme="ubuntu-dark"] .window-controls .maximize:hover::after {
+  content: '□';
+}
+
+/* Ubuntu Window Styling */
+[data-theme="ubuntu"] .app-window,
+[data-theme="ubuntu-dark"] .app-window {
+  border-radius: var(--nebula-radius-lg);
+  border: 1px solid var(--nebula-border);
+  box-shadow: var(--nebula-shadow-lg);
+}
+
+[data-theme="ubuntu"] .window-titlebar,
+[data-theme="ubuntu-dark"] .window-titlebar {
+  height: 36px;
+  background: var(--nebula-surface);
+  border-bottom: 1px solid var(--nebula-border);
+  border-radius: var(--nebula-radius-lg) var(--nebula-radius-lg) 0 0;
+}
+
+[data-theme="ubuntu"] .window-title,
+[data-theme="ubuntu-dark"] .window-title {
+  font-weight: 500;
+  font-size: 13px;
+  text-align: center;
+  flex: 1;
+}
+
+/* Ubuntu Taskbar Styling */
+[data-theme="ubuntu"] .taskbar,
+[data-theme="ubuntu-dark"] .taskbar {
+  background: var(--taskbar-bg);
+  border-top: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  position: fixed;
+  left: 0;
+  width: 100%;
+}
+
+[data-theme="ubuntu"] .start-button,
+[data-theme="ubuntu-dark"] .start-button {
+  background: var(--nebula-primary);
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-radius: var(--nebula-radius-md);
+}
+
+[data-theme="ubuntu"] .start-button:hover,
+[data-theme="ubuntu-dark"] .start-button:hover {
+  background: var(--nebula-secondary);
+  transform: translateY(-1px);
+}
+
+/* Ubuntu Launcher Styling */
+[data-theme="ubuntu"] .launcher,
+[data-theme="ubuntu-dark"] .launcher {
+  border-radius: var(--nebula-radius-lg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--nebula-shadow-lg);
+}
+
+/* Ubuntu App Icons */
+[data-theme="ubuntu"] .app-icon,
+[data-theme="ubuntu-dark"] .app-icon {
+  border-radius: var(--nebula-radius-lg);
+  transition: all 0.2s ease;
+}
+
+[data-theme="ubuntu"] .app-icon:hover,
+[data-theme="ubuntu-dark"] .app-icon:hover {
+  background: var(--nebula-surface-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--nebula-shadow-sm);
+}
+
+/* Ubuntu Typography */
+[data-theme="ubuntu"] body,
+[data-theme="ubuntu-dark"] body {
+  font-family: 'Ubuntu', 'Liberation Sans', 'DejaVu Sans', sans-serif;
+  font-weight: 400;
+}
+
+/* Ubuntu Scrollbars */
+[data-theme="ubuntu"] ::-webkit-scrollbar,
+[data-theme="ubuntu-dark"] ::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+[data-theme="ubuntu"] ::-webkit-scrollbar-track {
+  background: #f6f6f6;
+  border-radius: 7px;
+}
+
+[data-theme="ubuntu-dark"] ::-webkit-scrollbar-track {
+  background: #383838;
+  border-radius: 7px;
+}
+
+[data-theme="ubuntu"] ::-webkit-scrollbar-thumb {
+  background: #d3d7cf;
+  border-radius: 7px;
+  border: 2px solid #f6f6f6;
+}
+
+[data-theme="ubuntu-dark"] ::-webkit-scrollbar-thumb {
+  background: #525252;
+  border-radius: 7px;
+  border: 2px solid #383838;
+}
+
+[data-theme="ubuntu"] ::-webkit-scrollbar-thumb:hover {
+  background: #babdb6;
+}
+
+[data-theme="ubuntu-dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
+}
+
+/* Ubuntu Buttons */
+[data-theme="ubuntu"] button,
+[data-theme="ubuntu-dark"] button {
+  border-radius: var(--nebula-radius-md);
+}
+
+/* Ubuntu Input Fields */
+[data-theme="ubuntu"] input,
+[data-theme="ubuntu-dark"] input {
+  border-radius: var(--nebula-radius-md);
+  border: 1px solid var(--nebula-border);
+}
+
+[data-theme="ubuntu"] input:focus,
+[data-theme="ubuntu-dark"] input:focus {
+  border-color: var(--nebula-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(233, 84, 32, 0.2);
+}
+
+/* Ubuntu Notification Style */
+[data-theme="ubuntu"] .notification,
+[data-theme="ubuntu-dark"] .notification {
+  background: var(--nebula-surface);
+  border: 1px solid var(--nebula-border);
+  border-left: 4px solid var(--nebula-primary);
+  border-radius: var(--nebula-radius-md);
+  box-shadow: var(--nebula-shadow-md);
+}
+
+/* Ubuntu Menu Style */
+[data-theme="ubuntu"] .context-menu,
+[data-theme="ubuntu-dark"] .context-menu {
+  background: var(--nebula-surface);
+  border: 1px solid var(--nebula-border);
+  border-radius: var(--nebula-radius-md);
+  box-shadow: var(--nebula-shadow-lg);
+  padding: 4px;
+}
+
+[data-theme="ubuntu"] .context-menu-item,
+[data-theme="ubuntu-dark"] .context-menu-item {
+  padding: 8px 12px;
+  border-radius: var(--nebula-radius-sm);
+  transition: all 0.1s ease;
+}
+
+[data-theme="ubuntu"] .context-menu-item:hover,
+[data-theme="ubuntu-dark"] .context-menu-item:hover {
+  background: var(--nebula-primary);
+  color: var(--nebula-text-on-primary);
+}
+

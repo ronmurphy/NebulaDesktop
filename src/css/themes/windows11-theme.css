@@ -1,0 +1,332 @@
+/* Windows 11 Theme for NebulaDesktop */
+[data-theme="windows11"] {
+  /* Windows 11 Color Palette */
+  --nebula-bg-primary: #ffffff;
+  --nebula-bg-secondary: #f9f9f9;
+  --nebula-bg-tertiary: #f3f3f3;
+  --nebula-surface: #ffffff;
+  --nebula-surface-elevated: #ffffff;
+  --nebula-surface-hover: #f9f9f9;
+  --nebula-surface-active: #f3f3f3;
+  
+  --nebula-text-primary: #323130;
+  --nebula-text-secondary: #605e5c;
+  --nebula-text-muted: #8a8886;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #323130;
+  
+  --nebula-border: #e1dfdd;
+  --nebula-border-hover: #c8c6c4;
+  --nebula-divider: #f3f2f1;
+  
+  /* Windows 11 Accent Colors */
+  --nebula-primary: #0078d4;
+  --nebula-secondary: #106ebe;
+  --nebula-accent: #0078d4;
+  --nebula-success: #107c10;
+  --nebula-warning: #ff8c00;
+  --nebula-danger: #d13438;
+  
+  /* Windows 11 Window Controls */
+  --window-control-bg: transparent;
+  --window-control-hover: #f3f3f3;
+  --window-control-active: #e1dfdd;
+  --window-close-hover: #c42b1c;
+  --window-close-active: #a23b1c;
+  
+  /* Windows 11 Taskbar & Launcher */
+  --taskbar-bg: rgba(243, 243, 243, 0.7);
+  --taskbar-border: rgba(0, 0, 0, 0.05);
+  --launcher-bg: rgba(255, 255, 255, 0.9);
+  --launcher-border: rgba(0, 0, 0, 0.05);
+  
+  /* Windows 11 Shadows */
+  --nebula-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --nebula-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --nebula-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+  
+  /* Windows 11 Border Radius */
+  --nebula-radius-sm: 4px;
+  --nebula-radius-md: 8px;
+  --nebula-radius-lg: 12px;
+  --nebula-radius-xl: 16px;
+}
+
+/* Windows 11 Dark Mode */
+[data-theme="windows11-dark"] {
+  --nebula-bg-primary: #202020;
+  --nebula-bg-secondary: #2c2c2c;
+  --nebula-bg-tertiary: #383838;
+  --nebula-surface: #2c2c2c;
+  --nebula-surface-elevated: #383838;
+  --nebula-surface-hover: #404040;
+  --nebula-surface-active: #4c4c4c;
+  
+  --nebula-text-primary: #ffffff;
+  --nebula-text-secondary: #e1e1e1;
+  --nebula-text-muted: #c8c8c8;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #ffffff;
+  
+  --nebula-border: #404040;
+  --nebula-border-hover: #4c4c4c;
+  --nebula-divider: #383838;
+  
+  /* Windows 11 Dark Accent Colors */
+  --nebula-primary: #60cdff;
+  --nebula-secondary: #4cc2ff;
+  --nebula-accent: #60cdff;
+  --nebula-success: #6ccb5f;
+  --nebula-warning: #fcb441;
+  --nebula-danger: #ff99a4;
+  
+  /* Windows 11 Dark Window Controls */
+  --window-control-bg: transparent;
+  --window-control-hover: #404040;
+  --window-control-active: #4c4c4c;
+  --window-close-hover: #c42b1c;
+  --window-close-active: #a23b1c;
+  
+  /* Windows 11 Dark Taskbar & Launcher */
+  --taskbar-bg: rgba(44, 44, 44, 0.7);
+  --taskbar-border: rgba(255, 255, 255, 0.05);
+  --launcher-bg: rgba(44, 44, 44, 0.9);
+  --launcher-border: rgba(255, 255, 255, 0.05);
+}
+
+/* Windows 11 Window Controls Styling */
+[data-theme="windows11"] .window-controls,
+[data-theme="windows11-dark"] .window-controls {
+  gap: 0;
+}
+
+[data-theme="windows11"] .window-controls button,
+[data-theme="windows11-dark"] .window-controls button {
+  width: 46px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--nebula-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  font-family: 'Segoe Fluent Icons', 'Material Symbols Outlined';
+  font-size: 10px;
+  border-radius: 0;
+}
+
+[data-theme="windows11"] .window-controls button:hover,
+[data-theme="windows11-dark"] .window-controls button:hover {
+  background: var(--window-control-hover);
+  color: var(--nebula-text-primary);
+}
+
+[data-theme="windows11"] .window-controls button:active,
+[data-theme="windows11-dark"] .window-controls button:active {
+  background: var(--window-control-active);
+}
+
+/* Windows 11 Close button special styling */
+[data-theme="windows11"] .window-controls .close:hover,
+[data-theme="windows11-dark"] .window-controls .close:hover {
+  background: var(--window-close-hover);
+  color: white;
+}
+
+[data-theme="windows11"] .window-controls .close:active,
+[data-theme="windows11-dark"] .window-controls .close:active {
+  background: var(--window-close-active);
+}
+
+/* Windows 11 Window Styling */
+[data-theme="windows11"] .app-window,
+[data-theme="windows11-dark"] .app-window {
+  border-radius: var(--nebula-radius-lg);
+  border: 1px solid var(--nebula-border);
+  box-shadow: var(--nebula-shadow-lg);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+[data-theme="windows11"] .window-titlebar,
+[data-theme="windows11-dark"] .window-titlebar {
+  height: 32px;
+  background: var(--nebula-surface);
+  border-bottom: 1px solid var(--nebula-border);
+  border-radius: var(--nebula-radius-lg) var(--nebula-radius-lg) 0 0;
+}
+
+/* Windows 11 Taskbar Styling */
+[data-theme="windows11"] .taskbar,
+[data-theme="windows11-dark"] .taskbar {
+  background: var(--taskbar-bg);
+  border-top: 1px solid var(--taskbar-border);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border-radius: var(--nebula-radius-lg) var(--nebula-radius-lg) 0 0;
+  margin: 0 8px;
+  height: 48px;
+  bottom: 4px;
+}
+
+[data-theme="windows11"] .start-button,
+[data-theme="windows11-dark"] .start-button {
+  background: var(--nebula-primary);
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border-radius: var(--nebula-radius-md);
+}
+
+[data-theme="windows11"] .start-button:hover,
+[data-theme="windows11-dark"] .start-button:hover {
+  background: var(--nebula-secondary);
+  transform: scale(1.02);
+}
+
+/* Windows 11 Launcher Styling */
+[data-theme="windows11"] .launcher,
+[data-theme="windows11-dark"] .launcher {
+  border-radius: var(--nebula-radius-xl);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  box-shadow: var(--nebula-shadow-lg);
+  border: 1px solid var(--launcher-border);
+}
+
+/* Windows 11 App Icons */
+[data-theme="windows11"] .app-icon,
+[data-theme="windows11-dark"] .app-icon {
+  border-radius: var(--nebula-radius-lg);
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="windows11"] .app-icon::before,
+[data-theme="windows11-dark"] .app-icon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: var(--nebula-radius-lg);
+}
+
+[data-theme="windows11"] .app-icon:hover::before,
+[data-theme="windows11-dark"] .app-icon:hover::before {
+  opacity: 0.1;
+}
+
+[data-theme="windows11"] .app-icon:hover,
+[data-theme="windows11-dark"] .app-icon:hover {
+  background: var(--nebula-surface-hover);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--nebula-shadow-md);
+}
+
+/* Windows 11 Typography */
+[data-theme="windows11"] body,
+[data-theme="windows11-dark"] body {
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 400;
+  font-variation-settings: 'wght' 400;
+}
+
+[data-theme="windows11"] .window-title,
+[data-theme="windows11-dark"] .window-title {
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  flex: 1;
+}
+
+/* Windows 11 Scrollbars */
+[data-theme="windows11"] ::-webkit-scrollbar,
+[data-theme="windows11-dark"] ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+[data-theme="windows11"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme="windows11-dark"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme="windows11"] ::-webkit-scrollbar-thumb {
+  background: rgba(96, 94, 92, 0.5);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+[data-theme="windows11-dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+[data-theme="windows11"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(96, 94, 92, 0.7);
+  background-clip: content-box;
+}
+
+[data-theme="windows11-dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+  background-clip: content-box;
+}
+
+/* Windows 11 Buttons */
+[data-theme="windows11"] button,
+[data-theme="windows11-dark"] button {
+  border-radius: var(--nebula-radius-md);
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+[data-theme="windows11"] button:hover,
+[data-theme="windows11-dark"] button:hover {
+  transform: scale(1.02);
+}
+
+/* Windows 11 Input Fields */
+[data-theme="windows11"] input,
+[data-theme="windows11-dark"] input {
+  border-radius: var(--nebula-radius-md);
+  border: 2px solid var(--nebula-border);
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+[data-theme="windows11"] input:focus,
+[data-theme="windows11-dark"] input:focus {
+  border-color: var(--nebula-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+/* Windows 11 Acrylic Effect */
+[data-theme="windows11"] .acrylic,
+[data-theme="windows11-dark"] .acrylic {
+  backdrop-filter: blur(30px) saturate(1.8);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+}
+
+/* Windows 11 Mica Effect */
+[data-theme="windows11"] .mica,
+[data-theme="windows11-dark"] .mica {
+  background: linear-gradient(135deg, 
+    var(--nebula-surface) 0%, 
+    var(--nebula-surface-hover) 100%);
+}
+

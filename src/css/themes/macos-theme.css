@@ -1,0 +1,238 @@
+/* macOS Theme for NebulaDesktop */
+[data-theme="macos"] {
+  /* macOS Color Palette */
+  --nebula-bg-primary: #f5f5f7;
+  --nebula-bg-secondary: #ffffff;
+  --nebula-bg-tertiary: #f2f2f7;
+  --nebula-surface: #ffffff;
+  --nebula-surface-elevated: #ffffff;
+  --nebula-surface-hover: #f5f5f7;
+  --nebula-surface-active: #e5e5ea;
+  
+  --nebula-text-primary: #1d1d1f;
+  --nebula-text-secondary: #86868b;
+  --nebula-text-muted: #a1a1a6;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #1d1d1f;
+  
+  --nebula-border: #d2d2d7;
+  --nebula-border-hover: #a1a1a6;
+  --nebula-divider: #f2f2f7;
+  
+  /* macOS Accent Colors */
+  --nebula-primary: #007aff;
+  --nebula-secondary: #5856d6;
+  --nebula-accent: #007aff;
+  --nebula-success: #34c759;
+  --nebula-warning: #ff9500;
+  --nebula-danger: #ff3b30;
+  
+  /* macOS Window Controls */
+  --window-control-bg: transparent;
+  --window-control-hover: rgba(0, 0, 0, 0.05);
+  --window-control-active: rgba(0, 0, 0, 0.1);
+  --window-close-hover: #ff5f57;
+  --window-close-active: #e0443e;
+  --window-minimize-hover: #ffbd2e;
+  --window-minimize-active: #dea123;
+  --window-maximize-hover: #28ca42;
+  --window-maximize-active: #1aad34;
+  
+  /* macOS Taskbar & Launcher */
+  --taskbar-bg: rgba(255, 255, 255, 0.8);
+  --taskbar-border: rgba(0, 0, 0, 0.1);
+  --launcher-bg: rgba(255, 255, 255, 0.95);
+  --launcher-border: rgba(0, 0, 0, 0.1);
+  
+  /* macOS Shadows */
+  --nebula-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --nebula-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --nebula-shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.15);
+  
+  /* macOS Border Radius */
+  --nebula-radius-sm: 6px;
+  --nebula-radius-md: 10px;
+  --nebula-radius-lg: 12px;
+  --nebula-radius-xl: 16px;
+}
+
+/* macOS Dark Mode */
+[data-theme="macos-dark"] {
+  --nebula-bg-primary: #1c1c1e;
+  --nebula-bg-secondary: #2c2c2e;
+  --nebula-bg-tertiary: #3a3a3c;
+  --nebula-surface: #2c2c2e;
+  --nebula-surface-elevated: #3a3a3c;
+  --nebula-surface-hover: #48484a;
+  --nebula-surface-active: #636366;
+  
+  --nebula-text-primary: #ffffff;
+  --nebula-text-secondary: #98989d;
+  --nebula-text-muted: #8e8e93;
+  --nebula-text-on-primary: #ffffff;
+  --nebula-text-on-surface: #ffffff;
+  
+  --nebula-border: #48484a;
+  --nebula-border-hover: #636366;
+  --nebula-divider: #3a3a3c;
+  
+  /* macOS Dark Accent Colors */
+  --nebula-primary: #0a84ff;
+  --nebula-secondary: #5e5ce6;
+  --nebula-accent: #0a84ff;
+  --nebula-success: #30d158;
+  --nebula-warning: #ff9f0a;
+  --nebula-danger: #ff453a;
+  
+  /* macOS Dark Window Controls */
+  --window-control-bg: transparent;
+  --window-control-hover: rgba(255, 255, 255, 0.1);
+  --window-control-active: rgba(255, 255, 255, 0.2);
+  --window-close-hover: #ff5f57;
+  --window-close-active: #e0443e;
+  --window-minimize-hover: #ffbd2e;
+  --window-minimize-active: #dea123;
+  --window-maximize-hover: #28ca42;
+  --window-maximize-active: #1aad34;
+  
+  /* macOS Dark Taskbar & Launcher */
+  --taskbar-bg: rgba(28, 28, 30, 0.8);
+  --taskbar-border: rgba(255, 255, 255, 0.1);
+  --launcher-bg: rgba(44, 44, 46, 0.95);
+  --launcher-border: rgba(255, 255, 255, 0.1);
+}
+
+/* macOS Window Controls Styling */
+[data-theme="macos"] .window-controls,
+[data-theme="macos-dark"] .window-controls {
+  gap: 8px;
+  padding-left: 12px;
+}
+
+[data-theme="macos"] .window-controls button,
+[data-theme="macos-dark"] .window-controls button {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  font-size: 0;
+  position: relative;
+}
+
+[data-theme="macos"] .window-controls .close,
+[data-theme="macos-dark"] .window-controls .close {
+  background: #ff5f57;
+}
+
+[data-theme="macos"] .window-controls .minimize,
+[data-theme="macos-dark"] .window-controls .minimize {
+  background: #ffbd2e;
+}
+
+[data-theme="macos"] .window-controls .maximize,
+[data-theme="macos-dark"] .window-controls .maximize {
+  background: #28ca42;
+}
+
+/* macOS Window Controls Hover Effects */
+[data-theme="macos"] .window-controls button:hover::after,
+[data-theme="macos-dark"] .window-controls button:hover::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Material Symbols Outlined';
+  font-size: 8px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="macos"] .window-controls .close:hover::after,
+[data-theme="macos-dark"] .window-controls .close:hover::after {
+  content: '×';
+}
+
+[data-theme="macos"] .window-controls .minimize:hover::after,
+[data-theme="macos-dark"] .window-controls .minimize:hover::after {
+  content: '−';
+}
+
+[data-theme="macos"] .window-controls .maximize:hover::after,
+[data-theme="macos-dark"] .window-controls .maximize:hover::after {
+  content: '+';
+}
+
+/* macOS Taskbar Styling */
+[data-theme="macos"] .taskbar,
+[data-theme="macos-dark"] .taskbar {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--taskbar-border);
+}
+
+/* macOS Launcher Styling */
+[data-theme="macos"] .launcher,
+[data-theme="macos-dark"] .launcher {
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border-radius: var(--nebula-radius-xl);
+}
+
+/* macOS App Icons */
+[data-theme="macos"] .app-icon,
+[data-theme="macos-dark"] .app-icon {
+  border-radius: var(--nebula-radius-lg);
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+[data-theme="macos"] .app-icon:hover,
+[data-theme="macos-dark"] .app-icon:hover {
+  transform: scale(1.05);
+}
+
+/* macOS Typography */
+[data-theme="macos"] body,
+[data-theme="macos-dark"] body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.022em;
+}
+
+[data-theme="macos"] .window-title,
+[data-theme="macos-dark"] .window-title {
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+  flex: 1;
+}
+
+/* macOS Scrollbars */
+[data-theme="macos"] ::-webkit-scrollbar,
+[data-theme="macos-dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="macos"] ::-webkit-scrollbar-track,
+[data-theme="macos-dark"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-theme="macos"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+[data-theme="macos-dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+[data-theme="macos"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="macos-dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
