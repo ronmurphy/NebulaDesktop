@@ -97,11 +97,37 @@ class NebulaDesktop {
             }
         });
 
-        ipcMain.handle('fs:readfile', async (event, filePath) => {
+        // FIXED: Smart file reading - binary for images, text for others
+        ipcMain.handle('fs:readfile', async (event, filePath, encoding = null) => {
             try {
                 const fs = require('fs').promises;
-                return await fs.readFile(filePath, 'utf8');
+                
+                // Detect if this is likely a binary file based on extension
+                const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.tiff', '.svg'];
+                const videoExtensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.ogv', '.m4v'];
+                const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
+                const binaryExtensions = [...imageExtensions, ...videoExtensions, ...audioExtensions, '.exe', '.bin', '.dll', '.so'];
+                
+                const ext = path.extname(filePath).toLowerCase();
+                const isBinaryFile = binaryExtensions.includes(ext);
+                
+                if (encoding === null) {
+                    // Auto-detect encoding based on file type
+                    encoding = isBinaryFile ? null : 'utf8';
+                }
+                
+                console.log(`Reading file: ${filePath}, binary: ${isBinaryFile}, encoding: ${encoding}`);
+                
+                const data = await fs.readFile(filePath, encoding);
+                
+                // For binary files, convert Buffer to Uint8Array for better browser compatibility
+                if (isBinaryFile && Buffer.isBuffer(data)) {
+                    return new Uint8Array(data);
+                }
+                
+                return data;
             } catch (error) {
+                console.error(`Error reading file ${filePath}:`, error);
                 throw error;
             }
         });
@@ -201,7 +227,8 @@ class NebulaDesktop {
                     const proc = spawn(shell, shellArgs, {
                         cwd: options.cwd || os.homedir(),
                         env: { ...process.env, ...options.env },
-                        stdio: ['pipe', 'pipe', 'pipe']
+                        stdio: ['pipe', 'pipe', 'pipe'],
+                        timeout: options.timeout || 30000
                     });
 
                     let stdout = '';
@@ -217,9 +244,9 @@ class NebulaDesktop {
 
                     proc.on('close', (code) => {
                         resolve({
-                            stdout: stdout,
-                            stderr: stderr,
-                            exitCode: code || 0
+                            stdout: stdout.trim(),
+                            stderr: stderr.trim(),
+                            exitCode: code
                         });
                     });
 
@@ -227,57 +254,70 @@ class NebulaDesktop {
                         reject(error);
                     });
 
-                    // Set a timeout to prevent hanging
+                    // Handle timeout
                     setTimeout(() => {
                         if (!proc.killed) {
                             proc.kill();
-                            reject(new Error('Command timeout'));
+                            reject(new Error('Command timed out'));
                         }
-                    }, 30000); // 30 second timeout
+                    }, options.timeout || 30000);
                 });
             } catch (error) {
                 throw error;
             }
         });
 
-        // Get system information
+        // System info
         ipcMain.handle('system:info', () => {
             const os = require('os');
             return {
                 platform: os.platform(),
                 arch: os.arch(),
+                version: os.version(),
                 release: os.release(),
                 hostname: os.hostname(),
-                username: os.userInfo().username,
-                shell: process.env.SHELL || '/bin/sh',
-                home: os.homedir(),
-                tmpdir: os.tmpdir()
+                uptime: os.uptime(),
+                totalMemory: os.totalmem(),
+                freeMemory: os.freemem(),
+                cpuCount: os.cpus().length
             };
         });
     }
 
     createAppWindow(options) {
+        const windowId = Date.now().toString();
+        
         const window = new BrowserWindow({
             width: options.width || 800,
             height: options.height || 600,
             webPreferences: {
-                partition: options.profile ? `persist:${options.profile}` : undefined,
-                webviewTag: true
-            }
+                nodeIntegration: false,
+                contextIsolation: true,
+                preload: path.join(__dirname, 'src', 'preload.js')
+            },
+            parent: this.mainWindow,
+            modal: false,
+            show: false
+        });
+
+        this.childWindows.set(windowId, window);
+        
+        window.once('ready-to-show', () => {
+            window.show();
         });
         
-        window.loadURL(options.url);
-        const id = Date.now().toString();
-        this.childWindows.set(id, window);
-        return id;
+        window.on('closed', () => {
+            this.childWindows.delete(windowId);
+        });
+
+        return windowId;
     }
 }
 
-// App lifecycle
-let desktop;
+// Create desktop instance
+const desktop = new NebulaDesktop();
 
 app.whenReady().then(() => {
-    desktop = new NebulaDesktop();
     desktop.createMainWindow();
     desktop.setupIPC();
 });
@@ -285,5 +325,11 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
+    }
+});
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+        desktop.createMainWindow();
     }
 });

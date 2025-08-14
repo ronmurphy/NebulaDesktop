@@ -363,6 +363,32 @@ class NebulaTerminal {
         this.outputArea.addEventListener('click', () => {
             this.inputField.focus();
         });
+        
+        // Right-click to auto-ls when input is empty
+        this.outputArea.addEventListener('contextmenu', (e) => {
+            e.preventDefault(); // Prevent default context menu
+            
+            // Only auto-ls if input field is empty
+            if (this.inputField.value.trim() === '') {
+                this.writeLine(`${this.promptText.textContent}ls`);
+                this.listDirectory(this.currentPath);
+                this.updatePrompt();
+                this.inputField.focus();
+            }
+        });
+        
+        // Also handle right-click on input area
+        this.inputField.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            
+            // Only auto-ls if input field is empty
+            if (this.inputField.value.trim() === '') {
+                this.writeLine(`${this.promptText.textContent}ls`);
+                this.listDirectory(this.currentPath);
+                this.updatePrompt();
+                this.inputField.focus();
+            }
+        });
     }
     
     /**
