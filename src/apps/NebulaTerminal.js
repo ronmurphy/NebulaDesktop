@@ -4,10 +4,22 @@
 // Path utilities for client-side path handling
 const pathUtils = {
     join: (...paths) => {
-        return paths
-            .join('/')
-            .replace(/\/+/g, '/')
-            .replace(/\/$/, '') || '/';
+        // Filter out empty paths and join
+        const cleanPaths = paths.filter(p => p && p !== '');
+        if (cleanPaths.length === 0) return '/';
+        
+        let result = cleanPaths.join('/');
+        
+        // Clean up multiple slashes
+        result = result.replace(/\/+/g, '/');
+        
+        // Remove trailing slash unless it's root
+        if (result.length > 1 && result.endsWith('/')) {
+            result = result.slice(0, -1);
+        }
+        
+        // Ensure we have at least root
+        return result || '/';
     },
     
     resolve: (path) => {
@@ -34,6 +46,32 @@ const pathUtils = {
     
     isAbsolute: (path) => {
         return path.startsWith('/');
+    },
+    
+    // Normalize path by resolving . and .. components
+    normalize: (inputPath) => {
+        const parts = inputPath.split('/').filter(part => part !== '' && part !== '.');
+        const resolved = [];
+        const isAbsolute = inputPath.startsWith('/');
+        
+        for (const part of parts) {
+            if (part === '..') {
+                if (resolved.length > 0 && resolved[resolved.length - 1] !== '..') {
+                    resolved.pop();
+                } else if (!isAbsolute) {
+                    resolved.push('..');
+                }
+            } else {
+                resolved.push(part);
+            }
+        }
+        
+        let result = resolved.join('/');
+        if (isAbsolute) {
+            result = '/' + result;
+        }
+        
+        return result || (isAbsolute ? '/' : '.');
     }
 };
 
@@ -364,8 +402,15 @@ class NebulaTerminal {
             this.inputField.focus();
         });
         
-        // Right-click to auto-ls when input is empty
+        // Right-click to auto-ls when input is empty (but not on specific items)
         this.outputArea.addEventListener('contextmenu', (e) => {
+            // Check if the click was on a specific file/folder item
+            const clickedItem = e.target.closest('.file-item, [data-name]');
+            if (clickedItem) {
+                // Let the specific item handler deal with it
+                return;
+            }
+            
             e.preventDefault(); // Prevent default context menu
             
             // Only auto-ls if input field is empty
@@ -605,7 +650,7 @@ File Navigation:
     }
     
     /**
-     * Change directory
+     * Change directory with proper path resolution
      */
     async changeDirectory(path) {
         if (!path || path === '~') {
@@ -620,9 +665,11 @@ File Navigation:
         
         let targetPath;
         if (pathUtils.isAbsolute(path)) {
-            targetPath = path;
+            targetPath = pathUtils.normalize(path);
         } else {
-            targetPath = pathUtils.join(this.currentPath, path);
+            // Join current path with relative path, then normalize
+            const joined = pathUtils.join(this.currentPath, path);
+            targetPath = pathUtils.normalize(joined);
         }
         
         try {
@@ -638,7 +685,9 @@ File Navigation:
                 return;
             }
             
+            // Update current path with the clean, resolved path
             this.currentPath = targetPath;
+            console.log(`Changed directory to: ${this.currentPath}`); // Debug line
             
         } catch (error) {
             this.writeError(`cd: ${path}: ${error.message}`);
@@ -694,6 +743,7 @@ File Navigation:
                 const icon = getFileIcon(item, isDirectory);
                 
                 const itemElement = document.createElement('span');
+                itemElement.className = `file-item ${isDirectory ? 'directory-item' : 'file-item'}`;
                 itemElement.style.cssText = `
                     display: inline-flex;
                     align-items: center;
@@ -703,23 +753,56 @@ File Navigation:
                     border-radius: 4px;
                     color: ${isDirectory ? '#66d9ef' : '#f8f8f2'};
                     transition: background-color 0.2s;
+                    ${isDirectory ? 'border: 1px solid transparent;' : ''}
                 `;
                 
                 itemElement.innerHTML = `${icon} ${item}`;
                 
-                // Add hover effect
+                // Add hover effects with different styles for folders
                 itemElement.addEventListener('mouseenter', () => {
-                    itemElement.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    if (isDirectory) {
+                        itemElement.style.backgroundColor = 'rgba(102, 217, 239, 0.15)';
+                        itemElement.style.borderColor = 'rgba(102, 217, 239, 0.3)';
+                        itemElement.title = 'Left-click to enter, Right-click for quick cd+ls';
+                    } else {
+                        itemElement.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                        itemElement.title = 'Click to open';
+                    }
                 });
                 
                 itemElement.addEventListener('mouseleave', () => {
                     itemElement.style.backgroundColor = 'transparent';
+                    if (isDirectory) {
+                        itemElement.style.borderColor = 'transparent';
+                    }
                 });
                 
                 // Add click handler for file/directory navigation
                 itemElement.addEventListener('click', async () => {
                     await this.handleFileClick(item, itemPath, isDirectory);
                 });
+                
+                // Add right-click handler for folders (instant cd + ls)
+                if (isDirectory) {
+                    itemElement.addEventListener('contextmenu', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation(); // Prevent the general right-click handler
+                        
+                        // Show command with clean path
+                        this.writeLine(`${this.promptText.textContent}cd ${item} && ls`);
+                        
+                        // Perform the navigation
+                        await this.changeDirectory(item);
+                        
+                        // Update prompt to show new clean path
+                        this.updatePrompt();
+                        
+                        // List contents of new directory
+                        await this.listDirectory(this.currentPath);
+                        
+                        this.inputField.focus();
+                    });
+                }
                 
                 listContainer.appendChild(itemElement);
             }
