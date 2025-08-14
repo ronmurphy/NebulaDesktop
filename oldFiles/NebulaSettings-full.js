@@ -1,0 +1,2056 @@
+class NebulaSettings {
+    constructor() {
+        this.activeTab = 'appearance';
+        this.currentTheme = localStorage.getItem('nebula-theme') || 'dark';
+        this.customTheme = {
+            primary: '#667eea',
+            secondary: '#764ba2',
+            accent: '#f093fb',
+            background: '#1a1a2e',
+            surface: '#16213e',
+            text: '#eee',
+            border: '#0f3460'
+        };
+        this.wallpaperSettings = {
+            type: 'gradient',
+            gradient: {
+                start: '#667eea',
+                end: '#764ba2',
+                direction: '135deg'
+            },
+            solid: '#1a1a2e',
+            image: null
+        };
+        this.effectSettings = {
+            animationSpeed: 1.0,
+            enableWindowAnimations: true,
+            enableHoverEffects: true,
+            enableTransitions: true,
+            particleEffect: 'none',
+            effectIntensity: 30,
+            reducedMotion: false,
+            hardwareAcceleration: true,
+            highRefreshRate: false
+        };
+        this.particlesActive = false;
+        this.startTime = Date.now();
+        
+        this.loadSettings();
+    }
+    
+    /**
+     * Create the settings interface
+     */
+    render() {
+        const container = document.createElement('div');
+        container.style.cssText = `
+            width: 100%;
+            height: 100%;
+            display: flex;
+            background: var(--nebula-bg-primary);
+            color: var(--nebula-text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+        `;
+        
+        container.innerHTML = `
+            <!-- Settings Navigation -->
+            <div class="settings-sidebar" style="
+                width: 280px;
+                background: var(--nebula-surface);
+                border-right: 1px solid var(--nebula-border);
+                padding: 30px 0;
+                overflow-y: auto;
+            ">
+                <div style="padding: 0 24px 24px 24px; border-bottom: 1px solid var(--nebula-border);">
+                    <h1 style="color: var(--nebula-text-primary); margin: 0; font-size: 24px; font-weight: 700;">Settings</h1>
+                    <p style="color: var(--nebula-text-secondary); margin: 8px 0 0 0; font-size: 14px;">Customize your NebulaDesktop experience</p>
+                </div>
+                
+                <nav style="padding: 24px 0;">
+                    <div class="nav-item ${this.activeTab === 'appearance' ? 'active' : ''}" data-tab="appearance" style="
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        padding: 12px 20px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        color: var(--nebula-text-primary);
+                        border-left: 3px solid ${this.activeTab === 'appearance' ? 'var(--nebula-primary)' : 'transparent'};
+                        background: ${this.activeTab === 'appearance' ? 'var(--nebula-surface-hover)' : 'transparent'};
+                    ">
+                        <span class="material-symbols-outlined">palette</span>
+                        <span>Appearance</span>
+                    </div>
+                    
+                    <div class="nav-item ${this.activeTab === 'wallpaper' ? 'active' : ''}" data-tab="wallpaper" style="
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        padding: 12px 20px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        color: var(--nebula-text-primary);
+                        border-left: 3px solid ${this.activeTab === 'wallpaper' ? 'var(--nebula-primary)' : 'transparent'};
+                        background: ${this.activeTab === 'wallpaper' ? 'var(--nebula-surface-hover)' : 'transparent'};
+                    ">
+                        <span class="material-symbols-outlined">wallpaper</span>
+                        <span>Wallpaper</span>
+                    </div>
+                    
+                    <div class="nav-item ${this.activeTab === 'windows' ? 'active' : ''}" data-tab="windows" style="
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        padding: 12px 20px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        color: var(--nebula-text-primary);
+                        border-left: 3px solid ${this.activeTab === 'windows' ? 'var(--nebula-primary)' : 'transparent'};
+                        background: ${this.activeTab === 'windows' ? 'var(--nebula-surface-hover)' : 'transparent'};
+                    ">
+                        <span class="material-symbols-outlined">web_asset</span>
+                        <span>Windows</span>
+                    </div>
+                    
+                    <div class="nav-item ${this.activeTab === 'effects' ? 'active' : ''}" data-tab="effects" style="
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        padding: 12px 20px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        color: var(--nebula-text-primary);
+                        border-left: 3px solid ${this.activeTab === 'effects' ? 'var(--nebula-primary)' : 'transparent'};
+                        background: ${this.activeTab === 'effects' ? 'var(--nebula-surface-hover)' : 'transparent'};
+                    ">
+                        <span class="material-symbols-outlined">auto_fix_high</span>
+                        <span>Effects</span>
+                    </div>
+                    
+                    <div class="nav-item ${this.activeTab === 'system' ? 'active' : ''}" data-tab="system" style="
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        padding: 12px 20px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        color: var(--nebula-text-primary);
+                        border-left: 3px solid ${this.activeTab === 'system' ? 'var(--nebula-primary)' : 'transparent'};
+                        background: ${this.activeTab === 'system' ? 'var(--nebula-surface-hover)' : 'transparent'};
+                    ">
+                        <span class="material-symbols-outlined">settings_applications</span>
+                        <span>System</span>
+                    </div>
+                </nav>
+            </div>
+            
+            <!-- Settings Content -->
+            <div class="settings-content" style="
+                flex: 1;
+                padding: 30px;
+                overflow-y: auto;
+                background: var(--nebula-bg-primary);
+            ">
+                <div id="settingsTabContent">
+                    <!-- Content will be dynamically loaded here -->
+                </div>
+            </div>
+        `;
+
+        this.setupEventListeners(container);
+        this.showTab(this.activeTab, container);
+
+        return container;
+    }
+    
+    /**
+     * Set up all event listeners for the settings interface
+     */
+    setupEventListeners(container) {
+        // Navigation tabs
+        const navItems = container.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const tab = item.dataset.tab;
+                this.showTab(tab, container);
+            });
+            
+            // Hover effects
+            item.addEventListener('mouseenter', () => {
+                if (!item.classList.contains('active')) {
+                    item.style.background = 'var(--nebula-surface-hover)';
+                }
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                if (!item.classList.contains('active')) {
+                    item.style.background = 'transparent';
+                }
+            });
+        });
+    }
+    
+    /**
+     * Show a specific settings tab
+     */
+    showTab(tabName, container) {
+        this.activeTab = tabName;
+        
+        // Update navigation
+        const navItems = container.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            const isActive = item.dataset.tab === tabName;
+            item.classList.toggle('active', isActive);
+            item.style.borderLeftColor = isActive ? 'var(--nebula-primary)' : 'transparent';
+            item.style.background = isActive ? 'var(--nebula-surface-hover)' : 'transparent';
+        });
+        
+        // Load tab content
+        const contentArea = container.querySelector('#settingsTabContent');
+        switch (tabName) {
+            case 'appearance':
+                contentArea.innerHTML = this.renderAppearanceTab();
+                this.setupAppearanceListeners(contentArea);
+                break;
+            case 'wallpaper':
+                contentArea.innerHTML = this.renderWallpaperTab();
+                this.setupWallpaperListeners(contentArea);
+                break;
+            case 'windows':
+                contentArea.innerHTML = this.renderWindowsTab();
+                this.setupWindowsListeners(contentArea);
+                break;
+            case 'effects':
+                contentArea.innerHTML = this.renderEffectsTab();
+                this.setupEffectsListeners(contentArea);
+                break;
+            case 'system':
+                contentArea.innerHTML = this.renderSystemTab();
+                this.setupSystemListeners(contentArea);
+                break;
+        }
+    }
+
+    // ==================== APPEARANCE TAB ====================
+    
+    /**
+     * Render the Appearance tab
+     */
+    renderAppearanceTab() {
+        return `
+            <div class="tab-header" style="margin-bottom: 30px;">
+                <h2 style="color: var(--nebula-text-primary); margin: 0 0 8px 0; font-size: 28px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <span class="material-symbols-outlined" style="color: var(--nebula-primary); font-size: 32px;">palette</span>
+                    Appearance
+                </h2>
+                <p style="color: var(--nebula-text-secondary); margin: 0; font-size: 16px;">Customize colors, themes, and visual style</p>
+            </div>
+
+            <!-- Preset Themes -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Preset Themes</h3>
+                <div class="theme-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <div class="theme-card ${this.currentTheme === 'light' ? 'selected' : ''}" data-theme="light" style="
+                        background: linear-gradient(135deg, #ffffff, #f8fafc);
+                        border: 2px solid ${this.currentTheme === 'light' ? 'var(--nebula-primary)' : 'var(--nebula-border)'};
+                        border-radius: 12px;
+                        padding: 20px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        text-align: center;
+                    ">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(45deg, #667eea, #764ba2); border-radius: 8px; margin: 0 auto 12px auto;"></div>
+                        <h4 style="color: #1a202c; margin: 0 0 4px 0; font-weight: 600;">Light</h4>
+                        <p style="color: #4a5568; margin: 0; font-size: 12px;">Clean and bright</p>
+                    </div>
+                    
+                    <div class="theme-card ${this.currentTheme === 'dark' ? 'selected' : ''}" data-theme="dark" style="
+                        background: linear-gradient(135deg, #2d3748, #1a202c);
+                        border: 2px solid ${this.currentTheme === 'dark' ? 'var(--nebula-primary)' : 'var(--nebula-border)'};
+                        border-radius: 12px;
+                        padding: 20px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        text-align: center;
+                        color: white;
+                    ">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(45deg, #667eea, #764ba2); border-radius: 8px; margin: 0 auto 12px auto;"></div>
+                        <h4 style="color: #f7fafc; margin: 0 0 4px 0; font-weight: 600;">Dark</h4>
+                        <p style="color: #cbd5e0; margin: 0; font-size: 12px;">Easy on the eyes</p>
+                    </div>
+                    
+                    <div class="theme-card ${this.currentTheme === 'nebula' ? 'selected' : ''}" data-theme="nebula" style="
+                        background: linear-gradient(135deg, #1a1a2e, #16213e);
+                        border: 2px solid ${this.currentTheme === 'nebula' ? 'var(--nebula-primary)' : 'var(--nebula-border)'};
+                        border-radius: 12px;
+                        padding: 20px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        text-align: center;
+                        color: white;
+                    ">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(45deg, #667eea, #764ba2); border-radius: 8px; margin: 0 auto 12px auto;"></div>
+                        <h4 style="color: #f7fafc; margin: 0 0 4px 0; font-weight: 600;">Nebula</h4>
+                        <p style="color: #cbd5e0; margin: 0; font-size: 12px;">Space-inspired</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Theme -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Custom Theme</h3>
+                <div class="color-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Primary Color</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="color" id="primaryColor" value="${this.customTheme.primary}" style="width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer;">
+                            <input type="text" id="primaryColorText" value="${this.customTheme.primary}" style="flex: 1; height: 40px; border: 1px solid var(--nebula-border); border-radius: 6px; padding: 0 12px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary);">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Background Color</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="color" id="backgroundColor" value="${this.customTheme.background}" style="width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer;">
+                            <input type="text" id="backgroundColorText" value="${this.customTheme.background}" style="flex: 1; height: 40px; border: 1px solid var(--nebula-border); border-radius: 6px; padding: 0 12px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary);">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Surface Color</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="color" id="surfaceColor" value="${this.customTheme.surface}" style="width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer;">
+                            <input type="text" id="surfaceColorText" value="${this.customTheme.surface}" style="flex: 1; height: 40px; border: 1px solid var(--nebula-border); border-radius: 6px; padding: 0 12px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary);">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Accent Color</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="color" id="accentColor" value="${this.customTheme.accent}" style="width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer;">
+                            <input type="text" id="accentColorText" value="${this.customTheme.accent}" style="flex: 1; height: 40px; border: 1px solid var(--nebula-border); border-radius: 6px; padding: 0 12px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary);">
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
+                    <button id="previewCustomTheme" style="background: var(--nebula-primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 500;">Preview</button>
+                    <button id="applyCustomTheme" style="background: var(--nebula-surface-hover); color: var(--nebula-text-primary); border: 1px solid var(--nebula-border); padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 500;">Apply</button>
+                    <button id="resetTheme" style="background: transparent; color: var(--nebula-text-secondary); border: 1px solid var(--nebula-border); padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 500;">Reset</button>
+                </div>
+            </div>
+
+            <!-- Theme Management -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Theme Management</h3>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <button id="exportTheme" style="background: var(--nebula-primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 500;">Export Theme</button>
+                    <button id="importTheme" style="background: var(--nebula-surface-hover); color: var(--nebula-text-primary); border: 1px solid var(--nebula-border); padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 500;">Import Theme</button>
+                    <input type="file" id="themeFileInput" accept=".json" style="display: none;">
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Set up listeners for the Appearance tab
+     */
+    setupAppearanceListeners(container) {
+        // Theme card selection
+        const themeCards = container.querySelectorAll('.theme-card');
+        themeCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const theme = card.dataset.theme;
+                this.applyTheme(theme);
+                this.updateThemeSelection(container, theme);
+            });
+        });
+        
+        // Color picker synchronization
+        const colorPairs = [
+            ['primaryColor', 'primaryColorText'],
+            ['backgroundColor', 'backgroundColorText'],
+            ['surfaceColor', 'surfaceColorText'],
+            ['accentColor', 'accentColorText']
+        ];
+        
+        colorPairs.forEach(([pickerId, textId]) => {
+            const picker = container.querySelector(`#${pickerId}`);
+            const text = container.querySelector(`#${textId}`);
+            
+            if (picker && text) {
+                picker.addEventListener('input', () => {
+                    text.value = picker.value;
+                    this.updateCustomThemeColor(pickerId.replace('Color', ''), picker.value);
+                });
+                
+                text.addEventListener('input', () => {
+                    if (this.isValidColor(text.value)) {
+                        picker.value = text.value;
+                        this.updateCustomThemeColor(pickerId.replace('Color', ''), text.value);
+                    }
+                });
+            }
+        });
+        
+        // Theme management buttons
+        const previewBtn = container.querySelector('#previewCustomTheme');
+        const applyBtn = container.querySelector('#applyCustomTheme');
+        const resetBtn = container.querySelector('#resetTheme');
+        const exportBtn = container.querySelector('#exportTheme');
+        const importBtn = container.querySelector('#importTheme');
+        const fileInput = container.querySelector('#themeFileInput');
+        
+        previewBtn?.addEventListener('click', () => this.previewCustomTheme());
+        applyBtn?.addEventListener('click', () => this.applyCustomTheme());
+        resetBtn?.addEventListener('click', () => this.resetToDefaultTheme());
+        exportBtn?.addEventListener('click', () => this.exportCurrentTheme());
+        importBtn?.addEventListener('click', () => fileInput.click());
+        fileInput?.addEventListener('change', (e) => this.importTheme(e.target.files[0]));
+    }
+
+    // ==================== WALLPAPER TAB ====================
+    
+    /**
+     * Render the Wallpaper tab
+     */
+    renderWallpaperTab() {
+        return `
+            <div class="tab-header" style="margin-bottom: 30px;">
+                <h2 style="color: var(--nebula-text-primary); margin: 0 0 8px 0; font-size: 28px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <span class="material-symbols-outlined" style="color: var(--nebula-primary); font-size: 32px;">wallpaper</span>
+                    Wallpaper
+                </h2>
+                <p style="color: var(--nebula-text-secondary); margin: 0; font-size: 16px;">Customize your desktop background</p>
+            </div>
+
+            <!-- Wallpaper Type Selection -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Background Type</h3>
+                <div class="wallpaper-type-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+                    <div class="wallpaper-type ${this.wallpaperSettings.type === 'gradient' ? 'selected' : ''}" data-type="gradient" style="
+                        background: linear-gradient(135deg, ${this.wallpaperSettings.gradient.start}, ${this.wallpaperSettings.gradient.end});
+                        border: 2px solid ${this.wallpaperSettings.type === 'gradient' ? 'var(--nebula-primary)' : 'var(--nebula-border)'};
+                        border-radius: 8px;
+                        height: 80px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        position: relative;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-weight: 500;
+                        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+                    ">Gradient</div>
+                    
+                    <div class="wallpaper-type ${this.wallpaperSettings.type === 'solid' ? 'selected' : ''}" data-type="solid" style="
+                        background: ${this.wallpaperSettings.solid};
+                        border: 2px solid ${this.wallpaperSettings.type === 'solid' ? 'var(--nebula-primary)' : 'var(--nebula-border)'};
+                        border-radius: 8px;
+                        height: 80px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: var(--nebula-text-primary);
+                        font-weight: 500;
+                    ">Solid Color</div>
+                    
+                    <div class="wallpaper-type ${this.wallpaperSettings.type === 'image' ? 'selected' : ''}" data-type="image" style="
+                        background: var(--nebula-surface-hover) url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"%23666\"><path d=\"M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z\"/></svg>') center/24px no-repeat;
+                        border: 2px solid ${this.wallpaperSettings.type === 'image' ? 'var(--nebula-primary)' : 'var(--nebula-border)'};
+                        border-radius: 8px;
+                        height: 80px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        display: flex;
+                        align-items: flex-end;
+                        justify-content: center;
+                        color: var(--nebula-text-primary);
+                        font-weight: 500;
+                        padding-bottom: 8px;
+                    ">Image</div>
+                </div>
+            </div>
+
+            <!-- Gradient Settings -->
+            <div id="gradientSettings" class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px; display: ${this.wallpaperSettings.type === 'gradient' ? 'block' : 'none'};">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Gradient Settings</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Start Color</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="color" id="gradientStart" value="${this.wallpaperSettings.gradient.start}" style="width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer;">
+                            <input type="text" id="gradientStartText" value="${this.wallpaperSettings.gradient.start}" style="flex: 1; height: 40px; border: 1px solid var(--nebula-border); border-radius: 6px; padding: 0 12px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary);">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">End Color</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="color" id="gradientEnd" value="${this.wallpaperSettings.gradient.end}" style="width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer;">
+                            <input type="text" id="gradientEndText" value="${this.wallpaperSettings.gradient.end}" style="flex: 1; height: 40px; border: 1px solid var(--nebula-border); border-radius: 6px; padding: 0 12px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary);">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Direction</label>
+                        <select id="gradientDirection" style="width: 100%; height: 40px; border: 1px solid var(--nebula-border); border-radius: 6px; padding: 0 12px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary);">
+                            <option value="135deg" ${this.wallpaperSettings.gradient.direction === '135deg' ? 'selected' : ''}>Diagonal ↘</option>
+                            <option value="90deg" ${this.wallpaperSettings.gradient.direction === '90deg' ? 'selected' : ''}>Vertical ↓</option>
+                            <option value="45deg" ${this.wallpaperSettings.gradient.direction === '45deg' ? 'selected' : ''}>Diagonal ↗</option>
+                            <option value="0deg" ${this.wallpaperSettings.gradient.direction === '0deg' ? 'selected' : ''}>Horizontal →</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 16px;">
+                    <div style="height: 60px; border-radius: 8px; background: linear-gradient(${this.wallpaperSettings.gradient.direction}, ${this.wallpaperSettings.gradient.start}, ${this.wallpaperSettings.gradient.end}); border: 1px solid var(--nebula-border);"></div>
+                </div>
+            </div>
+
+            <!-- Solid Color Settings -->
+            <div id="solidSettings" class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px; display: ${this.wallpaperSettings.type === 'solid' ? 'block' : 'none'};">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Solid Color</h3>
+                <div style="display: flex; gap: 8px; max-width: 300px;">
+                    <input type="color" id="solidColor" value="${this.wallpaperSettings.solid}" style="width: 50px; height: 40px; border: none; border-radius: 6px; cursor: pointer;">
+                    <input type="text" id="solidColorText" value="${this.wallpaperSettings.solid}" style="flex: 1; height: 40px; border: 1px solid var(--nebula-border); border-radius: 6px; padding: 0 12px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary);">
+                </div>
+            </div>
+
+            <!-- Image Settings -->
+            <div id="imageSettings" class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px; display: ${this.wallpaperSettings.type === 'image' ? 'block' : 'none'};">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Background Image</h3>
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <button id="uploadWallpaper" style="background: var(--nebula-primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; width: fit-content;">Choose Image</button>
+                    <input type="file" id="wallpaperFileInput" accept="image/*" style="display: none;">
+                    <div id="imagePreview" style="display: none; max-width: 300px;">
+                        <img id="previewImg" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apply Wallpaper -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px;">
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button id="applyWallpaper" style="background: var(--nebula-primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 500;">Apply Wallpaper</button>
+                    <button id="previewWallpaper" style="background: var(--nebula-surface-hover); color: var(--nebula-text-primary); border: 1px solid var(--nebula-border); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 500;">Preview</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Set up listeners for the Wallpaper tab
+     */
+    setupWallpaperListeners(container) {
+        // Wallpaper type selection
+        const typeCards = container.querySelectorAll('.wallpaper-type');
+        typeCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const type = card.dataset.type;
+                this.wallpaperSettings.type = type;
+                this.updateWallpaperTypeSelection(container);
+            });
+        });
+        
+        // Gradient controls
+        const gradientControls = [
+            ['gradientStart', 'gradientStartText', 'start'],
+            ['gradientEnd', 'gradientEndText', 'end']
+        ];
+        
+        gradientControls.forEach(([pickerId, textId, property]) => {
+            const picker = container.querySelector(`#${pickerId}`);
+            const text = container.querySelector(`#${textId}`);
+            
+            if (picker && text) {
+                picker.addEventListener('input', () => {
+                    text.value = picker.value;
+                    this.wallpaperSettings.gradient[property] = picker.value;
+                    this.updateGradientPreview(container);
+                });
+                
+                text.addEventListener('input', () => {
+                    if (this.isValidColor(text.value)) {
+                        picker.value = text.value;
+                        this.wallpaperSettings.gradient[property] = text.value;
+                        this.updateGradientPreview(container);
+                    }
+                });
+            }
+        });
+        
+        // Gradient direction
+        const directionSelect = container.querySelector('#gradientDirection');
+        directionSelect?.addEventListener('change', () => {
+            this.wallpaperSettings.gradient.direction = directionSelect.value;
+            this.updateGradientPreview(container);
+        });
+        
+        // Solid color controls
+        const solidPicker = container.querySelector('#solidColor');
+        const solidText = container.querySelector('#solidColorText');
+        
+        if (solidPicker && solidText) {
+            solidPicker.addEventListener('input', () => {
+                solidText.value = solidPicker.value;
+                this.wallpaperSettings.solid = solidPicker.value;
+            });
+            
+            solidText.addEventListener('input', () => {
+                if (this.isValidColor(solidText.value)) {
+                    solidPicker.value = solidText.value;
+                    this.wallpaperSettings.solid = solidText.value;
+                }
+            });
+        }
+        
+        // Image upload
+        const uploadBtn = container.querySelector('#uploadWallpaper');
+        const fileInput = container.querySelector('#wallpaperFileInput');
+        
+        uploadBtn?.addEventListener('click', () => fileInput.click());
+        fileInput?.addEventListener('change', (e) => this.handleImageUpload(e.target.files[0], container));
+        
+        // Apply/Preview buttons
+        const applyBtn = container.querySelector('#applyWallpaper');
+        const previewBtn = container.querySelector('#previewWallpaper');
+        
+        applyBtn?.addEventListener('click', () => this.applyWallpaper());
+        previewBtn?.addEventListener('click', () => this.previewWallpaper());
+    }
+
+    // ==================== WINDOWS TAB ====================
+    
+    /**
+     * Render the Windows tab
+     */
+    renderWindowsTab() {
+        return `
+            <div class="tab-header" style="margin-bottom: 30px;">
+                <h2 style="color: var(--nebula-text-primary); margin: 0 0 8px 0; font-size: 28px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <span class="material-symbols-outlined" style="color: var(--nebula-primary); font-size: 32px;">web_asset</span>
+                    Windows
+                </h2>
+                <p style="color: var(--nebula-text-secondary); margin: 0; font-size: 16px;">Customize window appearance and behavior</p>
+            </div>
+
+            <!-- Window Styling -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Window Styling</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Border Radius</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="range" id="borderRadius" min="0" max="20" value="8" style="
+                                flex: 1;
+                                height: 6px;
+                                background: var(--nebula-surface-hover);
+                                outline: none;
+                                border-radius: 3px;
+                                cursor: pointer;
+                            ">
+                            <div style="min-width: 60px; text-align: center; color: var(--nebula-text-primary); font-family: monospace; background: var(--nebula-bg-secondary); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--nebula-border);">
+                                <span id="borderRadiusValue">8</span>px
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Shadow Intensity</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="range" id="shadowIntensity" min="0" max="100" value="30" style="
+                                flex: 1;
+                                height: 6px;
+                                background: var(--nebula-surface-hover);
+                                outline: none;
+                                border-radius: 3px;
+                                cursor: pointer;
+                            ">
+                            <div style="min-width: 60px; text-align: center; color: var(--nebula-text-primary); font-family: monospace; background: var(--nebula-bg-secondary); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--nebula-border);">
+                                <span id="shadowIntensityValue">30</span>%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Window Effects -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Visual Effects</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="enableBlur" style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Background Blur</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Blur content behind windows</div>
+                        </div>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="enableGlass" style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Glass Effect</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Translucent window backgrounds</div>
+                        </div>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="enableShadows" checked style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Drop Shadows</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Shadows around windows</div>
+                        </div>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="enableBorder" style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Window Borders</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Visible borders around windows</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Window Behavior -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Window Behavior</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="enableSnapping" style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Window Snapping</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Snap windows to screen edges</div>
+                        </div>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="enableMinimizeToTray" style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Minimize to Tray</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Hide windows in system tray</div>
+                        </div>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="enableAlwaysOnTop" style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Always on Top Option</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Right-click option for pinning</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Preview and Apply -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px;">
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+                    <button id="previewWindowStyle" style="background: var(--nebula-primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 500;">Preview Style</button>
+                    <button id="applyWindowSettings" style="background: var(--nebula-surface-hover); color: var(--nebula-text-primary); border: 1px solid var(--nebula-border); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 500;">Apply Settings</button>
+                </div>
+                <span style="font-size: 12px; font-weight: normal; opacity: 0.7;">
+                    Preview creates a test window to show changes
+                </span>
+            </div>
+        `;
+    }
+    
+    /**
+     * Set up listeners for the Windows tab
+     */
+    setupWindowsListeners(container) {
+        // Slider controls
+        const sliders = [
+            ['borderRadius', 'borderRadiusValue'],
+            ['shadowIntensity', 'shadowIntensityValue']
+        ];
+        
+        sliders.forEach(([sliderId, valueId]) => {
+            const slider = container.querySelector(`#${sliderId}`);
+            const valueDisplay = container.querySelector(`#${valueId}`);
+            
+            slider?.addEventListener('input', () => {
+                valueDisplay.textContent = slider.value;
+            });
+        });
+        
+        // Preview and apply buttons
+        const previewBtn = container.querySelector('#previewWindowStyle');
+        const applyBtn = container.querySelector('#applyWindowSettings');
+        
+        previewBtn?.addEventListener('click', () => this.previewWindowStyle(container));
+        applyBtn?.addEventListener('click', () => this.applyWindowSettings(container));
+    }
+
+    // ==================== EFFECTS TAB ====================
+    
+    /**
+     * Render the Effects tab
+     */
+    renderEffectsTab() {
+        return `
+            <div class="tab-header" style="margin-bottom: 30px;">
+                <h2 style="color: var(--nebula-text-primary); margin: 0 0 8px 0; font-size: 28px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <span class="material-symbols-outlined" style="color: var(--nebula-primary); font-size: 32px;">auto_fix_high</span>
+                    Effects
+                </h2>
+                <p style="color: var(--nebula-text-secondary); margin: 0; font-size: 16px;">Customize animations and visual effects</p>
+            </div>
+
+            <!-- Animation Settings -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Animation Settings</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Animation Speed</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="range" id="animationSpeed" min="0.1" max="2" step="0.1" value="${this.effectSettings.animationSpeed}" style="
+                                flex: 1;
+                                height: 6px;
+                                background: var(--nebula-surface-hover);
+                                outline: none;
+                                border-radius: 3px;
+                                cursor: pointer;
+                            ">
+                            <div style="min-width: 60px; text-align: center; color: var(--nebula-text-primary); font-family: monospace; background: var(--nebula-bg-secondary); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--nebula-border);">
+                                <span id="animationSpeedValue">${this.effectSettings.animationSpeed.toFixed(1)}</span>x
+                            </div>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: var(--nebula-text-secondary);">Controls speed of window animations</div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 12px; color: var(--nebula-text-primary); font-weight: 500;">Enable Animations</label>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; color: var(--nebula-text-primary); cursor: pointer;">
+                                <input type="checkbox" id="enableWindowAnimations" ${this.effectSettings.enableWindowAnimations ? 'checked' : ''} style="width: 16px; height: 16px;">
+                                <span>Window open/close animations</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; color: var(--nebula-text-primary); cursor: pointer;">
+                                <input type="checkbox" id="enableHoverEffects" ${this.effectSettings.enableHoverEffects ? 'checked' : ''} style="width: 16px; height: 16px;">
+                                <span>Button hover effects</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; color: var(--nebula-text-primary); cursor: pointer;">
+                                <input type="checkbox" id="enableTransitions" ${this.effectSettings.enableTransitions ? 'checked' : ''} style="width: 16px; height: 16px;">
+                                <span>Smooth transitions</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop Effects -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Desktop Effects</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 12px; color: var(--nebula-text-primary); font-weight: 500;">Particle Effects</label>
+                        <select id="particleEffect" value="${this.effectSettings.particleEffect}" style="
+                            width: 100%;
+                            height: 40px;
+                            border: 1px solid var(--nebula-border);
+                            border-radius: 6px;
+                            padding: 0 12px;
+                            background: var(--nebula-bg-secondary);
+                            color: var(--nebula-text-primary);
+                            font-size: 14px;
+                        ">
+                            <option value="none">None</option>
+                            <option value="stars">Floating Stars</option>
+                            <option value="dots">Moving Dots</option>
+                            <option value="bubbles">Bubbles</option>
+                        </select>
+                        <div style="margin-top: 8px; font-size: 12px; color: var(--nebula-text-secondary);">Background particle animations</div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; color: var(--nebula-text-primary); font-weight: 500;">Effect Intensity</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="range" id="effectIntensity" min="10" max="100" value="${this.effectSettings.effectIntensity}" style="
+                                flex: 1;
+                                height: 6px;
+                                background: var(--nebula-surface-hover);
+                                outline: none;
+                                border-radius: 3px;
+                                cursor: pointer;
+                            ">
+                            <div style="min-width: 60px; text-align: center; color: var(--nebula-text-primary); font-family: monospace; background: var(--nebula-bg-secondary); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--nebula-border);">
+                                <span id="effectIntensityValue">${this.effectSettings.effectIntensity}</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: var(--nebula-text-secondary);">Number of particles to render</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 16px;">
+                    <button id="toggleParticles" style="
+                        background: var(--nebula-primary);
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        margin-right: 12px;
+                    ">${this.particlesActive ? 'Stop' : 'Start'} Preview</button>
+                    
+                    <button id="stopParticles" style="
+                        background: var(--nebula-surface-hover);
+                        color: var(--nebula-text-primary);
+                        border: 1px solid var(--nebula-border);
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">Stop All Effects</button>
+                </div>
+            </div>
+
+            <!-- Performance Settings -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Performance & Accessibility</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="reducedMotion" ${this.effectSettings.reducedMotion ? 'checked' : ''} style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Reduce Motion</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Minimize animations for accessibility</div>
+                        </div>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="hardwareAcceleration" ${this.effectSettings.hardwareAcceleration ? 'checked' : ''} style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">Hardware Acceleration</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Use GPU for better performance</div>
+                        </div>
+                    </label>
+                    
+                    <label style="display: flex; align-items: center; gap: 12px; color: var(--nebula-text-primary); cursor: pointer; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <input type="checkbox" id="highRefreshRate" ${this.effectSettings.highRefreshRate ? 'checked' : ''} style="width: 18px; height: 18px;">
+                        <div>
+                            <div style="font-weight: 500;">High Refresh Rate</div>
+                            <div style="font-size: 12px; color: var(--nebula-text-secondary);">Match monitor refresh rate</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div style="margin-top: 16px; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 6px; border: 1px solid var(--nebula-border);">
+                    <div style="font-size: 12px; color: var(--nebula-text-secondary);">
+                        ⚡ Performance tip: Disable effects on older hardware for better performance.<br>
+                        🔋 Battery tip: Particle effects may impact battery life on laptops.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Apply Effects -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px;">
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+                    <button id="applyEffects" style="background: var(--nebula-primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 500;">Apply Effects</button>
+                    <button id="testAnimation" style="background: var(--nebula-surface-hover); color: var(--nebula-text-primary); border: 1px solid var(--nebula-border); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 500;">Test Animation</button>
+                    <button id="resetEffects" style="background: transparent; color: var(--nebula-text-secondary); border: 1px solid var(--nebula-border); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 500;">Reset to Defaults</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Set up listeners for the Effects tab
+     */
+    setupEffectsListeners(container) {
+        // Animation speed slider
+        const speedSlider = container.querySelector('#animationSpeed');
+        const speedValue = container.querySelector('#animationSpeedValue');
+        
+        speedSlider?.addEventListener('input', () => {
+            const speed = parseFloat(speedSlider.value);
+            speedValue.textContent = speed.toFixed(1);
+            this.effectSettings.animationSpeed = speed;
+        });
+        
+        // Effect intensity slider
+        const intensitySlider = container.querySelector('#effectIntensity');
+        const intensityValue = container.querySelector('#effectIntensityValue');
+        
+        intensitySlider?.addEventListener('input', () => {
+            this.effectSettings.effectIntensity = parseInt(intensitySlider.value);
+            intensityValue.textContent = intensitySlider.value;
+        });
+        
+        // Particle effect dropdown
+        const particleSelect = container.querySelector('#particleEffect');
+        particleSelect?.addEventListener('change', () => {
+            this.effectSettings.particleEffect = particleSelect.value;
+        });
+        
+        // Animation checkboxes
+        const animationCheckboxes = ['enableWindowAnimations', 'enableHoverEffects', 'enableTransitions'];
+        animationCheckboxes.forEach(id => {
+            const checkbox = container.querySelector(`#${id}`);
+            checkbox?.addEventListener('change', () => {
+                this.effectSettings[id] = checkbox.checked;
+            });
+        });
+        
+        // Performance checkboxes
+        const performanceCheckboxes = ['reducedMotion', 'hardwareAcceleration', 'highRefreshRate'];
+        performanceCheckboxes.forEach(id => {
+            const checkbox = container.querySelector(`#${id}`);
+            checkbox?.addEventListener('change', () => {
+                this.effectSettings[id] = checkbox.checked;
+            });
+        });
+        
+        // Action buttons
+        const toggleBtn = container.querySelector('#toggleParticles');
+        const stopBtn = container.querySelector('#stopParticles');
+        const applyBtn = container.querySelector('#applyEffects');
+        const testBtn = container.querySelector('#testAnimation');
+        const resetBtn = container.querySelector('#resetEffects');
+        
+        toggleBtn?.addEventListener('click', () => this.toggleParticleEffect(container));
+        stopBtn?.addEventListener('click', () => this.stopParticleEffect());
+        applyBtn?.addEventListener('click', () => this.applyEffects());
+        testBtn?.addEventListener('click', () => this.testAnimation());
+        resetBtn?.addEventListener('click', () => this.resetEffects(container));
+    }
+
+    // ==================== SYSTEM TAB ====================
+    
+    /**
+     * Render the System tab
+     */
+    renderSystemTab() {
+        return `
+            <div class="tab-header" style="margin-bottom: 30px;">
+                <h2 style="color: var(--nebula-text-primary); margin: 0 0 8px 0; font-size: 28px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <span class="material-symbols-outlined" style="color: var(--nebula-primary); font-size: 32px;">settings_applications</span>
+                    System
+                </h2>
+                <p style="color: var(--nebula-text-secondary); margin: 0; font-size: 16px;">System information and data management</p>
+            </div>
+
+            <!-- System Information -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">System Information</h3>
+                
+                <div class="system-info-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                    <div style="background: var(--nebula-bg-secondary); padding: 16px; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <div style="color: var(--nebula-text-secondary); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Version</div>
+                        <div style="color: var(--nebula-text-primary); font-weight: 600;">NebulaDesktop v4.0</div>
+                    </div>
+                    <div style="background: var(--nebula-bg-secondary); padding: 16px; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <div style="color: var(--nebula-text-secondary); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Platform</div>
+                        <div style="color: var(--nebula-text-primary); font-weight: 600;" id="platformInfo">Loading...</div>
+                    </div>
+                    <div style="background: var(--nebula-bg-secondary); padding: 16px; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <div style="color: var(--nebula-text-secondary); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Theme</div>
+                        <div style="color: var(--nebula-text-primary); font-weight: 600; text-transform: capitalize;" id="currentThemeDisplay">${this.currentTheme}</div>
+                    </div>
+                    <div style="background: var(--nebula-bg-secondary); padding: 16px; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <div style="color: var(--nebula-text-secondary); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Running Apps</div>
+                        <div style="color: var(--nebula-text-primary); font-weight: 600;" id="runningAppsCount">Loading...</div>
+                    </div>
+                    <div style="background: var(--nebula-bg-secondary); padding: 16px; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <div style="color: var(--nebula-text-secondary); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Uptime</div>
+                        <div style="color: var(--nebula-text-primary); font-weight: 600;" id="uptimeDisplay">Loading...</div>
+                    </div>
+                    <div style="background: var(--nebula-bg-secondary); padding: 16px; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <div style="color: var(--nebula-text-secondary); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Memory Usage</div>
+                        <div style="color: var(--nebula-text-primary); font-weight: 600;" id="memoryUsage">Loading...</div>
+                    </div>
+                </div>
+                
+                <button id="refreshSystemInfo" style="
+                    background: var(--nebula-primary);
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 500;
+                    margin-top: 16px;
+                ">Refresh Information</button>
+            </div>
+
+            <!-- Storage & Data Management -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Storage & Data</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div style="background: var(--nebula-bg-secondary); padding: 16px; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                            <div style="color: var(--nebula-text-secondary); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Used Storage</div>
+                            <div style="color: var(--nebula-text-primary); font-weight: 600;" id="usedStorage">Loading...</div>
+                        </div>
+                        <div style="background: var(--nebula-bg-secondary); padding: 16px; border-radius: 8px; border: 1px solid var(--nebula-border);">
+                            <div style="color: var(--nebula-text-secondary); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Total Items</div>
+                            <div style="color: var(--nebula-text-primary); font-weight: 600;" id="totalItems">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                    <button id="clearAllDataBtn" style="
+                        background: #dc2626;
+                        color: white;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        transition: all 0.2s ease;
+                    ">
+                        <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 6px;">delete</span>
+                        Clear All Data
+                    </button>
+                    
+                    <button id="refreshStorageBtn" style="
+                        background: var(--nebula-surface-hover);
+                        color: var(--nebula-text-primary);
+                        border: 1px solid var(--nebula-border);
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        transition: all 0.2s ease;
+                    ">
+                        <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 6px;">refresh</span>
+                        Refresh
+                    </button>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                    <button id="exportAllSettingsBtn" style="
+                        background: var(--nebula-primary);
+                        color: white;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        transition: all 0.2s ease;
+                    ">
+                        <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 6px;">download</span>
+                        Export Settings
+                    </button>
+                    
+                    <button id="importSettingsBtn" style="
+                        background: var(--nebula-surface-hover);
+                        color: var(--nebula-text-primary);
+                        border: 1px solid var(--nebula-border);
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        transition: all 0.2s ease;
+                    ">
+                        <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 6px;">upload</span>
+                        Import Settings
+                    </button>
+                </div>
+                
+                <input type="file" id="settingsFileInput" accept=".json" style="display: none;">
+            </div>
+
+            <!-- Keyboard Shortcuts -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Keyboard Shortcuts</h3>
+                
+                <div class="shortcuts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 6px;">
+                        <span style="color: var(--nebula-text-primary); font-weight: 500;">Open Launcher</span>
+                        <kbd style="background: var(--nebula-surface-hover); padding: 4px 8px; border-radius: 4px; font-family: monospace; color: var(--nebula-text-primary); border: 1px solid var(--nebula-border);">Alt + Space</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 6px;">
+                        <span style="color: var(--nebula-text-primary); font-weight: 500;">Switch Windows</span>
+                        <kbd style="background: var(--nebula-surface-hover); padding: 4px 8px; border-radius: 4px; font-family: monospace; color: var(--nebula-text-primary); border: 1px solid var(--nebula-border);">Alt + Tab</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 6px;">
+                        <span style="color: var(--nebula-text-primary); font-weight: 500;">Open Terminal</span>
+                        <kbd style="background: var(--nebula-surface-hover); padding: 4px 8px; border-radius: 4px; font-family: monospace; color: var(--nebula-text-primary); border: 1px solid var(--nebula-border);">Ctrl + Alt + T</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 6px;">
+                        <span style="color: var(--nebula-text-primary); font-weight: 500;">Toggle Fullscreen</span>
+                        <kbd style="background: var(--nebula-surface-hover); padding: 4px 8px; border-radius: 4px; font-family: monospace; color: var(--nebula-text-primary); border: 1px solid var(--nebula-border);">F11</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 6px;">
+                        <span style="color: var(--nebula-text-primary); font-weight: 500;">Open Settings</span>
+                        <kbd style="background: var(--nebula-surface-hover); padding: 4px 8px; border-radius: 4px; font-family: monospace; color: var(--nebula-text-primary); border: 1px solid var(--nebula-border);">Ctrl + ,</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--nebula-bg-secondary); border-radius: 6px;">
+                        <span style="color: var(--nebula-text-primary); font-weight: 500;">Close Window</span>
+                        <kbd style="background: var(--nebula-surface-hover); padding: 4px 8px; border-radius: 4px; font-family: monospace; color: var(--nebula-text-primary); border: 1px solid var(--nebula-border);">Ctrl + W</kbd>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About & Updates -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">About & Updates</h3>
+                
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+                    <button id="checkUpdatesBtn" style="
+                        background: var(--nebula-primary);
+                        color: white;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">Check for Updates</button>
+                    
+                    <button id="aboutBtn" style="
+                        background: var(--nebula-surface-hover);
+                        color: var(--nebula-text-primary);
+                        border: 1px solid var(--nebula-border);
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">About NebulaDesktop</button>
+                </div>
+                
+                <p style="color: var(--nebula-text-secondary); margin: 0; font-size: 14px;">
+                    NebulaDesktop v4.0 - Advanced Desktop Environment<br>
+                    Built with modern web technologies for maximum customization and performance.
+                </p>
+            </div>
+        `;
+    }
+    
+    /**
+     * Set up listeners for the System tab
+     */
+    setupSystemListeners(container) {
+        // System info refresh
+        const refreshBtn = container.querySelector('#refreshSystemInfo');
+        refreshBtn?.addEventListener('click', () => {
+            this.updateSystemInfo(container);
+        });
+
+        // Storage management buttons
+        const clearDataBtn = container.querySelector('#clearAllDataBtn');
+        const exportBtn = container.querySelector('#exportAllSettingsBtn');
+        const importBtn = container.querySelector('#importSettingsBtn');
+        const fileInput = container.querySelector('#settingsFileInput');
+        const refreshStorageBtn = container.querySelector('#refreshStorageBtn');
+
+        clearDataBtn?.addEventListener('click', () => {
+            this.clearAllData(container);
+        });
+
+        exportBtn?.addEventListener('click', () => {
+            this.exportAllSettings();
+        });
+
+        importBtn?.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput?.addEventListener('change', (e) => {
+            this.importAllSettings(e.target.files[0], container);
+        });
+
+        refreshStorageBtn?.addEventListener('click', () => {
+            this.updateStorageInfo(container);
+        });
+
+        // About & Updates
+        const checkUpdatesBtn = container.querySelector('#checkUpdatesBtn');
+        const aboutBtn = container.querySelector('#aboutBtn');
+
+        checkUpdatesBtn?.addEventListener('click', () => this.checkForUpdates());
+        aboutBtn?.addEventListener('click', () => this.showAbout());
+
+        // Update system info initially
+        this.updateSystemInfo(container);
+        this.updateStorageInfo(container);
+    }
+
+    // ==================== IMPLEMENTATION METHODS ====================
+
+    // Appearance methods
+    updateThemeSelection(container, theme) {
+        const cards = container.querySelectorAll('.theme-card');
+        cards.forEach(card => {
+            const isSelected = card.dataset.theme === theme;
+            card.classList.toggle('selected', isSelected);
+            card.style.borderColor = isSelected ? 'var(--nebula-primary)' : 'var(--nebula-border)';
+        });
+        this.currentTheme = theme;
+    }
+
+    updateCustomThemeColor(property, color) {
+        this.customTheme[property] = color;
+    }
+
+    applyTheme(theme) {
+        this.currentTheme = theme;
+        localStorage.setItem('nebula-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        console.log('Theme applied:', theme);
+    }
+
+    previewCustomTheme() {
+        console.log('Previewing custom theme:', this.customTheme);
+        // Apply temporarily without saving
+    }
+
+    applyCustomTheme() {
+        this.applyTheme('custom');
+        this.saveSettings();
+        console.log('Custom theme applied:', this.customTheme);
+    }
+
+    resetToDefaultTheme() {
+        this.applyTheme('dark');
+        console.log('Reset to default theme');
+    }
+
+    exportCurrentTheme() {
+        const themeData = {
+            theme: this.currentTheme,
+            customTheme: this.customTheme,
+            exportDate: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(themeData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nebula-theme-${this.currentTheme}-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    importTheme(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const themeData = JSON.parse(e.target.result);
+                if (themeData.customTheme) {
+                    this.customTheme = themeData.customTheme;
+                    this.applyCustomTheme();
+                    console.log('Theme imported successfully');
+                }
+            } catch (error) {
+                console.error('Failed to import theme:', error);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // Wallpaper methods
+    updateWallpaperTypeSelection(container) {
+        const cards = container.querySelectorAll('.wallpaper-type');
+        cards.forEach(card => {
+            const isSelected = card.dataset.type === this.wallpaperSettings.type;
+            card.classList.toggle('selected', isSelected);
+            card.style.borderColor = isSelected ? 'var(--nebula-primary)' : 'var(--nebula-border)';
+        });
+
+        // Show/hide relevant settings
+        container.querySelector('#gradientSettings').style.display = 
+            this.wallpaperSettings.type === 'gradient' ? 'block' : 'none';
+        container.querySelector('#solidSettings').style.display = 
+            this.wallpaperSettings.type === 'solid' ? 'block' : 'none';
+        container.querySelector('#imageSettings').style.display = 
+            this.wallpaperSettings.type === 'image' ? 'block' : 'none';
+    }
+
+    updateGradientPreview(container) {
+        const preview = container.querySelector('#gradientSettings .settings-section > div:last-child');
+        if (preview) {
+            preview.style.background = `linear-gradient(${this.wallpaperSettings.gradient.direction}, ${this.wallpaperSettings.gradient.start}, ${this.wallpaperSettings.gradient.end})`;
+        }
+    }
+
+    handleImageUpload(file, container) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.wallpaperSettings.image = e.target.result;
+            const preview = container.querySelector('#imagePreview');
+            const img = container.querySelector('#previewImg');
+            if (preview && img) {
+                img.src = e.target.result;
+                preview.style.display = 'block';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    applyWallpaper() {
+        console.log('Applying wallpaper:', this.wallpaperSettings);
+        this.saveSettings();
+    }
+
+    previewWallpaper() {
+        console.log('Previewing wallpaper:', this.wallpaperSettings);
+    }
+
+    // Windows methods
+    previewWindowStyle(container) {
+        const borderRadius = container.querySelector('#borderRadius').value;
+        const shadowIntensity = container.querySelector('#shadowIntensity').value;
+        
+        // Create preview window
+        const preview = document.createElement('div');
+        preview.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 200px;
+            background: var(--nebula-surface);
+            border-radius: ${borderRadius}px;
+            box-shadow: 0 8px ${Math.round(shadowIntensity * 0.5)}px rgba(0,0,0,${shadowIntensity / 100});
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--nebula-text-primary);
+            font-weight: 600;
+            border: 1px solid var(--nebula-border);
+            animation: scaleIn 0.3s ease-out;
+        `;
+        
+        preview.innerHTML = `
+            <div style="text-align: center;">
+                <div style="margin-bottom: 8px;">🪟 Preview Window</div>
+                <div style="font-size: 12px; opacity: 0.7;">Radius: ${borderRadius}px, Shadow: ${shadowIntensity}%</div>
+            </div>
+        `;
+        
+        document.body.appendChild(preview);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            preview.style.animation = 'scaleOut 0.3s ease-in forwards';
+            setTimeout(() => preview.remove(), 300);
+        }, 3000);
+    }
+
+    applyWindowSettings(container) {
+        const settings = {
+            borderRadius: container.querySelector('#borderRadius').value,
+            shadowIntensity: container.querySelector('#shadowIntensity').value,
+            enableBlur: container.querySelector('#enableBlur').checked,
+            enableGlass: container.querySelector('#enableGlass').checked,
+            enableShadows: container.querySelector('#enableShadows').checked,
+            enableBorder: container.querySelector('#enableBorder').checked,
+            enableSnapping: container.querySelector('#enableSnapping').checked,
+            enableMinimizeToTray: container.querySelector('#enableMinimizeToTray').checked,
+            enableAlwaysOnTop: container.querySelector('#enableAlwaysOnTop').checked
+        };
+        
+        console.log('Applying window settings:', settings);
+        this.saveSettings();
+    }
+
+    // Effects methods
+    toggleParticleEffect(container) {
+        this.particlesActive = !this.particlesActive;
+        const btn = container.querySelector('#toggleParticles');
+        if (btn) {
+            btn.textContent = this.particlesActive ? 'Stop Preview' : 'Start Preview';
+        }
+        
+        if (this.particlesActive) {
+            this.startParticleEffect();
+        } else {
+            this.stopParticleEffect();
+        }
+    }
+
+    startParticleEffect() {
+        this.stopParticleEffect(); // Clear any existing effects
+        
+        const type = this.effectSettings.particleEffect;
+        const intensity = this.effectSettings.effectIntensity;
+        
+        if (type === 'none') return;
+        
+        // Create particle container
+        const container = document.createElement('div');
+        container.id = 'particle-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        `;
+        
+        document.body.appendChild(container);
+        
+        // Generate particles based on type
+        for (let i = 0; i < intensity; i++) {
+            const particle = this.createParticle(type);
+            container.appendChild(particle);
+        }
+        
+        console.log(`Started ${type} particle effect with ${intensity} particles`);
+    }
+
+    createParticle(type) {
+        const particle = document.createElement('div');
+        const size = Math.random() * 4 + 2;
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * window.innerHeight;
+        const duration = Math.random() * 10 + 5;
+        
+        let particleStyle = `
+            position: absolute;
+            width: ${size}px;
+            height: ${size}px;
+            left: ${x}px;
+            top: ${y}px;
+            pointer-events: none;
+            opacity: ${Math.random() * 0.8 + 0.2};
+        `;
+        
+        let animation = '';
+        
+        switch (type) {
+            case 'stars':
+                particleStyle += `
+                    background: white;
+                    border-radius: 50%;
+                    box-shadow: 0 0 ${size * 2}px rgba(255,255,255,0.5);
+                `;
+                animation = `
+                    @keyframes twinkle-${i} {
+                        0%, 100% { opacity: 0.2; transform: scale(1); }
+                        50% { opacity: 1; transform: scale(1.2); }
+                    }
+                `;
+                particle.style.animation = `twinkle-${Math.random()} ${duration}s infinite ease-in-out`;
+                break;
+                
+            case 'dots':
+                particleStyle += `
+                    background: var(--nebula-primary);
+                    border-radius: 50%;
+                `;
+                animation = `
+                    @keyframes float-${i} {
+                        0% { transform: translateY(0px) translateX(0px); }
+                        33% { transform: translateY(-20px) translateX(10px); }
+                        66% { transform: translateY(10px) translateX(-5px); }
+                        100% { transform: translateY(0px) translateX(0px); }
+                    }
+                `;
+                particle.style.animation = `float-${Math.random()} ${duration}s infinite ease-in-out`;
+                break;
+                
+            case 'bubbles':
+                particleStyle += `
+                    background: rgba(255,255,255,0.1);
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 50%;
+                `;
+                animation = `
+                    @keyframes bubble-${i} {
+                        0% { transform: translateY(100vh) scale(0); opacity: 0; }
+                        10% { opacity: 1; }
+                        90% { opacity: 1; }
+                        100% { transform: translateY(-100px) scale(1); opacity: 0; }
+                    }
+                `;
+                particle.style.animation = `bubble-${Math.random()} ${duration}s infinite linear`;
+                break;
+        }
+        
+        particle.style.cssText = particleStyle;
+        return particle;
+    }
+
+    stopParticleEffect() {
+        const container = document.getElementById('particle-container');
+        if (container) {
+            container.remove();
+        }
+        this.particlesActive = false;
+        console.log('Stopped particle effects');
+    }
+
+    applyEffects() {
+        // Apply animation speed
+        document.documentElement.style.setProperty(
+            '--nebula-transition-duration', 
+            `${1 / this.effectSettings.animationSpeed}s`
+        );
+        
+        // Apply reduced motion
+        if (this.effectSettings.reducedMotion) {
+            document.documentElement.style.setProperty('--nebula-transition-duration', '0s');
+        }
+        
+        // Apply hardware acceleration
+        if (this.effectSettings.hardwareAcceleration) {
+            document.documentElement.style.setProperty('transform', 'translateZ(0)');
+        }
+        
+        console.log('Effects applied:', this.effectSettings);
+        this.saveSettings();
+    }
+
+    testAnimation() {
+        // Create a test animation element
+        const testEl = document.createElement('div');
+        testEl.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            width: 200px;
+            height: 100px;
+            background: var(--nebula-primary);
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            z-index: 10000;
+            animation: testAnimation ${1 / this.effectSettings.animationSpeed}s ease-out forwards;
+        `;
+        
+        testEl.textContent = `Speed: ${this.effectSettings.animationSpeed.toFixed(1)}x`;
+        
+        // Add keyframes
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes testAnimation {
+                0% { transform: translate(-50%, -50%) scale(0) rotate(-180deg); opacity: 0; }
+                50% { transform: translate(-50%, -50%) scale(1.1) rotate(-90deg); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(testEl);
+        
+        // Remove after animation
+        setTimeout(() => {
+            testEl.style.animation = `testAnimation ${1 / this.effectSettings.animationSpeed}s ease-in reverse`;
+            setTimeout(() => {
+                testEl.remove();
+                style.remove();
+            }, (1 / this.effectSettings.animationSpeed) * 1000);
+        }, 2000);
+    }
+
+    resetEffects(container) {
+        // Reset to defaults
+        this.effectSettings = {
+            animationSpeed: 1.0,
+            enableWindowAnimations: true,
+            enableHoverEffects: true,
+            enableTransitions: true,
+            particleEffect: 'none',
+            effectIntensity: 30,
+            reducedMotion: false,
+            hardwareAcceleration: true,
+            highRefreshRate: false
+        };
+        
+        // Update UI
+        container.querySelector('#animationSpeed').value = 1.0;
+        container.querySelector('#animationSpeedValue').textContent = '1.0';
+        container.querySelector('#effectIntensity').value = 30;
+        container.querySelector('#effectIntensityValue').textContent = '30';
+        container.querySelector('#particleEffect').value = 'none';
+        
+        const checkboxes = ['enableWindowAnimations', 'enableHoverEffects', 'enableTransitions', 'hardwareAcceleration'];
+        checkboxes.forEach(id => {
+            const checkbox = container.querySelector(`#${id}`);
+            if (checkbox) checkbox.checked = true;
+        });
+        
+        const uncheckedBoxes = ['reducedMotion', 'highRefreshRate'];
+        uncheckedBoxes.forEach(id => {
+            const checkbox = container.querySelector(`#${id}`);
+            if (checkbox) checkbox.checked = false;
+        });
+        
+        this.stopParticleEffect();
+        console.log('Effects reset to defaults');
+    }
+
+    // System methods
+    updateSystemInfo(container) {
+        // Platform info
+        const platformEl = container.querySelector('#platformInfo');
+        if (platformEl) {
+            platformEl.textContent = navigator.platform || 'Web Platform';
+        }
+        
+        // Running apps count
+        const appsEl = container.querySelector('#runningAppsCount');
+        if (appsEl) {
+            const windows = document.querySelectorAll('.window');
+            appsEl.textContent = `${windows.length} active`;
+        }
+        
+        // Uptime
+        const uptimeEl = container.querySelector('#uptimeDisplay');
+        if (uptimeEl) {
+            const uptime = Date.now() - this.startTime;
+            const hours = Math.floor(uptime / (1000 * 60 * 60));
+            const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
+            uptimeEl.textContent = `${hours}h ${minutes}m`;
+        }
+        
+        // Memory usage (simulated)
+        const memoryEl = container.querySelector('#memoryUsage');
+        if (memoryEl) {
+            const used = Math.round(Math.random() * 2048 + 512);
+            memoryEl.textContent = `${used}MB`;
+        }
+        
+        // Update theme display
+        const themeEl = container.querySelector('#currentThemeDisplay');
+        if (themeEl) {
+            themeEl.textContent = this.currentTheme;
+        }
+        
+        console.log('System information updated');
+    }
+
+    updateStorageInfo(container) {
+        // Calculate localStorage usage
+        let totalSize = 0;
+        let itemCount = 0;
+        
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('nebula-')) {
+                const value = localStorage.getItem(key);
+                totalSize += key.length + (value ? value.length : 0);
+                itemCount++;
+            }
+        }
+        
+        const usedEl = container.querySelector('#usedStorage');
+        const itemsEl = container.querySelector('#totalItems');
+        
+        if (usedEl) {
+            const sizeKB = (totalSize / 1024).toFixed(2);
+            usedEl.textContent = `${sizeKB} KB`;
+        }
+        
+        if (itemsEl) {
+            itemsEl.textContent = `${itemCount} items`;
+        }
+        
+        console.log(`Storage: ${totalSize} bytes, ${itemCount} items`);
+    }
+
+    clearAllData(container) {
+        const confirmed = confirm(`⚠️ Clear All Data?
+
+This will permanently delete:
+• All settings and preferences
+• Custom themes and wallpapers
+• User data and configurations
+
+This action cannot be undone. Continue?`);
+        
+        if (confirmed) {
+            // Clear all nebula-related localStorage
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('nebula-')) {
+                    keys.push(key);
+                }
+            }
+            
+            keys.forEach(key => localStorage.removeItem(key));
+            
+            // Reset to defaults
+            this.currentTheme = 'dark';
+            this.customTheme = {
+                primary: '#667eea',
+                secondary: '#764ba2',
+                accent: '#f093fb',
+                background: '#1a1a2e',
+                surface: '#16213e',
+                text: '#eee',
+                border: '#0f3460'
+            };
+            this.wallpaperSettings = {
+                type: 'gradient',
+                gradient: {
+                    start: '#667eea',
+                    end: '#764ba2',
+                    direction: '135deg'
+                },
+                solid: '#1a1a2e',
+                image: null
+            };
+            
+            this.updateStorageInfo(container);
+            
+            alert('✅ All data cleared successfully!\nSettings have been reset to defaults.');
+            console.log('All user data cleared');
+        }
+    }
+
+    exportAllSettings() {
+        const allSettings = {
+            version: 'NebulaDesktop v4.0',
+            exportDate: new Date().toISOString(),
+            theme: this.currentTheme,
+            customTheme: this.customTheme,
+            wallpaperSettings: this.wallpaperSettings,
+            effectSettings: this.effectSettings,
+            preferences: {}
+        };
+        
+        // Collect all localStorage items
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('nebula-')) {
+                try {
+                    allSettings.preferences[key] = JSON.parse(localStorage.getItem(key));
+                } catch (e) {
+                    allSettings.preferences[key] = localStorage.getItem(key);
+                }
+            }
+        }
+        
+        // Create download
+        const blob = new Blob([JSON.stringify(allSettings, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nebula-settings-complete-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        console.log('Settings exported successfully');
+    }
+
+    importAllSettings(file, container) {
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const settings = JSON.parse(e.target.result);
+                
+                if (settings.version && settings.version.includes('NebulaDesktop')) {
+                    // Import settings
+                    if (settings.theme) this.currentTheme = settings.theme;
+                    if (settings.customTheme) this.customTheme = settings.customTheme;
+                    if (settings.wallpaperSettings) this.wallpaperSettings = settings.wallpaperSettings;
+                    if (settings.effectSettings) this.effectSettings = settings.effectSettings;
+                    
+                    // Import preferences to localStorage
+                    if (settings.preferences) {
+                        Object.entries(settings.preferences).forEach(([key, value]) => {
+                            localStorage.setItem(key, typeof value === 'object' ? JSON.stringify(value) : value);
+                        });
+                    }
+                    
+                    this.saveSettings();
+                    this.updateStorageInfo(container);
+                    
+                    alert(`✅ Settings imported successfully!
+                    
+Imported from: ${settings.exportDate ? new Date(settings.exportDate).toLocaleDateString() : 'Unknown date'}
+Version: ${settings.version}
+
+Please refresh the page to see all changes.`);
+                    
+                    console.log('Settings imported successfully:', settings);
+                } else {
+                    throw new Error('Invalid settings file format');
+                }
+            } catch (error) {
+                alert('❌ Import failed!\n\nThe file appears to be corrupted or in an invalid format.');
+                console.error('Import error:', error);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    checkForUpdates() {
+        // Simulate update check
+        const updates = [
+            'Performance improvements',
+            'New particle effects',
+            'Enhanced customization options',
+            'Bug fixes and stability improvements'
+        ];
+        
+        const hasUpdates = Math.random() > 0.7; // 30% chance of updates
+        
+        if (hasUpdates) {
+            alert(`🔄 Update Available!
+
+NebulaDesktop v4.1 is available with:
+${updates.map(update => `• ${update}`).join('\n')}
+
+Visit the official website to download the latest version.`);
+        } else {
+            alert(`✅ You're up to date!
+
+NebulaDesktop v4.0
+🕒 Last checked: ${new Date().toLocaleString()}
+
+No updates available at this time.`);
+        }
+    }
+
+    showAbout() {
+        alert(`🌌 NebulaDesktop v4.0
+
+Advanced Desktop Environment
+Built with modern web technologies
+
+Features:
+• Fully customizable themes and wallpapers
+• Advanced window management
+• Particle effects and animations
+• Comprehensive settings system
+• Real-time terminal integration
+
+Created with ❤️ for the modern desktop experience.
+
+License: MIT
+© 2024 NebulaDesktop Project`);
+    }
+
+    // ==================== UTILITY METHODS ====================
+
+    isValidColor(color) {
+        return /^#[0-9A-F]{6}$/i.test(color);
+    }
+    
+    loadSettings() {
+        try {
+            const saved = localStorage.getItem('nebula-advanced-settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                this.customTheme = { ...this.customTheme, ...settings.customTheme };
+                this.wallpaperSettings = { ...this.wallpaperSettings, ...settings.wallpaperSettings };
+                this.effectSettings = { ...this.effectSettings, ...settings.effectSettings };
+            }
+        } catch (error) {
+            console.warn('Could not load advanced settings:', error);
+        }
+    }
+    
+    saveSettings() {
+        try {
+            const settings = {
+                customTheme: this.customTheme,
+                wallpaperSettings: this.wallpaperSettings,
+                effectSettings: this.effectSettings
+            };
+            localStorage.setItem('nebula-advanced-settings', JSON.stringify(settings));
+        } catch (error) {
+            console.warn('Could not save advanced settings:', error);
+        }
+    }
+
+    // ==================== APP INTERFACE METHODS ====================
+    
+    getTitle() {
+        return 'Settings';
+    }
+
+    getIcon() {
+        return '⚙️';
+    }
+
+    cleanup() {
+        this.stopParticleEffect();
+        console.log('Settings app cleaned up');
+    }
+}
+
+// Add required CSS animations
+const settingsCSS = document.createElement('style');
+settingsCSS.textContent = `
+    @keyframes scaleIn {
+        from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+        to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    
+    @keyframes scaleOut {
+        from { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        to { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    }
+    
+    .settings-section {
+        transition: all 0.3s ease;
+    }
+    
+    .settings-section:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .theme-card, .wallpaper-type {
+        transition: all 0.3s ease;
+    }
+    
+    .theme-card:hover, .wallpaper-type:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--nebula-primary);
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--nebula-primary);
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+`;
+
+if (!document.getElementById('settings-styles')) {
+    settingsCSS.id = 'settings-styles';
+    document.head.appendChild(settingsCSS);
+}
+
+// Make NebulaSettings available globally
+window.NebulaSettings = NebulaSettings;
