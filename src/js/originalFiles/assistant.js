@@ -60,12 +60,6 @@ class NebulaAssistant {
                 name: 'Bolt',
                 url: 'https://bolt.new',
                 icon: '⚡'
-            },
-            poe: {
-                name: 'Poe',
-                icon: '🎭',
-                url: 'https://poe.com',
-                description: 'Quora Poe Multi-AI'
             }
         };
 
@@ -123,11 +117,10 @@ class NebulaAssistant {
         this.panel.innerHTML = `
             <div class="assistant-header">
                 <div class="assistant-title-row">
-<div class="assistant-title">
-    <span class="material-symbols-outlined icon">smart_toy</span>
-AI Assistant
-<!-- Tool buttons -->
-<div class="assistant-tools">
+                    <div class="assistant-title">
+                        <span class="material-symbols-outlined icon">smart_toy</span>
+                        AI Assistant
+                            <div class="assistant-tools">
     <button class="tool-btn" id="artToolBtn" title="Open Art Assistant">
         🎨
     </button>
@@ -135,7 +128,7 @@ AI Assistant
         📝
     </button>
 </div>
-</div>
+                    </div>
 
                     <div class="assistant-controls">
                         <button class="control-btn pin-btn" id="pinBtn" title="Pin panel">
@@ -192,17 +185,6 @@ AI Assistant
         const assistantBtn = document.getElementById('assistantBtn');
         assistantBtn?.addEventListener('click', () => {
             this.togglePanel();
-        });
-
-        // Tool buttons (Art and Code Assistants)
-        const artToolBtn = document.getElementById('artToolBtn');
-        artToolBtn?.addEventListener('click', () => {
-            this.launchArtAssistant();
-        });
-
-        const codeToolBtn = document.getElementById('codeToolBtn');
-        codeToolBtn?.addEventListener('click', () => {
-            this.launchCodeAssistant();
         });
 
         // Pin button
@@ -277,36 +259,6 @@ AI Assistant
         });
 
         console.log('Assistant event listeners set up');
-    }
-
-    /**
- * Launch Art Assistant
- */
-    launchArtAssistant() {
-        if (window.nebulaArtAssistant) {
-            const windowId = window.nebulaArtAssistant.launch();
-            if (windowId) {
-                this.updateStatus('Art Assistant launched');
-            }
-        } else {
-            console.error('Art Assistant not loaded');
-            this.updateStatus('Art Assistant not available');
-        }
-    }
-
-    /**
-     * Launch Code Assistant  
-     */
-    launchCodeAssistant() {
-        if (window.nebulaCodeAssistant) {
-            const windowId = window.nebulaCodeAssistant.launch();
-            if (windowId) {
-                this.updateStatus('Code Assistant launched');
-            }
-        } else {
-            console.error('Code Assistant not loaded');
-            this.updateStatus('Code Assistant not available');
-        }
     }
 
     /**

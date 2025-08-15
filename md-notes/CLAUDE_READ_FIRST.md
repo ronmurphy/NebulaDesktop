@@ -4,4 +4,6 @@ the list.txt is a list of the enhanced files, suggested by testers, their code f
 
 please take the time to read at least the two markdown files listed above, feel free to scan everything if you want, and then we can choose what to focus on during this chat session.
 
+ look at how window-manager makes windows and deploys them, you can use browser,js an an example case too.
+
 like normal, i very much appreciate your help and i always look forward to working with you!

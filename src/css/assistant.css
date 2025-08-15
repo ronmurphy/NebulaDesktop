@@ -393,3 +393,176 @@
         margin-left: 0;
     }
 }
+
+/* ADD THESE STYLES TO YOUR EXISTING assistant.css FILE */
+
+/* Tool buttons in the assistant header */
+.assistant-tools {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 12px;
+    align-items: center;
+}
+
+.tool-btn {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    width: 32px;
+    height: 32px;
+    border-radius: var(--nebula-radius-md);
+    cursor: pointer;
+    font-size: 16px;
+    transition: var(--nebula-transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.tool-btn:hover {
+    background: var(--nebula-surface-active);
+    border-color: var(--nebula-border-hover);
+    transform: translateY(-1px);
+}
+
+.tool-btn:active {
+    transform: translateY(0);
+    background: var(--nebula-primary);
+    color: white;
+}
+
+/* Tooltip effect for tool buttons */
+.tool-btn::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--nebula-surface-elevated);
+    color: var(--nebula-text-primary);
+    padding: 4px 8px;
+    border-radius: var(--nebula-radius-sm);
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    border: 1px solid var(--nebula-border);
+    z-index: 1000;
+}
+
+.tool-btn:hover::after {
+    opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .assistant-tools {
+        margin-left: 8px;
+        gap: 4px;
+    }
+    
+    .tool-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+    
+    .tool-btn::after {
+        display: none; /* Hide tooltips on mobile */
+    }
+}
+
+/* Focus states for accessibility */
+.tool-btn:focus {
+    outline: 2px solid var(--nebula-primary);
+    outline-offset: 2px;
+}
+
+/* ADD THESE STYLES TO YOUR EXISTING assistant.css FILE */
+
+/* Tool buttons in the assistant header */
+.assistant-tools {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 12px;
+    align-items: center;
+}
+
+.tool-btn {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    width: 32px;
+    height: 32px;
+    border-radius: var(--nebula-radius-md);
+    cursor: pointer;
+    font-size: 16px;
+    transition: var(--nebula-transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.tool-btn:hover {
+    background: var(--nebula-surface-active);
+    border-color: var(--nebula-border-hover);
+    transform: translateY(-1px);
+}
+
+.tool-btn:active {
+    transform: translateY(0);
+    background: var(--nebula-primary);
+    color: white;
+}
+
+/* Enhanced tooltip for tool buttons */
+.tool-btn::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -34px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--nebula-surface-elevated);
+    color: var(--nebula-text-primary);
+    padding: 6px 10px;
+    border-radius: var(--nebula-radius-sm);
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    border: 1px solid var(--nebula-border);
+    z-index: 1000;
+    box-shadow: var(--nebula-shadow-md);
+}
+
+.tool-btn:hover::after {
+    opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .assistant-tools {
+        margin-left: 8px;
+        gap: 4px;
+    }
+    
+    .tool-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+    
+    .tool-btn::after {
+        display: none; /* Hide tooltips on mobile */
+    }
+}
+
+/* Focus states for accessibility */
+.tool-btn:focus {
+    outline: 2px solid var(--nebula-primary);
+    outline-offset: 2px;
+}
