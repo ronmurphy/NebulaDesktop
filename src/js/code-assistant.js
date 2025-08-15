@@ -15,12 +15,12 @@ class NebulaCodeAssistant {
             'single-app': {
                 name: 'Single Window App',
                 description: 'Simple focused application template',
-                path: 'src/Templates/NebulaApp-Single.js'
+                path: '../src/Templates/NebulaApp-Single.js'
             },
             'tabbed-app': {
                 name: 'Tabbed Window App', 
                 description: 'Multi-tab application template',
-                path: 'src/Templates/NebulaApp-Tabbed.js'
+                path: '../src/Templates/NebulaApp-Tabbed.js'
             }
         };
         
@@ -599,15 +599,13 @@ class NebulaCodeAssistant {
         try {
             this.writeOutput(`Loading template: ${template.name}...`, 'info');
             
-            // In a real implementation, this would fetch from the file system
-            // For now, we'll simulate with example content
-            let templateContent = '';
-            
-            if (templateKey === 'single-app') {
-                templateContent = this.getSingleAppTemplate();
-            } else if (templateKey === 'tabbed-app') {
-                templateContent = this.getTabbedAppTemplate();
+            // Fetch the actual template file from src/Templates/
+            const response = await fetch(template.path);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch template: ${response.status}`);
             }
+            
+            const templateContent = await response.text();
             
             if (this.monacoEditor) {
                 const currentCode = this.monacoEditor.getValue();
@@ -622,240 +620,94 @@ class NebulaCodeAssistant {
         } catch (error) {
             this.writeOutput(`❌ Failed to load template: ${error.message}`, 'error');
             console.error('Template loading error:', error);
+            
+            // Fallback to embedded templates if fetch fails
+            this.writeOutput('Falling back to embedded template...', 'info');
+            this.loadEmbeddedTemplate(templateKey);
         }
     }
     
-    getSingleAppTemplate() {
-        return `// NebulaApp Single Window Template
-// TODO: Replace 'MyApp' with your app name throughout this file
-
-class NebulaMyApp {
-    constructor() {
-        this.windowId = null;
-        // TODO: Initialize your app's data properties
+    // Fallback method for embedded templates (simple versions)
+    loadEmbeddedTemplate(templateKey) {
+        let templateContent = '';
         
-        this.init();
-    }
-    
-    async init() {
-        if (!window.windowManager) {
-            console.error('WindowManager not available');
-            return;
+        if (templateKey === 'single-app') {
+            templateContent = '// NebulaApp Single Window Template\n' +
+                'class NebulaMyApp {\n' +
+                '    constructor() {\n' +
+                '        this.windowId = null;\n' +
+                '        this.init();\n' +
+                '    }\n' +
+                '    \n' +
+                '    async init() {\n' +
+                '        if (!window.windowManager) return;\n' +
+                '        \n' +
+                '        this.windowId = window.windowManager.createWindow({\n' +
+                '            title: "My App",\n' +
+                '            width: 800,\n' +
+                '            height: 600,\n' +
+                '            resizable: true\n' +
+                '        });\n' +
+                '        \n' +
+                '        window.windowManager.loadApp(this.windowId, this);\n' +
+                '    }\n' +
+                '    \n' +
+                '    render() {\n' +
+                '        const container = document.createElement("div");\n' +
+                '        container.innerHTML = "<h1>My App Content</h1>";\n' +
+                '        return container;\n' +
+                '    }\n' +
+                '    \n' +
+                '    getTitle() { return "My App"; }\n' +
+                '    getIcon() { return "🚀"; }\n' +
+                '    cleanup() { console.log("Cleanup"); }\n' +
+                '}\n' +
+                '\n' +
+                'window.NebulaMyApp = NebulaMyApp;';
+        } else if (templateKey === 'tabbed-app') {
+            templateContent = '// NebulaApp Tabbed Window Template\n' +
+                'class NebulaMyTabbedApp {\n' +
+                '    constructor() {\n' +
+                '        this.windowId = null;\n' +
+                '        this.tabs = new Map();\n' +
+                '        this.init();\n' +
+                '    }\n' +
+                '    \n' +
+                '    async init() {\n' +
+                '        if (!window.windowManager) return;\n' +
+                '        \n' +
+                '        this.windowId = window.windowManager.createWindow({\n' +
+                '            title: "My Tabbed App",\n' +
+                '            width: 1200,\n' +
+                '            height: 700,\n' +
+                '            hasTabBar: false,\n' +
+                '            resizable: true\n' +
+                '        });\n' +
+                '        \n' +
+                '        window.windowManager.loadApp(this.windowId, this);\n' +
+                '    }\n' +
+                '    \n' +
+                '    render() {\n' +
+                '        const container = document.createElement("div");\n' +
+                '        container.innerHTML = "<h1>My Tabbed App</h1>";\n' +
+                '        return container;\n' +
+                '    }\n' +
+                '    \n' +
+                '    getTitle() { return "My Tabbed App"; }\n' +
+                '    getIcon() { return "📑"; }\n' +
+                '    cleanup() { console.log("Cleanup"); }\n' +
+                '}\n' +
+                '\n' +
+                'window.NebulaMyTabbedApp = NebulaMyTabbedApp;';
         }
         
-        // TODO: Customize window configuration
-        this.windowId = window.windowManager.createWindow({
-            title: 'My App', // TODO: Change app title
-            width: 800,      // TODO: Adjust default width
-            height: 600,     // TODO: Adjust default height
-            resizable: true,
-            maximizable: true,
-            minimizable: true
-        });
-        
-        // Load this app into the window
-        window.windowManager.loadApp(this.windowId, this);
-        
-        console.log('MyApp initialized with window ' + this.windowId);
-    }
-    
-    render() {
-        const container = document.createElement('div');
-        container.className = 'myapp-container';
-        container.style.cssText = `
-            width: 100%;
-            height: 100%;
-            background: var(--nebula-bg-primary);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        `;
-        
-        // TODO: Build your app's UI here
-        container.innerHTML = `
-            <div class="myapp-toolbar">
-                <h2>My Awesome App</h2>
-                <button id="demoBtn">Demo Action</button>
-            </div>
-            <div class="myapp-content">
-                <p>Replace this with your app content!</p>
-            </div>
-            <div class="myapp-status">
-                <span>Ready</span>
-            </div>
-        `;
-        
-        // TODO: Add your event listeners
-        setTimeout(() => {
-            document.getElementById('demoBtn')?.addEventListener('click', () => {
-                alert('Hello from your new NebulaApp!');
-            });
-        }, 0);
-        
-        return container;
-    }
-    
-    // Required methods for WindowManager integration
-    getTitle() {
-        return 'My App';
-    }
-    
-    getIcon() {
-        return '🚀';
-    }
-    
-    cleanup() {
-        console.log('MyApp cleanup completed');
-    }
-}
-
-// Export for use in NebulaDesktop
-window.NebulaMyApp = NebulaMyApp;
-
-// Auto-launch for testing (remove in production)
-// new NebulaMyApp();`;
-    }
-    
-    getTabbedAppTemplate() {
-        return `// NebulaApp Tabbed Window Template
-// TODO: Replace 'MyTabbedApp' with your app name throughout this file
-
-class NebulaMyTabbedApp {
-    constructor() {
-        this.windowId = null;
-        this.tabs = new Map(); // tabId -> tabData
-        this.activeTabId = null;
-        this.nextTabId = 1;
-        
-        this.init();
-    }
-    
-    async init() {
-        if (!window.windowManager) {
-            console.error('WindowManager not available');
-            return;
-        }
-        
-        this.windowId = window.windowManager.createWindow({
-            title: 'My Tabbed App', // TODO: Change app title
-            width: 1200,           // TODO: Adjust width for sidebar + content
-            height: 700,           // TODO: Adjust height
-            hasTabBar: false,      // We'll create our own vertical tab system
-            resizable: true,
-            maximizable: true,
-            minimizable: true
-        });
-        
-        window.windowManager.loadApp(this.windowId, this);
-        this.createTab('Welcome'); // TODO: Customize initial tab
-        
-        console.log('MyTabbedApp initialized with window ' + this.windowId);
-    }
-    
-    render() {
-        const container = document.createElement('div');
-        container.className = 'mytabbedapp-container';
-        container.style.cssText = `
-            width: 100%;
-            height: 100%;
-            display: flex;
-            background: var(--nebula-bg-primary);
-        `;
-        
-        // TODO: Build your tabbed interface here
-        container.innerHTML = `
-            <div class="app-sidebar">
-                <div class="tab-grid" id="tabGrid-` + this.windowId + `">
-                    <!-- Vertical tab squares will be added here -->
-                </div>
-                <div class="sidebar-controls">
-                    <button id="newTabBtn-` + this.windowId + `">+ New Tab</button>
-                </div>
-            </div>
-            <div class="app-main">
-                <div class="app-toolbar">
-                    <h2 id="tabTitle-` + this.windowId + `">My Tabbed App</h2>
-                </div>
-                <div class="tab-content-area" id="tabContentArea-` + this.windowId + `">
-                    <!-- Active tab content will be shown here -->
-                </div>
-            </div>
-        `;
-        
-        setTimeout(() => {
-            this.setupEventListeners();
-        }, 0);
-        
-        return container;
-    }
-    
-    createTab(title) {
-        const tabId = 'tab-' + this.nextTabId++;
-        const tabData = {
-            id: tabId,
-            title: title,
-            isModified: false
-        };
-        
-        this.tabs.set(tabId, tabData);
-        this.createTabElement(tabData);
-        this.createTabContent(tabData);
-        this.switchToTab(tabId);
-        
-        console.log('Created tab: ' + title);
-    }
-    
-    createTabElement(tabData) {
-        // TODO: Implement your tab creation logic
-        console.log('Creating tab element for:', tabData.title);
-    }
-    
-    createTabContent(tabData) {
-        // TODO: Implement your tab content creation
-        console.log('Creating tab content for:', tabData.title);
-    }
-    
-    switchToTab(tabId) {
-        // TODO: Implement tab switching logic
-        this.activeTabId = tabId;
-        console.log('Switched to tab:', tabId);
-    }
-    
-    setupEventListeners() {
-        // TODO: Add your event listeners
-        const newTabBtn = document.getElementById('newTabBtn-' + this.windowId);
-        if (newTabBtn) {
-            newTabBtn.addEventListener('click', () => {
-                this.createTab('Tab ' + this.nextTabId);
-            });
+        if (this.monacoEditor && templateContent) {
+            this.monacoEditor.setValue(templateContent);
+            this.writeOutput('✅ Fallback template loaded!', 'success');
         }
     }
     
-    getTitle() {
-        return 'My Tabbed App';
-    }
-    
-    getIcon() {
-        return '📑';
-    }
-    
-    cleanup() {
-        console.log('MyTabbedApp cleanup completed');
-    }
-}
-
-// Export for use in NebulaDesktop
-window.NebulaMyTabbedApp = NebulaMyTabbedApp;
-
-// Auto-launch for testing (remove in production)
-// new NebulaMyTabbedApp();`;
-    }
-    
-    // ========== ORIGINAL METHODS (ALL PRESERVED) ==========
-    
-    /**
-     * Initialize Monaco Editor (original)
-     */
+    // Continue with existing methods...
     async initializeMonaco() {
         try {
             // Load Monaco Editor from CDN if not already loaded
