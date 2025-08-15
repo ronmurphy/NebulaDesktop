@@ -1,5 +1,5 @@
 // Enhanced NebulaTerminal.js - Real terminal with separate input/output areas
-// FIXED: Separate input area to prevent DOM mixing issues
+// ROLLED BACK to working version + careful useicons addition
 
 // Path utilities for client-side path handling
 const pathUtils = {
@@ -176,33 +176,78 @@ const nerdIcons = {
     default: '📄'
 };
 
-// Get icon for file/folder
-function getFileIcon(name, isDirectory) {
-    if (isDirectory) {
-        return nerdIcons.folder;
+// Get icon for file/folder - supports emoji, text, and none modes
+function getFileIcon(name, isDirectory, iconMode = 'emoji') {
+    if (iconMode === 'none') {
+        return ''; // No icon at all - pure minimalism
     }
     
-    // Special files
-    const lowerName = name.toLowerCase();
-    if (lowerName === 'readme.md' || lowerName === 'readme.txt' || lowerName === 'readme') {
-        return '📖';
+    if (iconMode === 'text') {
+        // Text-based icons for professional look
+        if (isDirectory) {
+            return 'DIR';
+        }
+        
+        // File extension based text icons
+        const ext = pathUtils.extname(name).toLowerCase();
+        const textIcons = {
+            '.js': 'JS',
+            '.ts': 'TS', 
+            '.py': 'PY',
+            '.java': 'JAVA',
+            '.cpp': 'C++',
+            '.c': 'C',
+            '.php': 'PHP',
+            '.rb': 'RB',
+            '.go': 'GO',
+            '.rs': 'RS',
+            '.html': 'HTML',
+            '.css': 'CSS',
+            '.json': 'JSON',
+            '.md': 'MD',
+            '.txt': 'TXT',
+            '.png': 'IMG',
+            '.jpg': 'IMG',
+            '.jpeg': 'IMG',
+            '.gif': 'IMG',
+            '.mp4': 'VID',
+            '.avi': 'VID',
+            '.mp3': 'AUD',
+            '.wav': 'AUD',
+            '.zip': 'ZIP',
+            '.tar': 'TAR',
+            '.pdf': 'PDF'
+        };
+        
+        return textIcons[ext] || 'FILE';
+    } else {
+        // Original emoji icons
+        if (isDirectory) {
+            return nerdIcons.folder;
+        }
+        
+        // Special files
+        const lowerName = name.toLowerCase();
+        if (lowerName === 'readme.md' || lowerName === 'readme.txt' || lowerName === 'readme') {
+            return '📖';
+        }
+        if (lowerName === 'package.json') {
+            return '📦';
+        }
+        if (lowerName === 'dockerfile') {
+            return '🐳';
+        }
+        if (lowerName.startsWith('.git')) {
+            return '🌿';
+        }
+        if (lowerName === 'makefile') {
+            return '🔨';
+        }
+        
+        // By extension
+        const ext = pathUtils.extname(name).toLowerCase();
+        return nerdIcons[ext] || nerdIcons.default;
     }
-    if (lowerName === 'package.json') {
-        return '📦';
-    }
-    if (lowerName === 'dockerfile') {
-        return '🐳';
-    }
-    if (lowerName.startsWith('.git')) {
-        return '🌿';
-    }
-    if (lowerName === 'makefile') {
-        return '🔨';
-    }
-    
-    // By extension
-    const ext = pathUtils.extname(name).toLowerCase();
-    return nerdIcons[ext] || nerdIcons.default;
 }
 
 class NebulaTerminal {
@@ -214,6 +259,7 @@ class NebulaTerminal {
         this.currentPath = null;
         this.commandHistory = [];
         this.historyIndex = -1;
+        this.iconStyle = localStorage.getItem('nebula-terminal-icons') || 'emoji'; // NEW: icon style setting
         
         // Built-in commands that we handle internally
         this.builtinCommands = {
@@ -235,6 +281,7 @@ class NebulaTerminal {
             js: (args) => this.executeJS(args.join(' ')),
             nfetch: () => this.showNFetch(),
             mdr: (args) => this.openMarkdownReader(args[0]),
+            useicons: (args) => this.setIconStyle(args[0]), // NEW: useicons command
             debug: (args) => this.debugCommand(args),
             exit: () => this.closeTerminal(),
             history: () => this.showHistory()
@@ -632,6 +679,7 @@ Built-in Commands:
   uname      - Show system information
   js <code>  - Execute JavaScript code
   mdr <file> - Open markdown file in reader
+  useicons <type> - Set icon style (emoji|text)
   debug <cmd>- Debug commands
   history    - Show command history
   exit       - Close terminal
@@ -642,9 +690,15 @@ System Commands:
 
 File Navigation:
   • Click on files in 'ls' output to open them automatically!
+  • Right-click on folders for instant cd+ls navigation!
+  • Right-click on empty space for quick ls!
   • Images open in image viewer
   • Videos open in media player
   • Text files open in text editor
+
+Customization:
+  • useicons emoji - Use emoji file icons (🖼️, 🎵, 📁)
+  • useicons text  - Use text file icons (IMG, AUD, JS)
         `;
         this.writeLine(helpText);
     }
@@ -687,7 +741,6 @@ File Navigation:
             
             // Update current path with the clean, resolved path
             this.currentPath = targetPath;
-            console.log(`Changed directory to: ${this.currentPath}`); // Debug line
             
         } catch (error) {
             this.writeError(`cd: ${path}: ${error.message}`);
@@ -740,7 +793,7 @@ File Navigation:
                     // Assume it's a file if we can't stat it
                 }
                 
-                const icon = getFileIcon(item, isDirectory);
+                const icon = getFileIcon(item, isDirectory, this.iconStyle);
                 
                 const itemElement = document.createElement('span');
                 itemElement.className = `file-item ${isDirectory ? 'directory-item' : 'file-item'}`;
@@ -913,6 +966,30 @@ File Navigation:
     }
     
     /**
+     * NEW: Set icon style (emoji, text, or none)
+     */
+    setIconStyle(style) {
+        if (!style) {
+            this.writeLine('Usage: useicons <emoji|text|none>');
+            this.writeLine(`Current setting: ${this.iconStyle}`);
+            this.writeLine('  emoji - Use emoji icons (default) 🖼️ 🎵 📁');
+            this.writeLine('  text  - Use text-based icons IMG AUD DIR');
+            this.writeLine('  none  - No icons, just filenames (minimalist)');
+            return;
+        }
+        
+        const normalizedStyle = style.toLowerCase();
+        if (normalizedStyle === 'emoji' || normalizedStyle === 'text' || normalizedStyle === 'none') {
+            this.iconStyle = normalizedStyle;
+            localStorage.setItem('nebula-terminal-icons', normalizedStyle);
+            this.writeLine(`Icon style set to: ${normalizedStyle}`);
+            this.writeLine('Use "ls" to see the new style in action!');
+        } else {
+            this.writeError('Invalid icon style. Use "emoji", "text", or "none"');
+        }
+    }
+    
+    /**
      * List directory with detailed info
      */
     async listDirectoryLong(path) {
@@ -943,7 +1020,7 @@ File Navigation:
                     const type = stats.isDirectory ? 'DIR ' : 'FILE';
                     const size = stats.isDirectory ? '     ---' : String(stats.size).padStart(8);
                     const modified = new Date(stats.mtime).toLocaleString();
-                    const icon = getFileIcon(item, stats.isDirectory);
+                    const icon = getFileIcon(item, stats.isDirectory, this.iconStyle);
                     
                     this.writeLine(`${type} ${size} ${modified} ${icon} ${item}`);
                 } catch (error) {
