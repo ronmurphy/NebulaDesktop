@@ -280,17 +280,16 @@ AI Assistant
     }
 
     /**
- * Launch Art Assistant
- */
+     * Launch Art Assistant
+     */
     launchArtAssistant() {
-        if (window.nebulaArtAssistant) {
-            const windowId = window.nebulaArtAssistant.launch();
-            if (windowId) {
-                this.updateStatus('Art Assistant launched');
-            }
-        } else {
-            console.error('Art Assistant not loaded');
-            this.updateStatus('Art Assistant not available');
+        try {
+            const artAssistant = new NebulaArtAssistant();
+            this.updateStatus('Art Assistant launched');
+            console.log('Art Assistant launched successfully');
+        } catch (error) {
+            console.error('Failed to launch Art Assistant:', error);
+            this.updateStatus('Art Assistant failed to launch');
         }
     }
 
@@ -298,14 +297,13 @@ AI Assistant
      * Launch Code Assistant  
      */
     launchCodeAssistant() {
-        if (window.nebulaCodeAssistant) {
-            const windowId = window.nebulaCodeAssistant.launch();
-            if (windowId) {
-                this.updateStatus('Code Assistant launched');
-            }
-        } else {
-            console.error('Code Assistant not loaded');
-            this.updateStatus('Code Assistant not available');
+        try {
+            const codeAssistant = new NebulaCodeAssistant();
+            this.updateStatus('Code Assistant launched');
+            console.log('Code Assistant launched successfully');
+        } catch (error) {
+            console.error('Failed to launch Code Assistant:', error);
+            this.updateStatus('Code Assistant failed to launch');
         }
     }
 
