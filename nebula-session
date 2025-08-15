@@ -1,0 +1,18 @@
+#!/bin/bash
+# cp to /usr/local/bin/nebula-session
+
+# Set up environment
+export NEBULA_SESSION=true
+export XDG_CURRENT_DESKTOP=Nebula
+
+# Start compositor based on available system
+if command -v cage &> /dev/null; then
+    # Wayland kiosk mode with Cage
+    exec cage -- /usr/local/bin/nebula-desktop --fullscreen
+elif command -v weston &> /dev/null; then
+    # Weston compositor
+    exec weston --fullscreen -- /usr/local/bin/nebula-desktop --fullscreen
+else
+    # Fallback to X11 with minimal setup
+    exec startx /usr/local/bin/nebula-desktop-x11
+fi

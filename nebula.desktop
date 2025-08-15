@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=NebulaDesktop
+Comment=AI-Enhanced Desktop Environment
+Exec=/usr/local/bin/nebula-session
+Type=Application
+DesktopNames=Nebula
+# cp to /usr/share/wayland-sessions/nebula.desktop
