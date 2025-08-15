@@ -1,5 +1,4 @@
 // Enhanced Code Assistant with JS Execution + Template Loading
-// Preserves ALL original functionality + adds new features
 class NebulaCodeAssistant {
     constructor() {
         this.windowId = null;
@@ -8,9 +7,9 @@ class NebulaCodeAssistant {
         this.currentAIService = 'claude';
         this.webview = null;
         this.savedProjects = [];
-        this.outputVisible = false; // NEW: for output panel
+        this.outputVisible = false;
         
-        // Available templates for loading - NEW FEATURE
+        // Available templates for loading
         this.templates = {
             'single-app': {
                 name: 'Single Window App',
@@ -24,15 +23,14 @@ class NebulaCodeAssistant {
             }
         };
         
-        // AI Services (original)
+        // AI Services
         this.aiServices = {
             claude: { name: 'Claude', url: 'https://claude.ai', icon: '🧠' },
             chatgpt: { name: 'ChatGPT', url: 'https://chat.openai.com', icon: '💬' },
             manus: { name: 'Manus', url: 'https://manus.im', icon: '🤖' },
             perplexity: { name: 'Perplexity', url: 'https://perplexity.ai', icon: '🔍' },
             copilot: { name: 'Copilot', url: 'https://copilot.microsoft.com', icon: '🚀' },
-            gemini: { name: 'Gemini', url: 'https://gemini.google.com', icon: '💎' },
-            bolt: { name: 'Bolt', url: 'https://bolt.new', icon: '⚡' }
+            gemini: { name: 'Gemini', url: 'https://gemini.google.com', icon: '💎' }
         };
         
         this.init();
@@ -96,7 +94,7 @@ class NebulaCodeAssistant {
             border-right: 1px solid var(--nebula-border);
         `;
         
-        // ENHANCED Toolbar with Templates + Run Controls
+        // Enhanced Toolbar with Templates + Run Controls
         const toolbar = document.createElement('div');
         toolbar.className = 'code-toolbar';
         toolbar.style.cssText = `
@@ -110,7 +108,7 @@ class NebulaCodeAssistant {
         `;
         
         toolbar.innerHTML = `
-            <!-- Language & Template Section - ENHANCED -->
+            <!-- Language & Template Section -->
             <select id="languageSelect-${this.windowId}" style="
                 padding: 6px 12px;
                 border: 1px solid var(--nebula-border);
@@ -127,7 +125,6 @@ class NebulaCodeAssistant {
                 <option value="markdown">Markdown</option>
             </select>
             
-            <!-- NEW: Template Selector -->
             <select id="templateSelect-${this.windowId}" style="
                 padding: 6px 12px;
                 border: 1px solid var(--nebula-border);
@@ -142,7 +139,7 @@ class NebulaCodeAssistant {
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
-            <!-- File Operations (original) -->
+            <!-- File Operations -->
             <button id="newFileBtn-${this.windowId}" class="toolbar-btn" title="New File (Ctrl+N)">
                 <span class="material-symbols-outlined">note_add</span>
             </button>
@@ -177,17 +174,13 @@ class NebulaCodeAssistant {
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
-            <!-- Code Operations (original) -->
+            <!-- Code Operations -->
             <button id="formatBtn-${this.windowId}" class="toolbar-btn" title="Format Code">
                 <span class="material-symbols-outlined">code</span>
             </button>
             
             <button id="copyAllBtn-${this.windowId}" class="toolbar-btn" title="Copy All Code">
                 <span class="material-symbols-outlined">content_copy</span>
-            </button>
-            
-            <button id="insertToFileBtn-${this.windowId}" class="toolbar-btn" title="Insert Code to File">
-                <span class="material-symbols-outlined">insert_drive_file</span>
             </button>
         `;
         
@@ -200,7 +193,7 @@ class NebulaCodeAssistant {
             min-height: 0;
         `;
         
-        // Monaco Editor (original)
+        // Monaco Editor
         const monacoContainer = document.createElement('div');
         monacoContainer.id = `monacoEditor-${this.windowId}`;
         monacoContainer.style.cssText = `
@@ -276,7 +269,7 @@ class NebulaCodeAssistant {
             background: var(--nebula-surface);
         `;
         
-        // AI Service Selector (original + enhanced)
+        // AI Service Selector
         const chatHeader = document.createElement('div');
         chatHeader.style.cssText = `
             padding: 12px 16px;
@@ -301,7 +294,7 @@ class NebulaCodeAssistant {
                 </select>
             </div>
             
-            <!-- Quick AI Actions (original) -->
+            <!-- Quick AI Actions -->
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button id="explainCodeBtn-${this.windowId}" class="ai-action-btn">
                     📖 Explain
@@ -324,7 +317,7 @@ class NebulaCodeAssistant {
             </div>
         `;
         
-        // Webview Container (original)
+        // Webview Container
         const webviewContainer = document.createElement('div');
         webviewContainer.id = `webviewContainer-${this.windowId}`;
         webviewContainer.style.cssText = `
@@ -333,7 +326,7 @@ class NebulaCodeAssistant {
             background: var(--nebula-bg-primary);
         `;
         
-        // Loading indicator (original)
+        // Loading indicator
         webviewContainer.innerHTML = `
             <div id="chatLoading-${this.windowId}" style="
                 position: absolute;
@@ -357,7 +350,7 @@ class NebulaCodeAssistant {
     }
     
     setupEventListeners() {
-        // NEW: Template selector
+        // Template selector
         document.getElementById(`templateSelect-${this.windowId}`)?.addEventListener('change', (e) => {
             if (e.target.value) {
                 this.loadTemplate(e.target.value);
@@ -365,17 +358,17 @@ class NebulaCodeAssistant {
             }
         });
         
-        // Language selector (original)
+        // Language selector
         document.getElementById(`languageSelect-${this.windowId}`)?.addEventListener('change', (e) => {
             this.switchLanguage(e.target.value);
         });
         
-        // AI Service selector (original)
+        // AI Service selector
         document.getElementById(`aiServiceSelect-${this.windowId}`)?.addEventListener('change', (e) => {
             this.switchAIService(e.target.value);
         });
         
-        // File operations (original)
+        // File operations
         document.getElementById(`newFileBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.newFile();
         });
@@ -405,7 +398,7 @@ class NebulaCodeAssistant {
             this.clearOutput();
         });
         
-        // Code operations (original)
+        // Code operations
         document.getElementById(`formatBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.formatCode();
         });
@@ -414,11 +407,7 @@ class NebulaCodeAssistant {
             this.copyAllCode();
         });
         
-        document.getElementById(`insertToFileBtn-${this.windowId}`)?.addEventListener('click', () => {
-            this.insertCodeToFile();
-        });
-        
-        // AI Actions (original)
+        // AI Actions
         document.getElementById(`explainCodeBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.explainCode();
         });
@@ -443,7 +432,7 @@ class NebulaCodeAssistant {
             this.pasteFromAI();
         });
         
-        // Keyboard shortcuts (original + enhanced)
+        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (!this.isWindowActive()) return;
             
@@ -457,7 +446,6 @@ class NebulaCodeAssistant {
                 this.newFile();
             }
             
-            // NEW: F5 for running JavaScript
             if (e.key === 'F5') {
                 e.preventDefault();
                 this.runJavaScript();
@@ -656,23 +644,23 @@ class NebulaMyApp {
         // Load this app into the window
         window.windowManager.loadApp(this.windowId, this);
         
-        console.log('MyApp initialized with window ' + this.windowId);
+        console.log(\`MyApp initialized with window \${this.windowId}\`);
     }
     
     render() {
         const container = document.createElement('div');
         container.className = 'myapp-container';
-        container.style.cssText = `
+        container.style.cssText = \`
             width: 100%;
             height: 100%;
             background: var(--nebula-bg-primary);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-        `;
+        \`;
         
         // TODO: Build your app's UI here
-        container.innerHTML = `
+        container.innerHTML = \`
             <div class="myapp-toolbar">
                 <h2>My Awesome App</h2>
                 <button id="demoBtn">Demo Action</button>
@@ -683,7 +671,7 @@ class NebulaMyApp {
             <div class="myapp-status">
                 <span>Ready</span>
             </div>
-        `;
+        \`;
         
         // TODO: Add your event listeners
         setTimeout(() => {
@@ -749,38 +737,38 @@ class NebulaMyTabbedApp {
         window.windowManager.loadApp(this.windowId, this);
         this.createTab('Welcome'); // TODO: Customize initial tab
         
-        console.log('MyTabbedApp initialized with window ' + this.windowId);
+        console.log(\`MyTabbedApp initialized with window \${this.windowId}\`);
     }
     
     render() {
         const container = document.createElement('div');
         container.className = 'mytabbedapp-container';
-        container.style.cssText = `
+        container.style.cssText = \`
             width: 100%;
             height: 100%;
             display: flex;
             background: var(--nebula-bg-primary);
-        `;
+        \`;
         
         // TODO: Build your tabbed interface here
-        container.innerHTML = `
+        container.innerHTML = \`
             <div class="app-sidebar">
-                <div class="tab-grid" id="tabGrid-` + this.windowId + `">
+                <div class="tab-grid" id="tabGrid-\${this.windowId}">
                     <!-- Vertical tab squares will be added here -->
                 </div>
                 <div class="sidebar-controls">
-                    <button id="newTabBtn-` + this.windowId + `">+ New Tab</button>
+                    <button id="newTabBtn-\${this.windowId}">+ New Tab</button>
                 </div>
             </div>
             <div class="app-main">
                 <div class="app-toolbar">
-                    <h2 id="tabTitle-` + this.windowId + `">My Tabbed App</h2>
+                    <h2 id="tabTitle-\${this.windowId}">My Tabbed App</h2>
                 </div>
-                <div class="tab-content-area" id="tabContentArea-` + this.windowId + `">
+                <div class="tab-content-area" id="tabContentArea-\${this.windowId}">
                     <!-- Active tab content will be shown here -->
                 </div>
             </div>
-        `;
+        \`;
         
         setTimeout(() => {
             this.setupEventListeners();
@@ -790,7 +778,7 @@ class NebulaMyTabbedApp {
     }
     
     createTab(title) {
-        const tabId = 'tab-' + this.nextTabId++;
+        const tabId = \`tab-\${this.nextTabId++}\`;
         const tabData = {
             id: tabId,
             title: title,
@@ -802,7 +790,7 @@ class NebulaMyTabbedApp {
         this.createTabContent(tabData);
         this.switchToTab(tabId);
         
-        console.log('Created tab: ' + title);
+        console.log(\`Created tab: \${title}\`);
     }
     
     createTabElement(tabData) {
@@ -823,12 +811,9 @@ class NebulaMyTabbedApp {
     
     setupEventListeners() {
         // TODO: Add your event listeners
-        const newTabBtn = document.getElementById('newTabBtn-' + this.windowId);
-        if (newTabBtn) {
-            newTabBtn.addEventListener('click', () => {
-                this.createTab('Tab ' + this.nextTabId);
-            });
-        }
+        document.getElementById(\`newTabBtn-\${this.windowId}\`)?.addEventListener('click', () => {
+            this.createTab(\`Tab \${this.nextTabId}\`);
+        });
     }
     
     getTitle() {
@@ -851,14 +836,9 @@ window.NebulaMyTabbedApp = NebulaMyTabbedApp;
 // new NebulaMyTabbedApp();`;
     }
     
-    // ========== ORIGINAL METHODS (ALL PRESERVED) ==========
-    
-    /**
-     * Initialize Monaco Editor (original)
-     */
+    // Continue with existing methods...
     async initializeMonaco() {
         try {
-            // Load Monaco Editor from CDN if not already loaded
             if (!window.monaco) {
                 await this.loadMonaco();
             }
@@ -886,14 +866,10 @@ window.NebulaMyTabbedApp = NebulaMyTabbedApp;
             console.log('Monaco Editor initialized');
         } catch (error) {
             console.error('Failed to initialize Monaco Editor:', error);
-            // Fallback to textarea if Monaco fails
             this.createFallbackEditor();
         }
     }
     
-    /**
-     * Load Monaco Editor from CDN (original)
-     */
     loadMonaco() {
         return new Promise((resolve, reject) => {
             if (window.monaco) {
@@ -914,9 +890,6 @@ window.NebulaMyTabbedApp = NebulaMyTabbedApp;
         });
     }
     
-    /**
-     * Create fallback textarea editor if Monaco fails (original)
-     */
     createFallbackEditor() {
         const container = document.getElementById(`monacoEditor-${this.windowId}`);
         if (!container) return;
@@ -948,12 +921,8 @@ window.NebulaMyTabbedApp = NebulaMyTabbedApp;
         };
     }
     
-    /**
-     * Get welcome code example (original + enhanced)
-     */
     getWelcomeCode() {
-        const examples = {
-            javascript: `// 🚀 Welcome to Enhanced Code Assistant!
+        return `// 🚀 Welcome to Enhanced Code Assistant!
 // Now with JS execution + template loading
 
 // Try these features:
@@ -964,7 +933,7 @@ window.NebulaMyTabbedApp = NebulaMyTabbedApp;
 
 // Example: Run this code with the Run button!
 function greetUser(name = "Developer") {
-    const message = 'Hello, ' + name + '! 🎉';
+    const message = \`Hello, \${name}! 🎉\`;
     console.log(message);
     
     // This will appear in the output panel
@@ -978,213 +947,21 @@ function greetUser(name = "Developer") {
 }
 
 // Call the function - result will show in output
-greetUser("Nebula Coder");
-
-// TODO: Start coding your amazing project here!`,
-            
-            python: `# Welcome to Nebula Code Assistant! 🚀
-# This Monaco editor supports full Python syntax highlighting
-
-def greet_user(name="Developer"):
-    message = f"Hello, {name}! Ready to code?"
-    print(message)
-    return message
-
-# Try the AI buttons on the right →
-# • Select an AI service (ChatGPT, Claude, etc.)
-# • Click "Explain Code" to understand this code
-# • Click "Optimize" for performance tips
-# • Use "Paste from AI" to insert generated code
-
-greet_user("Nebula User")
-
-# TODO: Start coding your amazing project here!`,
-            
-            html: `<!-- Welcome to Nebula Code Assistant! 🚀 -->
-<!-- This Monaco editor supports full HTML syntax highlighting -->
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Amazing Project</title>
-</head>
-<body>
-    <h1>Hello, Nebula User! 👋</h1>
-    <p>Ready to code?</p>
-    
-    <!-- Try the AI buttons on the right → -->
-    <!-- • Select an AI service (ChatGPT, Claude, etc.) -->
-    <!-- • Click "Explain Code" to understand this structure -->
-    <!-- • Use "Paste from AI" to insert generated code -->
-    
-    <!-- TODO: Start building your amazing website here! -->
-</body>
-</html>`,
-
-            css: `/* Welcome to Nebula Code Assistant! 🚀 */
-/* This Monaco editor supports full CSS syntax highlighting */
-
-:root {
-    --primary-color: #667eea;
-    --secondary-color: #764ba2;
-    --text-color: #333;
-    --bg-color: #f8f9fa;
-}
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: var(--text-color);
-    margin: 0;
-    padding: 20px;
-}
-
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    background: var(--bg-color);
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-}
-
-/* Try the AI buttons on the right → */
-/* • Click "Explain Code" to understand this CSS */
-/* • Use "Optimize" for better performance tips */
-/* • Use "Paste from AI" to insert generated styles */
-
-/* TODO: Start styling your amazing project here! */`,
-
-            typescript: `// Welcome to Nebula Code Assistant! 🚀
-// This Monaco editor supports full TypeScript syntax highlighting
-
-interface User {
-    name: string;
-    email: string;
-    isActive: boolean;
-}
-
-class UserManager {
-    private users: User[] = [];
-    
-    constructor() {
-        console.log('UserManager initialized');
+greetUser("Nebula Coder");`;
     }
     
-    addUser(user: User): void {
-        this.users.push(user);
-        console.log('Added user: ' + user.name);
-    }
-    
-    getActiveUsers(): User[] {
-        return this.users.filter(user => user.isActive);
-    }
-}
-
-// Try the AI buttons on the right →
-// • Click "Explain Code" to understand TypeScript concepts
-// • Use "Optimize" for better type safety tips
-// • Use "Paste from AI" to insert generated code
-
-const userManager = new UserManager();
-userManager.addUser({
-    name: "Nebula Developer",
-    email: "dev@nebula.com",
-    isActive: true
-});
-
-// TODO: Start coding your amazing TypeScript project here!`,
-
-            json: `{
-  "name": "my-nebula-project",
-  "version": "1.0.0",
-  "description": "An amazing project built with Nebula Code Assistant 🚀",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "jest"
-  },
-  "dependencies": {
-    "express": "^4.18.0",
-    "lodash": "^4.17.21"
-  },
-  "devDependencies": {
-    "nodemon": "^2.0.20",
-    "jest": "^29.0.0"
-  },
-  "keywords": [
-    "nebula",
-    "desktop",
-    "electron",
-    "javascript"
-  ],
-  "author": "Nebula Developer",
-  "license": "MIT"
-}`,
-
-            markdown: `# Welcome to Nebula Code Assistant! 🚀
-
-This Monaco editor supports full **Markdown** syntax highlighting with live preview capabilities.
-
-## Features
-
-- ✅ **Syntax Highlighting** - Beautiful code coloring
-- ✅ **AI Integration** - Smart code assistance  
-- ✅ **Template Loading** - Quick project starters
-- ✅ **Live Execution** - Run JavaScript instantly
-- ✅ **Multi-language Support** - JS, Python, HTML, CSS, and more
-
-## Quick Start
-
-1. 📋 Load a template from the dropdown above
-2. ✏️ Edit the code in the Monaco editor
-3. ▶️ Press **F5** or click **Run** to execute JavaScript
-4. 🤖 Use AI buttons for code help and optimization
-
-## Code Example
-
-\`\`\`javascript
-function createAmazingApp() {
-    console.log('Building something awesome with Nebula! 🌟');
-    return { success: true, message: 'Ready to code!' };
-}
-\`\`\`
-
-## Try the AI Features →
-
-- 📖 **Explain** - Understand code concepts
-- ⚡ **Optimize** - Improve performance  
-- 🐛 **Debug** - Find and fix issues
-- 💬 **Comment** - Add helpful comments
-- 🧪 **Tests** - Generate unit tests
-
----
-
-**TODO:** Start building your amazing project here!`
-        };
-        
-        return examples[this.currentLanguage] || examples.javascript;
-    }
-    
-    /**
-     * Create webview for AI service (original)
-     */
+    // Existing methods for webview, AI actions, etc...
     createWebview() {
         const container = document.getElementById(`webviewContainer-${this.windowId}`);
         if (!container) return;
         
         this.showLoading();
         
-        // Remove existing webview
         if (this.webview) {
             this.webview.remove();
             this.webview = null;
         }
         
-        // Create new webview
         this.webview = document.createElement('webview');
         this.webview.className = 'code-webview';
         this.webview.style.cssText = `
@@ -1200,12 +977,9 @@ function createAmazingApp() {
         this.setupWebviewListeners();
         container.appendChild(this.webview);
         
-        console.log(`Created code webview for ${currentService.name}`);
+        console.log(`Created webview for ${currentService.name}`);
     }
     
-    /**
-     * Set up webview event listeners (original)
-     */
     setupWebviewListeners() {
         if (!this.webview) return;
         
@@ -1221,21 +995,18 @@ function createAmazingApp() {
         this.webview.addEventListener('did-stop-loading', () => {
             this.hideLoading();
         });
-        
-        this.webview.addEventListener('did-fail-load', (e) => {
-            this.hideLoading();
-            console.error('Code AI webview failed to load:', e);
-        });
-        
-        this.webview.addEventListener('new-window', (e) => {
-            e.preventDefault();
-            console.log('New window requested:', e.url);
-        });
     }
     
-    /**
-     * Switch programming language (original)
-     */
+    showLoading() {
+        const loading = document.getElementById(`chatLoading-${this.windowId}`);
+        if (loading) loading.style.display = 'block';
+    }
+    
+    hideLoading() {
+        const loading = document.getElementById(`chatLoading-${this.windowId}`);
+        if (loading) loading.style.display = 'none';
+    }
+    
     switchLanguage(language) {
         this.currentLanguage = language;
         
@@ -1246,9 +1017,6 @@ function createAmazingApp() {
         console.log(`Switched to ${language}`);
     }
     
-    /**
-     * Switch AI service (original)
-     */
     switchAIService(serviceKey) {
         if (!this.aiServices[serviceKey]) {
             console.error('Unknown AI service:', serviceKey);
@@ -1261,22 +1029,7 @@ function createAmazingApp() {
         console.log(`Switched to ${this.aiServices[serviceKey].name}`);
     }
     
-    /**
-     * Show/hide loading indicator (original)
-     */
-    showLoading() {
-        const loading = document.getElementById(`chatLoading-${this.windowId}`);
-        if (loading) loading.style.display = 'block';
-    }
-    
-    hideLoading() {
-        const loading = document.getElementById(`chatLoading-${this.windowId}`);
-        if (loading) loading.style.display = 'none';
-    }
-    
-    /**
-     * File operations (original)
-     */
+    // File operations
     newFile() {
         if (this.monacoEditor) {
             const currentCode = this.monacoEditor.getValue();
@@ -1285,7 +1038,6 @@ function createAmazingApp() {
             }
             this.monacoEditor.setValue('');
         }
-        // NEW: also clear output when creating new file
         this.clearOutput();
         console.log('New file created');
     }
@@ -1320,7 +1072,7 @@ function createAmazingApp() {
         }
         
         const projectsList = this.savedProjects.map((project, index) => 
-            `${index + 1}. ${project.name} (${project.language}) - ${new Date(project.timestamp).toLocaleDateString()}`
+            `${index + 1}. ${project.name} (${project.language})`
         ).join('\n');
         
         const selection = prompt(`Select a project to load:\n\n${projectsList}\n\nEnter project number:`);
@@ -1338,16 +1090,12 @@ function createAmazingApp() {
         this.monacoEditor.setValue(project.code);
         this.switchLanguage(project.language);
         
-        // Update language selector
         const languageSelect = document.getElementById(`languageSelect-${this.windowId}`);
         if (languageSelect) languageSelect.value = project.language;
         
         console.log(`Loaded project: ${project.name}`);
     }
     
-    /**
-     * Code operations (original)
-     */
     formatCode() {
         if (this.monacoEditor && monaco) {
             this.monacoEditor.getAction('editor.action.formatDocument').run();
@@ -1366,23 +1114,7 @@ function createAmazingApp() {
         }
     }
     
-    insertCodeToFile() {
-        if (!this.monacoEditor) return;
-        
-        const code = this.monacoEditor.getValue();
-        if (!code.trim()) {
-            alert('No code to insert!');
-            return;
-        }
-        
-        // TODO: Implement actual file insertion using Electron APIs
-        console.log('Would insert code to file:', { code, language: this.currentLanguage });
-        alert(`Ready to insert ${this.currentLanguage} code to file!\n\nThis would open a file picker and insert the code.`);
-    }
-    
-    /**
-     * AI-powered code actions (original)
-     */
+    // AI-powered code actions
     explainCode() {
         if (!this.monacoEditor) return;
         
@@ -1392,7 +1124,6 @@ function createAmazingApp() {
             return;
         }
         
-        // Copy code to clipboard for pasting into AI
         navigator.clipboard.writeText(`Please explain this ${this.currentLanguage} code:\n\n\`\`\`${this.currentLanguage}\n${code}\n\`\`\``);
         alert('Code explanation prompt copied to clipboard!\nPaste it into the AI chat on the right.');
     }
@@ -1449,16 +1180,12 @@ function createAmazingApp() {
         alert('Generate tests prompt copied to clipboard!\nPaste it into the AI chat on the right.');
     }
     
-    /**
-     * Paste AI-generated code (original)
-     */
     async pasteFromAI() {
         if (!this.monacoEditor) return;
         
         try {
             const clipboardText = await navigator.clipboard.readText();
             
-            // Try to extract code from clipboard (look for code blocks)
             const codeBlockMatch = clipboardText.match(/```[\w]*\n?([\s\S]*?)\n?```/);
             const codeToInsert = codeBlockMatch ? codeBlockMatch[1] : clipboardText;
             
@@ -1473,9 +1200,6 @@ function createAmazingApp() {
         }
     }
     
-    /**
-     * Utility methods (original)
-     */
     isWindowActive() {
         const windowElement = document.getElementById(this.windowId);
         return windowElement && windowElement.contains(document.activeElement);
@@ -1540,9 +1264,7 @@ function createAmazingApp() {
         document.head.appendChild(style);
     }
     
-    /**
-     * Required methods for WindowManager integration (original)
-     */
+    // Required methods for WindowManager integration
     getTitle() {
         return 'Code Assistant Pro';
     }
@@ -1560,5 +1282,5 @@ function createAmazingApp() {
     }
 }
 
-// Export for use in NebulaDesktop (original)
+// Export for use in NebulaDesktop
 window.NebulaCodeAssistant = NebulaCodeAssistant;
