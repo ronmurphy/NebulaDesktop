@@ -16,7 +16,7 @@ class NebulaCodeAssistant {
         // AI Services with Claude as first option
         this.aiServices = {
             claude: {
-                name: 'Claude (Preferred)',
+                name: 'Claude',
                 url: 'https://claude.ai/',
                 icon: '🧠'
             },
@@ -39,6 +39,11 @@ class NebulaCodeAssistant {
                 name: 'Perplexity',
                 url: 'https://perplexity.ai/',
                 icon: '🔍'
+            },
+            manus: {
+                name: 'Manus',
+                url: 'https://manus.ai/',
+                icon: '📝'
             }
         };
         
