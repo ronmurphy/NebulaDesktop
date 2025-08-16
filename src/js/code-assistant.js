@@ -12,17 +12,28 @@ class NebulaCodeAssistant {
         this.currentFilePath = null; // NEW: track current open file
         this.hasUnsavedChanges = false; // NEW: track unsaved changes
         
+        // NEW: Multi-file tab system
+        this.openFiles = new Map(); // fileId -> fileData
+        this.activeFileId = null;
+        this.nextFileId = 1;
+        this.symbolUpdateTimeout = null; // For debounced symbol updates
+        
         // Available templates for loading - NEW FEATURE
         this.templates = {
             'single-app': {
                 name: 'Single Window App',
                 description: 'Simple focused application template',
-                path: '../Templates/NebulaApp-Single.js'
+                path: '../src/Templates/NebulaApp-Single.js'
             },
             'tabbed-app': {
                 name: 'Tabbed Window App', 
                 description: 'Multi-tab application template',
-                path: '../Templates/NebulaApp-Tabbed.js'
+                path: '../src/Templates/NebulaApp-Tabbed.js'
+            },
+            'PWA-app': {
+                name: 'Progressive Web App',
+                description: 'Progressive Web App template',
+                path: '../src/Templates/NebulaApp-PWA.js'
             }
         };
         
@@ -83,6 +94,7 @@ class NebulaCodeAssistant {
             this.setupEventListeners();
             this.initializeMonaco();
             this.createWebview();
+            this.createNewTab(); // Initialize with first tab
             this.updateWindowTitle(); // Set initial window title and status
         }, 0);
         
@@ -99,7 +111,7 @@ class NebulaCodeAssistant {
             border-right: 1px solid var(--nebula-border);
         `;
         
-        // ENHANCED Toolbar with Templates + Run Controls
+        // Enhanced Toolbar with Templates + Run Controls
         const toolbar = document.createElement('div');
         toolbar.className = 'code-toolbar';
         toolbar.style.cssText = `
@@ -141,6 +153,7 @@ class NebulaCodeAssistant {
                 <option value="">📋 Load Template...</option>
                 <option value="single-app">🎯 Single Window App</option>
                 <option value="tabbed-app">📑 Tabbed Window App</option>
+                <option value="PWA-app">🌐 Progressive Web App</option>
             </select>
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
@@ -162,9 +175,20 @@ class NebulaCodeAssistant {
                 <span class="material-symbols-outlined">save_as</span>
             </button>
             
-            <button id="browseBtn-${this.windowId}" class="toolbar-btn" title="Browse Files">
-                <span class="material-symbols-outlined">folder</span>
-            </button>
+            <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
+            
+            <!-- NEW: Monaco Features -->
+            <select id="symbolSelect-${this.windowId}" class="toolbar-btn" title="Go to Symbol" style="
+                padding: 6px 12px;
+                border: 1px solid var(--nebula-border);
+                border-radius: var(--nebula-radius-sm);
+                background: var(--nebula-bg-primary);
+                color: var(--nebula-text-primary);
+                font-size: 13px;
+                max-width: 200px;
+            ">
+                <option value="">📋 Go to Symbol...</option>
+            </select>
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
@@ -199,6 +223,42 @@ class NebulaCodeAssistant {
             
             <button id="insertToFileBtn-${this.windowId}" class="toolbar-btn" title="Insert Code to File">
                 <span class="material-symbols-outlined">insert_drive_file</span>
+            </button>
+        `;
+        
+        // NEW: File Tab Bar
+        const tabBar = document.createElement('div');
+        tabBar.id = `fileTabBar-${this.windowId}`;
+        tabBar.className = 'file-tab-bar';
+        tabBar.style.cssText = `
+            background: var(--nebula-surface-secondary);
+            border-bottom: 1px solid var(--nebula-border);
+            display: flex;
+            align-items: center;
+            min-height: 36px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-shrink: 0;
+        `;
+        
+        tabBar.innerHTML = `
+            <div class="tab-list" id="tabList-${this.windowId}" style="
+                display: flex;
+                flex: 1;
+                min-width: 0;
+            "></div>
+            <button id="newTabBtn-${this.windowId}" class="new-tab-btn" title="New Tab" style="
+                background: none;
+                border: none;
+                color: var(--nebula-text-secondary);
+                padding: 8px 12px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                border-left: 1px solid var(--nebula-border);
+                flex-shrink: 0;
+            ">
+                <span class="material-symbols-outlined" style="font-size: 18px;">add</span>
             </button>
         `;
         
@@ -295,6 +355,7 @@ class NebulaCodeAssistant {
         editorContainer.appendChild(statusBar);
         
         editorSide.appendChild(toolbar);
+        editorSide.appendChild(tabBar); // NEW: Add tab bar
         editorSide.appendChild(editorContainer);
         
         return editorSide;
@@ -426,8 +487,17 @@ class NebulaCodeAssistant {
             this.saveAsFile();
         });
         
-        document.getElementById(`browseBtn-${this.windowId}`)?.addEventListener('click', () => {
-            this.browseAndOpenFile();
+        // NEW: Symbol navigation
+        document.getElementById(`symbolSelect-${this.windowId}`)?.addEventListener('change', (e) => {
+            if (e.target.value) {
+                this.goToSymbol(e.target.value);
+                e.target.value = ''; // Reset selector
+            }
+        });
+        
+        // NEW: Tab management
+        document.getElementById(`newTabBtn-${this.windowId}`)?.addEventListener('click', () => {
+            this.createNewTab();
         });
         
         // ⚡ NEW: JS Execution Controls
@@ -645,11 +715,445 @@ class NebulaCodeAssistant {
         outputContent.scrollTop = outputContent.scrollHeight;
     }
     
+    // ⚡ NEW: Multi-File Tab Management System
+    
+    createNewTab(filePath = null, content = null) {
+        const fileId = `file-${this.nextFileId++}`;
+        const fileName = filePath ? filePath.split('/').pop() : 'Untitled';
+        const language = this.detectLanguageFromPath(filePath || fileName);
+        
+        const fileData = {
+            id: fileId,
+            path: filePath,
+            name: fileName,
+            content: content || this.getWelcomeCode(),
+            language: language,
+            hasUnsavedChanges: false,
+            monacoModel: null
+        };
+        
+        this.openFiles.set(fileId, fileData);
+        this.createTabElement(fileData);
+        this.switchToTab(fileId);
+        
+        console.log(`Created new tab: ${fileName}`);
+        return fileId;
+    }
+    
+    createTabElement(fileData) {
+        const tabList = document.getElementById(`tabList-${this.windowId}`);
+        if (!tabList) return;
+        
+        const fileIcon = this.getFileTypeIcon(fileData.name, fileData.language);
+        const displayName = fileData.name.length > 20 ? 
+            fileData.name.substring(0, 17) + '...' : fileData.name;
+        
+        const tab = document.createElement('div');
+        tab.className = 'file-tab';
+        tab.dataset.fileId = fileData.id;
+        tab.dataset.language = fileData.language; // NEW: For CSS styling
+        tab.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-right: 1px solid var(--nebula-border);
+            background: var(--nebula-surface);
+            color: var(--nebula-text-primary);
+            cursor: pointer;
+            font-size: 13px;
+            min-width: 0;
+            flex-shrink: 0;
+            transition: var(--nebula-transition-fast);
+            gap: 6px;
+            max-width: 200px;
+        `;
+        
+        tab.innerHTML = `
+            <span class="file-icon" style="font-size: 14px; flex-shrink: 0;">${fileIcon}</span>
+            <span class="file-name" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
+            <span class="unsaved-indicator" style="
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: var(--nebula-warning);
+                flex-shrink: 0;
+                display: none;
+            "></span>
+            <button class="tab-close-btn" style="
+                background: none;
+                border: none;
+                color: var(--nebula-text-secondary);
+                padding: 2px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                border-radius: 2px;
+                flex-shrink: 0;
+            ">
+                <span class="material-symbols-outlined" style="font-size: 14px;">close</span>
+            </button>
+        `;
+        
+        // Add event listeners
+        tab.addEventListener('click', (e) => {
+            if (e.target.closest('.tab-close-btn')) return;
+            this.switchToTab(fileData.id);
+        });
+        
+        tab.querySelector('.tab-close-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.closeTab(fileData.id);
+        });
+        
+        // Add tooltip with full path
+        if (fileData.path) {
+            tab.title = fileData.path;
+        }
+        
+        tabList.appendChild(tab);
+        fileData.tabElement = tab;
+    }
+    
+    switchToTab(fileId) {
+        const fileData = this.openFiles.get(fileId);
+        if (!fileData) return;
+        
+        // Update visual state of tabs
+        document.querySelectorAll(`#tabList-${this.windowId} .file-tab`).forEach(tab => {
+            tab.style.background = 'var(--nebula-surface)';
+            tab.style.borderBottom = 'none';
+        });
+        
+        if (fileData.tabElement) {
+            fileData.tabElement.style.background = 'var(--nebula-bg-primary)';
+            fileData.tabElement.style.borderBottom = '2px solid var(--nebula-primary)';
+        }
+        
+        // Switch Monaco model
+        if (this.monacoEditor && monaco) {
+            if (!fileData.monacoModel) {
+                fileData.monacoModel = monaco.editor.createModel(
+                    fileData.content,
+                    fileData.language
+                );
+            }
+            this.monacoEditor.setModel(fileData.monacoModel);
+        } else if (this.monacoEditor) {
+            // Fallback editor
+            this.monacoEditor.setValue(fileData.content);
+        }
+        
+        // Update current file tracking
+        this.activeFileId = fileId;
+        this.currentFilePath = fileData.path;
+        this.hasUnsavedChanges = fileData.hasUnsavedChanges;
+        
+        // Update language selector
+        const languageSelect = document.getElementById(`languageSelect-${this.windowId}`);
+        if (languageSelect) languageSelect.value = fileData.language;
+        
+        this.updateWindowTitle();
+        console.log(`Switched to tab: ${fileData.name}`);
+    }
+    
+    closeTab(fileId) {
+        const fileData = this.openFiles.get(fileId);
+        if (!fileData) return;
+        
+        // Check for unsaved changes
+        if (fileData.hasUnsavedChanges) {
+            if (!confirm(`"${fileData.name}" has unsaved changes. Close anyway?`)) {
+                return;
+            }
+        }
+        
+        // Remove tab element
+        if (fileData.tabElement) {
+            fileData.tabElement.remove();
+        }
+        
+        // Dispose Monaco model
+        if (fileData.monacoModel) {
+            fileData.monacoModel.dispose();
+        }
+        
+        // Remove from open files
+        this.openFiles.delete(fileId);
+        
+        // If this was the active tab, switch to another
+        if (this.activeFileId === fileId) {
+            const remainingFiles = Array.from(this.openFiles.keys());
+            if (remainingFiles.length > 0) {
+                this.switchToTab(remainingFiles[remainingFiles.length - 1]);
+            } else {
+                // No files left, create a new one
+                this.createNewTab();
+            }
+        }
+        
+        console.log(`Closed tab: ${fileData.name}`);
+    }
+    
+    detectLanguageFromPath(filePath) {
+        if (!filePath) return 'javascript';
+        
+        const extension = filePath.split('.').pop().toLowerCase();
+        const languageMap = {
+            'js': 'javascript',
+            'ts': 'typescript',
+            'py': 'python',
+            'html': 'html',
+            'htm': 'html',
+            'css': 'css',
+            'json': 'json',
+            'md': 'markdown',
+            'txt': 'plaintext'
+        };
+        
+        return languageMap[extension] || 'javascript';
+    }
+    
+    getFileTypeIcon(fileName, language) {
+        if (!fileName) return '📄';
+        
+        const extension = fileName.split('.').pop()?.toLowerCase();
+        
+        // Better web glyph icons for different file types
+        const iconMap = {
+            // JavaScript/TypeScript
+            'js': '◉', // JavaScript - filled circle (yellow-ish when styled)
+            'ts': '◈', // TypeScript - diamond
+            'jsx': '⬟', // React JSX
+            'tsx': '⬢', // React TSX
+            
+            // Web Technologies  
+            'html': '⬢', // HTML - hexagon
+            'htm': '⬢',
+            'css': '◼', // CSS - filled square
+            'scss': '◼',
+            'sass': '◼',
+            'less': '◼',
+            
+            // Python
+            'py': '◉', // Python - filled circle 
+            'pyc': '○', // Python compiled
+            
+            // Data/Config
+            'json': '⧨', // JSON - data symbol
+            'xml': '⧫', // XML - diamond
+            'yml': '⚙', // YAML - gear
+            'yaml': '⚙',
+            'toml': '⚙',
+            'ini': '⚙',
+            'cfg': '⚙',
+            'conf': '⚙',
+            
+            // Documentation
+            'md': '◈', // Markdown - diamond outline
+            'txt': '◇', // Text - empty diamond
+            'rtf': '◇',
+            'doc': '◇',
+            'docx': '◇',
+            
+            // Images
+            'png': '⬛', // Images - filled square
+            'jpg': '⬛',
+            'jpeg': '⬛',
+            'gif': '⬛',
+            'svg': '◆', // SVG - filled diamond
+            'ico': '⬛',
+            'webp': '⬛',
+            
+            // Archives
+            'zip': '⬢', // Archives - hexagon
+            'tar': '⬢',
+            'gz': '⬢',
+            'rar': '⬢',
+            '7z': '⬢',
+            
+            // Executables
+            'exe': '▲', // Executables - triangle
+            'msi': '▲',
+            'deb': '▲',
+            'rpm': '▲',
+            'app': '▲'
+        };
+        
+        return iconMap[extension] || '◯'; // Default: empty circle
+    }
+    
+    markTabAsModified(fileId, isModified) {
+        const fileData = this.openFiles.get(fileId);
+        if (!fileData) return;
+        
+        fileData.hasUnsavedChanges = isModified;
+        
+        if (fileData.tabElement) {
+            const indicator = fileData.tabElement.querySelector('.unsaved-indicator');
+            if (indicator) {
+                indicator.style.display = isModified ? 'block' : 'none';
+            }
+        }
+        
+        // If this is the active tab, update window title
+        if (fileId === this.activeFileId) {
+            this.hasUnsavedChanges = isModified;
+            this.updateWindowTitle();
+        }
+    }
+    
     clearOutput() {
         const outputContent = document.getElementById(`outputContent-${this.windowId}`);
         if (outputContent) {
             outputContent.innerHTML = 'Output cleared... 🧹\n';
         }
+    }
+    
+    // Update existing methods to work with tabs
+    getCurrentFileData() {
+        return this.openFiles.get(this.activeFileId);
+    }
+    
+    // ⚡ NEW: Symbol Navigation (VS Code-like feature)
+    updateSymbolDropdown() {
+        const symbolSelect = document.getElementById(`symbolSelect-${this.windowId}`);
+        if (!symbolSelect || !this.monacoEditor) return;
+        
+        const fileData = this.getCurrentFileData();
+        if (!fileData) {
+            symbolSelect.innerHTML = '<option value="">📋 Go to Symbol...</option>';
+            return;
+        }
+        
+        // Parse symbols based on language
+        const symbols = this.parseSymbols(fileData.content, fileData.language);
+        
+        symbolSelect.innerHTML = '<option value="">📋 Go to Symbol...</option>' + 
+            symbols.map(symbol => 
+                `<option value="${symbol.line}">${symbol.icon} ${symbol.name}</option>`
+            ).join('');
+    }
+    
+    parseSymbols(content, language) {
+        const symbols = [];
+        const lines = content.split('\n');
+        
+        if (language === 'javascript' || language === 'typescript') {
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                
+                // Classes
+                if (trimmed.match(/^class\s+(\w+)/)) {
+                    const match = trimmed.match(/^class\s+(\w+)/);
+                    symbols.push({
+                        name: match[1],
+                        line: index + 1,
+                        icon: '🏛️',
+                        type: 'class'
+                    });
+                }
+                
+                // Functions (various patterns)
+                const funcPatterns = [
+                    /^function\s+(\w+)/,           // function name()
+                    /^async function\s+(\w+)/,     // async function name()
+                    /(\w+)\s*:\s*function/,        // name: function
+                    /(\w+)\s*:\s*async function/,  // name: async function
+                    /(\w+)\(.*\)\s*{/,             // name() {
+                    /(\w+)\s*=\s*\(.*\)\s*=>/,     // name = () =>
+                    /(\w+)\s*=\s*async\s*\(/,      // name = async (
+                    /^\s*(\w+)\(.*\)\s*{/          // method() {
+                ];
+                
+                funcPatterns.forEach(pattern => {
+                    const match = trimmed.match(pattern);
+                    if (match && !['if', 'for', 'while', 'switch', 'catch'].includes(match[1])) {
+                        symbols.push({
+                            name: match[1],
+                            line: index + 1,
+                            icon: '⚡',
+                            type: 'function'
+                        });
+                    }
+                });
+                
+                // Variables and constants
+                if (trimmed.match(/^(const|let|var)\s+(\w+)/)) {
+                    const match = trimmed.match(/^(const|let|var)\s+(\w+)/);
+                    symbols.push({
+                        name: match[2],
+                        line: index + 1,
+                        icon: '📦',
+                        type: 'variable'
+                    });
+                }
+            });
+        } else if (language === 'python') {
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                
+                // Classes
+                if (trimmed.match(/^class\s+(\w+)/)) {
+                    const match = trimmed.match(/^class\s+(\w+)/);
+                    symbols.push({
+                        name: match[1],
+                        line: index + 1,
+                        icon: '🏛️',
+                        type: 'class'
+                    });
+                }
+                
+                // Functions/methods
+                if (trimmed.match(/^def\s+(\w+)/)) {
+                    const match = trimmed.match(/^def\s+(\w+)/);
+                    symbols.push({
+                        name: match[1],
+                        line: index + 1,
+                        icon: '⚡',
+                        type: 'function'
+                    });
+                }
+            });
+        } else if (language === 'html') {
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                
+                // HTML IDs and classes
+                const idMatch = trimmed.match(/id=["']([^"']+)["']/);
+                if (idMatch) {
+                    symbols.push({
+                        name: `#${idMatch[1]}`,
+                        line: index + 1,
+                        icon: '🎯',
+                        type: 'id'
+                    });
+                }
+                
+                const classMatch = trimmed.match(/class=["']([^"']+)["']/);
+                if (classMatch) {
+                    symbols.push({
+                        name: `.${classMatch[1].split(' ')[0]}`,
+                        line: index + 1,
+                        icon: '🎨',
+                        type: 'class'
+                    });
+                }
+            });
+        }
+        
+        // Sort symbols by line number
+        return symbols.sort((a, b) => a.line - b.line);
+    }
+    
+    goToSymbol(lineNumber) {
+        if (!this.monacoEditor || !monaco) return;
+        
+        const line = parseInt(lineNumber);
+        this.monacoEditor.revealLineInCenter(line);
+        this.monacoEditor.setPosition({ lineNumber: line, column: 1 });
+        this.monacoEditor.focus();
+        
+        this.writeOutput(`Jumped to line ${line}`, 'info');
     }
     
     // ⚡ NEW: Template Loading System
@@ -801,8 +1305,21 @@ class NebulaCodeAssistant {
             
             // NEW: Track changes for unsaved indicator
             this.monacoEditor.onDidChangeModelContent(() => {
-                this.hasUnsavedChanges = true;
-                this.updateWindowTitle();
+                if (this.activeFileId) {
+                    this.markTabAsModified(this.activeFileId, true);
+                    
+                    // Update content in file data
+                    const fileData = this.getCurrentFileData();
+                    if (fileData) {
+                        fileData.content = this.monacoEditor.getValue();
+                        
+                        // Update symbols when content changes (debounced)
+                        clearTimeout(this.symbolUpdateTimeout);
+                        this.symbolUpdateTimeout = setTimeout(() => {
+                            this.updateSymbolDropdown();
+                        }, 1000);
+                    }
+                }
             });
             
             console.log('Monaco Editor initialized');
@@ -1618,11 +2135,11 @@ function createAmazingApp() {
         });
     }
     
-    // NEW: Update window title and status bar with current file
+    // NEW: Update window title and status bar with current tab
     updateWindowTitle() {
-        const fileName = this.currentFilePath ? 
-            this.currentFilePath.split('/').pop() : 'Untitled';
-        const modified = this.hasUnsavedChanges ? ' •' : '';
+        const fileData = this.getCurrentFileData();
+        const fileName = fileData ? fileData.name : 'No files open';
+        const modified = fileData && fileData.hasUnsavedChanges ? ' •' : '';
         
         // Update window title
         if (window.windowManager && this.windowId) {
@@ -1635,14 +2152,20 @@ function createAmazingApp() {
         const fileInfo = document.getElementById(`fileInfo-${this.windowId}`);
         
         if (fileStatus) {
-            fileStatus.textContent = this.hasUnsavedChanges ? 'Modified' : 'Saved';
+            if (!fileData) {
+                fileStatus.textContent = 'No files open';
+            } else {
+                fileStatus.textContent = fileData.hasUnsavedChanges ? 'Modified' : 'Saved';
+            }
         }
         
         if (fileInfo) {
-            if (this.currentFilePath) {
-                fileInfo.textContent = this.currentFilePath;
+            if (fileData && fileData.path) {
+                fileInfo.textContent = fileData.path;
+            } else if (fileData) {
+                fileInfo.textContent = fileData.name;
             } else {
-                fileInfo.textContent = 'No file open';
+                fileInfo.textContent = 'Open a file to get started';
             }
         }
     }
@@ -1843,6 +2366,87 @@ function createAmazingApp() {
             .ai-action-btn:hover {
                 background: var(--nebula-surface-hover);
                 border-color: var(--nebula-primary);
+            }
+            
+            /* NEW: File Tab Styles */
+            .file-tab-bar {
+                scrollbar-width: thin;
+                scrollbar-color: var(--nebula-surface-hover) transparent;
+            }
+            
+            .file-tab-bar::-webkit-scrollbar {
+                height: 6px;
+            }
+            
+            .file-tab-bar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            
+            .file-tab-bar::-webkit-scrollbar-thumb {
+                background: var(--nebula-surface-hover);
+                border-radius: 3px;
+            }
+            
+            .file-tab:hover {
+                background: var(--nebula-surface-hover) !important;
+            }
+            
+            .file-tab .tab-close-btn {
+                opacity: 0;
+                transition: opacity 0.2s ease;
+            }
+            
+            .file-tab:hover .tab-close-btn {
+                opacity: 1;
+            }
+            
+            .file-tab .tab-close-btn:hover {
+                background: var(--nebula-surface-active);
+            }
+            
+            .new-tab-btn:hover {
+                background: var(--nebula-surface-hover);
+            }
+            
+            /* File Type Icon Colors */
+            .file-tab .file-icon {
+                font-weight: bold;
+                font-size: 14px;
+            }
+            
+            /* JavaScript - Yellow */
+            .file-tab[data-language="javascript"] .file-icon {
+                color: #f7df1e;
+            }
+            
+            /* TypeScript - Blue */
+            .file-tab[data-language="typescript"] .file-icon {
+                color: #3178c6;
+            }
+            
+            /* Python - Green/Blue */
+            .file-tab[data-language="python"] .file-icon {
+                color: #3776ab;
+            }
+            
+            /* HTML - Orange */
+            .file-tab[data-language="html"] .file-icon {
+                color: #e34f26;
+            }
+            
+            /* CSS - Blue */
+            .file-tab[data-language="css"] .file-icon {
+                color: #1572b6;
+            }
+            
+            /* JSON - Green */
+            .file-tab[data-language="json"] .file-icon {
+                color: #00d084;
+            }
+            
+            /* Markdown - Gray */
+            .file-tab[data-language="markdown"] .file-icon {
+                color: #666666;
             }
             
             @keyframes spin {

@@ -371,3 +371,5 @@ class NebulaMyApp {
 // Export for use in NebulaDesktop
 // TODO: Change class name to match your app
 window.NebulaMyApp = NebulaMyApp;
+// Register the app with WindowManager
+new NebulaMyApp
