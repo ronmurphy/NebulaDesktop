@@ -88,23 +88,34 @@ class NebulaCodeAssistant {
 
     // FIX 1: Toggle Assistant - Replace your toggleAssistant() method with this:
     toggleAssistant() {
-        this.assistantVisible = !this.assistantVisible;
-
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .code-assistant-container`);
-        const chatSide = container?.querySelector('.code-chat-side');
-        const toggleBtn = document.getElementById(`toggleAssistantBtn-${this.windowId}`);
-        const widthControls = document.getElementById(`chatWidthControls-${this.windowId}`);
-
-        if (chatSide) {
-            if (this.assistantVisible) {
-                // SHOW: Restore display and width
-                chatSide.style.display = 'flex';
-                chatSide.style.width = `${this.chatWidthPercent}%`;
-            } else {
-                // HIDE: Set display to none
-                chatSide.style.display = 'none';
+    this.assistantVisible = !this.assistantVisible;
+    
+    const container = document.querySelector(`[data-window-id="${this.windowId}"] .code-assistant-container`);
+    const chatSide = container?.querySelector('.code-chat-side');
+    const editorSide = container?.querySelector('.code-editor-side'); // ADD THIS
+    const toggleBtn = document.getElementById(`toggleAssistantBtn-${this.windowId}`);
+    const widthControls = document.getElementById(`chatWidthControls-${this.windowId}`);
+    
+    if (chatSide) {
+        if (this.assistantVisible) {
+            // SHOW: Restore display and width
+            chatSide.style.display = 'flex';
+            chatSide.style.width = `${this.chatWidthPercent}%`;
+            
+            // 🆕 ADD: Restore editor width
+            if (editorSide) {
+                editorSide.style.width = `${100 - this.chatWidthPercent}%`;
+            }
+        } else {
+            // HIDE: Set display to none
+            chatSide.style.display = 'none';
+            
+            // 🆕 ADD: Make editor full width
+            if (editorSide) {
+                editorSide.style.width = '100%';
             }
         }
+    }
 
         if (toggleBtn) {
             if (this.assistantVisible) {
@@ -329,26 +340,26 @@ class NebulaCodeAssistant {
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
             <!-- File Operations - ENHANCED -->
-            <button id="newFileBtn-${this.windowId}" class="toolbar-btn" title="New File (Ctrl+N)">
+            <button id="newFileBtn-${this.windowId}" class="code-toolbar-btn" title="New File (Ctrl+N)">
                 <span class="material-symbols-outlined">note_add</span>
             </button>
             
-            <button id="openFileBtn-${this.windowId}" class="toolbar-btn" title="Open File (Ctrl+O)">
+<button id="openFileBtn-${this.windowId}" class="code-toolbar-btn" title="Open File (Ctrl+O)">
                 <span class="material-symbols-outlined">folder_open</span>
             </button>
             
-            <button id="saveBtn-${this.windowId}" class="toolbar-btn" title="Save File (Ctrl+S)">
+<button id="saveBtn-${this.windowId}" class="code-toolbar-btn" title="Save File (Ctrl+S)">
                 <span class="material-symbols-outlined">save</span>
             </button>
             
-            <button id="saveAsBtn-${this.windowId}" class="toolbar-btn" title="Save As (Ctrl+Shift+S)">
+            <button id="saveAsBtn-${this.windowId}" class="code-toolbar-btn title="Save As (Ctrl+Shift+S)">
                 <span class="material-symbols-outlined">save_as</span>
             </button>
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
             <!-- NEW: Monaco Features -->
-            <select id="symbolSelect-${this.windowId}" class="toolbar-btn" title="Go to Symbol" style="
+            <select id="symbolSelect-${this.windowId}" class="code-toolbar-btn title="Go to Symbol" style="
                 padding: 6px 12px;
                 border: 1px solid var(--nebula-border);
                 border-radius: var(--nebula-radius-sm);
@@ -364,34 +375,50 @@ class NebulaCodeAssistant {
             
             <!-- ⚡ NEW: JS Execution Controls -->
             <button id="runBtn-${this.windowId}" class="toolbar-btn run-btn" title="Run JavaScript (F5)" style="
-                background: var(--nebula-success);
-                color: white;
-                font-weight: 600;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-secondary);
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition-fast);
+    font-size: 14px;
+    gap: 4px;
+    padding: 0 8px;
+    min-width: 36px;
+    width: auto;
+    background: var(--nebula-success);
+    color: white;
+    font-weight: 600;
             ">
                 <span class="material-symbols-outlined">play_arrow</span>
                 <span>Run</span>
             </button>
             
-            <button id="debugBtn-${this.windowId}" class="toolbar-btn" title="Debug Mode">
+            <button id="debugBtn-${this.windowId}" class="code-toolbar-btn title="Debug Mode">
                 <span class="material-symbols-outlined">bug_report</span>
             </button>
             
-            <button id="toggleOutputBtn-${this.windowId}" class="toolbar-btn" title="Toggle Output Panel">
+            <button id="toggleOutputBtn-${this.windowId}" class="code-toolbar-btn title="Toggle Output Panel">
                 <span class="material-symbols-outlined">terminal</span>
             </button>
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
             <!-- Code Operations (original) -->
-            <button id="formatBtn-${this.windowId}" class="toolbar-btn" title="Format Code">
+            <button id="formatBtn-${this.windowId}" class="code-toolbar-btn title="Format Code">
                 <span class="material-symbols-outlined">code</span>
             </button>
             
-            <button id="copyAllBtn-${this.windowId}" class="toolbar-btn" title="Copy All Code">
+            <button id="copyAllBtn-${this.windowId}" class="code-toolbar-btn title="Copy All Code">
                 <span class="material-symbols-outlined">content_copy</span>
             </button>
             
-            <button id="insertToFileBtn-${this.windowId}" class="toolbar-btn" title="Insert Code to File">
+            <button id="insertToFileBtn-${this.windowId}" class="code-toolbar-btn title="Insert Code to File">
                 <span class="material-symbols-outlined">insert_drive_file</span>
             </button>
 

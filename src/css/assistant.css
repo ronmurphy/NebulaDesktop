@@ -606,6 +606,22 @@
 
 /* Code Run Button - Special styling like assistant primary actions */
 .code-run-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-secondary);
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition-fast);
+    font-size: 14px;
+    gap: 4px;
+    padding: 0 8px;
+    min-width: 36px;
+    width: auto;
     background: var(--nebula-success);
     color: white;
     font-weight: 600;
