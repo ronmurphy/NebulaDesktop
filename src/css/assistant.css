@@ -566,3 +566,226 @@
     outline: 2px solid var(--nebula-primary);
     outline-offset: 2px;
 }
+
+/* ADD THESE STYLES TO THE END OF YOUR EXISTING assistant.css FILE */
+/* Code Assistant Styles - Matching Assistant Design Language */
+
+/* Code Assistant Toolbar Buttons - Same style as assistant control-btn */
+.code-toolbar-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-secondary);
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition-fast);
+    font-size: 14px;
+    gap: 4px;
+    padding: 0 8px;
+    min-width: 36px;
+    width: auto;
+}
+
+.code-toolbar-btn:hover {
+    background: var(--nebula-surface-active);
+    color: var(--nebula-text-primary);
+    transform: translateY(-1px);
+}
+
+.code-toolbar-btn:active {
+    transform: translateY(0);
+}
+
+.code-toolbar-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* Code Run Button - Special styling like assistant primary actions */
+.code-run-btn {
+    background: var(--nebula-success);
+    color: white;
+    font-weight: 600;
+}
+
+.code-run-btn:hover {
+    background: var(--nebula-success-hover);
+    color: white;
+}
+
+/* Code Assistant Toggle - Same style as pin button */
+.code-assistant-toggle {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-secondary);
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition-fast);
+    font-size: 14px;
+    gap: 4px;
+    padding: 0 8px;
+    min-width: 36px;
+    width: auto;
+}
+
+.code-assistant-toggle:hover {
+    background: var(--nebula-surface-active);
+    color: var(--nebula-text-primary);
+    transform: translateY(-1px);
+}
+
+.code-assistant-toggle.active {
+    background: var(--nebula-primary);
+    color: white;
+}
+
+.code-assistant-toggle.active:hover {
+    background: var(--nebula-primary-hover);
+}
+
+/* Code Width Buttons - Same style as footer buttons */
+.code-width-btn {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    width: 40px;
+    height: 28px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    transition: var(--nebula-transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+}
+
+.code-width-btn:hover {
+    background: var(--nebula-surface-active);
+    border-color: var(--nebula-border-hover);
+    transform: translateY(-1px);
+}
+
+.code-width-btn.active {
+    background: var(--nebula-primary);
+    color: white;
+    border-color: var(--nebula-primary);
+}
+
+.code-width-btn.active:hover {
+    background: var(--nebula-primary-hover);
+}
+
+/* Code AI Action Buttons - Same style as footer buttons */
+.code-ai-action-btn {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    height: 28px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    transition: var(--nebula-transition-fast);
+    padding: 0 10px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.code-ai-action-btn:hover {
+    background: var(--nebula-surface-active);
+    border-color: var(--nebula-border-hover);
+    transform: translateY(-1px);
+}
+
+/* Code AI Selector - Same style as assistant ai-selector */
+.code-ai-selector {
+    width: 100%;
+    height: 36px;
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-md);
+    background: var(--nebula-bg-secondary);
+    color: var(--nebula-text-primary);
+    padding: 0 12px;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--nebula-transition-fast);
+}
+
+.code-ai-selector:focus {
+    outline: none;
+    border-color: var(--nebula-primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.code-ai-selector:hover {
+    border-color: var(--nebula-border-hover);
+    background: var(--nebula-surface-hover);
+}
+
+/* Code Output Panel Clear Button - Same style as footer buttons */
+.code-clear-btn {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-secondary);
+    width: 24px;
+    height: 24px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--nebula-transition-fast);
+}
+
+.code-clear-btn:hover {
+    background: var(--nebula-surface-active);
+    color: var(--nebula-text-primary);
+}
+
+.code-clear-btn .material-symbols-outlined {
+    font-size: 14px;
+}
+
+/* Responsive adjustments for code assistant */
+@media (max-width: 768px) {
+    .code-toolbar-btn,
+    .code-assistant-toggle {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+    
+    .code-width-btn {
+        width: 36px;
+        height: 24px;
+        font-size: 10px;
+    }
+    
+    .code-ai-action-btn {
+        height: 24px;
+        font-size: 10px;
+        padding: 0 8px;
+    }
+}
+
+/* Focus states for accessibility */
+.code-toolbar-btn:focus,
+.code-assistant-toggle:focus,
+.code-width-btn:focus,
+.code-ai-action-btn:focus,
+.code-ai-selector:focus,
+.code-clear-btn:focus {
+    outline: 2px solid var(--nebula-primary);
+    outline-offset: 2px;
+}

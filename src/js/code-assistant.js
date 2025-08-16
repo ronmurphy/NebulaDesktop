@@ -11,19 +11,19 @@ class NebulaCodeAssistant {
         this.outputVisible = false; // NEW: for output panel
         this.currentFilePath = null; // NEW: track current open file
         this.hasUnsavedChanges = false; // NEW: track unsaved changes
-        
+
         // NEW: Multi-file tab system
         this.openFiles = new Map(); // fileId -> fileData
         this.activeFileId = null;
         this.nextFileId = 1;
         this.symbolUpdateTimeout = null; // For debounced symbol updates
-        
 
-            // NEW: Chat width management
-    this.assistantVisible = true;
-    // this.chatWidth = '400px'; // Default width
-    this.chatWidthPercent = 33; // Default 33%
-    
+
+        // NEW: Chat width management
+        this.assistantVisible = true;
+        // this.chatWidth = '400px'; // Default width
+        this.chatWidthPercent = 33; // Default 33%
+
         // Available templates for loading - NEW FEATURE
         this.templates = {
             'single-app': {
@@ -32,7 +32,7 @@ class NebulaCodeAssistant {
                 path: '../src/Templates/NebulaApp-Single.js'
             },
             'tabbed-app': {
-                name: 'Tabbed Window App', 
+                name: 'Tabbed Window App',
                 description: 'Multi-tab application template',
                 path: '../src/Templates/NebulaApp-Tabbed.js'
             },
@@ -42,7 +42,7 @@ class NebulaCodeAssistant {
                 path: '../src/Templates/NebulaApp-PWA.js'
             }
         };
-        
+
         // AI Services (original)
         this.aiServices = {
             claude: { name: 'Claude', url: 'https://claude.ai', icon: '🧠' },
@@ -54,121 +54,165 @@ class NebulaCodeAssistant {
             bolt: { name: 'Bolt', url: 'https://bolt.new', icon: '⚡' }
         };
 
-            // Load saved preferences
-    this.loadLayoutPreferences();
-        
+        // Load saved preferences
+        this.loadLayoutPreferences();
+
         this.init();
     }
 
     // 2. ADD NEW METHOD - Load layout preferences
-loadLayoutPreferences() {
-    try {
-        const saved = localStorage.getItem('codeAssistant-layout');
-        if (saved) {
-            const prefs = JSON.parse(saved);
-            this.assistantVisible = prefs.assistantVisible !== false;
-            this.chatWidthPercent = prefs.chatWidthPercent || 33;
+    loadLayoutPreferences() {
+        try {
+            const saved = localStorage.getItem('codeAssistant-layout');
+            if (saved) {
+                const prefs = JSON.parse(saved);
+                this.assistantVisible = prefs.assistantVisible !== false;
+                this.chatWidthPercent = prefs.chatWidthPercent || 33;
+            }
+        } catch (error) {
+            console.log('Using default layout preferences');
         }
-    } catch (error) {
-        console.log('Using default layout preferences');
     }
-}
 
-saveLayoutPreferences() {
-    try {
-        const prefs = {
-            assistantVisible: this.assistantVisible,
-            chatWidthPercent: this.chatWidthPercent
-        };
-        localStorage.setItem('codeAssistant-layout', JSON.stringify(prefs));
-    } catch (error) {
-        console.log('Could not save layout preferences');
+    saveLayoutPreferences() {
+        try {
+            const prefs = {
+                assistantVisible: this.assistantVisible,
+                chatWidthPercent: this.chatWidthPercent
+            };
+            localStorage.setItem('codeAssistant-layout', JSON.stringify(prefs));
+        } catch (error) {
+            console.log('Could not save layout preferences');
+        }
     }
-}
 
-toggleAssistant() {
-    this.assistantVisible = !this.assistantVisible;
-    
-    const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
-    const toggleBtn = document.getElementById(`toggleAssistantBtn-${this.windowId}`);
-    const widthControls = document.getElementById(`chatWidthControls-${this.windowId}`);
-    
-    if (chatSide) {
-        chatSide.style.display = this.assistantVisible ? 'flex' : 'none';
-    }
-    
-    if (toggleBtn) {
-        toggleBtn.style.background = this.assistantVisible ? 'var(--nebula-primary)' : 'var(--nebula-surface-hover)';
-        toggleBtn.style.color = this.assistantVisible ? 'white' : 'var(--nebula-text-primary)';
-        toggleBtn.querySelector('span:last-child').textContent = this.assistantVisible ? 'Hide AI' : 'Show AI';
-    }
-    
-    if (widthControls) {
-        widthControls.style.display = this.assistantVisible ? 'flex' : 'none';
-    }
-    
-    this.saveLayoutPreferences();
-    setTimeout(() => this.handleWindowResize(), 100);
-}
+    // FIX 1: Toggle Assistant - Replace your toggleAssistant() method with this:
+    toggleAssistant() {
+        this.assistantVisible = !this.assistantVisible;
 
-setChatWidth(percent) {
-    this.chatWidthPercent = percent;
-    
-    const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
-    if (chatSide) {
-        chatSide.style.width = `${percent}%`;
-        chatSide.style.flexShrink = '0';
-    }
-    
-    // Update button states
-    document.querySelectorAll(`[id^="chatWidth"][id$="-${this.windowId}"]`).forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    const activeBtn = document.getElementById(`chatWidth${percent}-${this.windowId}`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-    }
-    
-    this.saveLayoutPreferences();
-    setTimeout(() => this.handleWindowResize(), 100);
-}
+        const container = document.querySelector(`[data-window-id="${this.windowId}"] .code-assistant-container`);
+        const chatSide = container?.querySelector('.code-chat-side');
+        const toggleBtn = document.getElementById(`toggleAssistantBtn-${this.windowId}`);
+        const widthControls = document.getElementById(`chatWidthControls-${this.windowId}`);
 
-handleWindowResize() {
-    const webview = document.querySelector(`[data-window-id="${this.windowId}"] .code-webview`);
-    if (webview) {
-        webview.style.width = '100%';
-        webview.style.height = '100%';
-        
-        if (webview.getWebContentsId) {
-            try {
-                webview.executeJavaScript('window.dispatchEvent(new Event("resize"))');
-            } catch (error) {
-                // Ignore errors if webview not ready
+        if (chatSide) {
+            if (this.assistantVisible) {
+                // SHOW: Restore display and width
+                chatSide.style.display = 'flex';
+                chatSide.style.width = `${this.chatWidthPercent}%`;
+            } else {
+                // HIDE: Set display to none
+                chatSide.style.display = 'none';
             }
         }
-    }
-    
-    if (this.monacoEditor) {
-        setTimeout(() => {
-            this.monacoEditor.layout();
-        }, 100);
-    }
-}
 
-applySavedLayout() {
-    if (!this.assistantVisible) {
-        this.toggleAssistant();
+        if (toggleBtn) {
+            if (this.assistantVisible) {
+                toggleBtn.classList.add('active');
+                toggleBtn.querySelector('span:last-child').textContent = 'Hide AI';
+            } else {
+                toggleBtn.classList.remove('active');
+                toggleBtn.querySelector('span:last-child').textContent = 'Show AI';
+            }
+        }
+
+        if (widthControls) {
+            widthControls.style.display = this.assistantVisible ? 'flex' : 'none';
+        }
+
+        this.saveLayoutPreferences();
+        setTimeout(() => this.handleWindowResize(), 100);
     }
-    this.setChatWidth(this.chatWidthPercent);
-}
-    
+
+    // FIX 2: Chat Width - Replace your setChatWidth() method with this:
+    setChatWidth(percent) {
+        this.chatWidthPercent = percent;
+
+        const container = document.querySelector(`[data-window-id="${this.windowId}"] .code-assistant-container`);
+        const chatSide = container?.querySelector('.code-chat-side');
+        const editorSide = container?.querySelector('.code-editor-side');
+
+        if (chatSide && editorSide) {
+            // FIX: Set both sides explicitly to prevent expanding off-screen
+            const chatWidth = `${percent}%`;
+            const editorWidth = `${100 - percent}%`;
+
+            chatSide.style.width = chatWidth;
+            chatSide.style.flexShrink = '0';
+            chatSide.style.flexGrow = '0';
+
+            editorSide.style.width = editorWidth;
+            editorSide.style.flexShrink = '0';
+            editorSide.style.flexGrow = '0';
+
+            // Force container to use explicit flex basis
+            container.style.display = 'flex';
+            container.style.flexDirection = 'row';
+        }
+
+        // Update button states
+        document.querySelectorAll(`[id^="chatWidth"][id$="-${this.windowId}"]`).forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        const activeBtn = document.getElementById(`chatWidth${percent}-${this.windowId}`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
+
+        this.saveLayoutPreferences();
+        setTimeout(() => this.handleWindowResize(), 100);
+    }
+
+    handleWindowResize() {
+        const webview = document.querySelector(`[data-window-id="${this.windowId}"]  .code-webview`);
+        if (webview) {
+            webview.style.width = '100%';
+            webview.style.height = '100%';
+
+            if (webview.getWebContentsId) {
+                try {
+                    webview.executeJavaScript('window.dispatchEvent(new Event("resize"))');
+                } catch (error) {
+                    // Ignore errors if webview not ready
+                }
+            }
+        }
+
+        if (this.monacoEditor) {
+            setTimeout(() => {
+                this.monacoEditor.layout();
+            }, 100);
+        }
+    }
+
+    applySavedLayout() {
+        // Apply assistant visibility first
+        const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
+
+        if (!this.assistantVisible && chatSide) {
+            chatSide.style.display = 'none';
+            const toggleBtn = document.getElementById(`toggleAssistantBtn-${this.windowId}`);
+            if (toggleBtn) {
+                toggleBtn.classList.remove('active');
+                toggleBtn.querySelector('span:last-child').textContent = 'Show AI';
+            }
+            const widthControls = document.getElementById(`chatWidthControls-${this.windowId}`);
+            if (widthControls) {
+                widthControls.style.display = 'none';
+            }
+        } else {
+            // Apply chat width for visible assistant
+            this.setChatWidth(this.chatWidthPercent);
+        }
+    }
+
     async init() {
         if (!window.windowManager) {
             console.error('WindowManager not available');
             return;
         }
-        
+
         this.windowId = window.windowManager.createWindow({
             title: '💻 Code Assistant Pro',
             width: 1400,
@@ -177,30 +221,33 @@ applySavedLayout() {
             maximizable: true,
             minimizable: true
         });
-        
+
         window.windowManager.loadApp(this.windowId, this);
         console.log(`Code Assistant initialized with window ${this.windowId}`);
     }
-    
+
     render() {
         const container = document.createElement('div');
         container.className = 'code-assistant-container';
         container.style.cssText = `
-            height: 100%;
-            display: flex;
-            background: var(--nebula-bg-primary);
-            font-family: var(--nebula-font-family);
-        `;
-        
+        height: 100%;
+        display: flex;
+        flex-direction: row;
+        background: var(--nebula-bg-primary);
+        font-family: var(--nebula-font-family);
+        overflow: hidden;
+        align-items: stretch;
+    `;
+
         // Left side - Monaco Editor + Controls
         const editorSide = this.createEditorSide();
-        
+
         // Right side - AI Chat with Webview  
         const chatSide = this.createChatSide();
-        
+
         container.appendChild(editorSide);
         container.appendChild(chatSide);
-        
+
         // Setup after DOM is ready
         setTimeout(() => {
             this.setupEventListeners();
@@ -210,26 +257,30 @@ applySavedLayout() {
             this.updateWindowTitle(); // Set initial window title and status
         }, 0);
 
-            // Apply saved layout after creation
-    setTimeout(() => {
-        this.applySavedLayout();
-    }, 200);
-        
+        // Apply saved layout after creation
+        setTimeout(() => {
+            this.applySavedLayout();
+        }, 200);
+
         return container;
     }
 
 
-    
+
     createEditorSide() {
         const editorSide = document.createElement('div');
         editorSide.className = 'code-editor-side';
         editorSide.style.cssText = `
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid var(--nebula-border);
-        `;
-        
+            width: 67%;
+    flex-shrink: 0;
+    flex-grow: 0;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--nebula-border);
+        min-width: 0;
+        overflow: hidden;
+    `;
+
         // Enhanced Toolbar with Templates + Run Controls
         const toolbar = document.createElement('div');
         toolbar.className = 'code-toolbar';
@@ -242,7 +293,7 @@ applySavedLayout() {
             align-items: center;
             flex-wrap: wrap;
         `;
-        
+
         toolbar.innerHTML = `
             <!-- Language & Template Section - ENHANCED -->
             <select id="languageSelect-${this.windowId}" style="
@@ -347,27 +398,24 @@ applySavedLayout() {
                         <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
             <!-- 🆕 NEW: Assistant Layout Controls -->
-            <button id="toggleAssistantBtn-${this.windowId}" class="toolbar-btn" title="Toggle AI Assistant" style="
-                background: ${this.assistantVisible ? 'var(--nebula-primary)' : 'var(--nebula-surface-hover)'};
-                color: ${this.assistantVisible ? 'white' : 'var(--nebula-text-primary)'};
-            ">
-                <span class="material-symbols-outlined">smart_toy</span>
-                <span>${this.assistantVisible ? 'Hide' : 'Show'} AI</span>
-            </button>
-            
-            <!-- Chat Width Controls -->
-            <div id="chatWidthControls-${this.windowId}" style="
-                display: ${this.assistantVisible ? 'flex' : 'none'};
-                gap: 4px;
-                align-items: center;
-            ">
-                <span style="font-size: 12px; color: var(--nebula-text-secondary);">Chat:</span>
-                <button id="chatWidth25-${this.windowId}" class="width-btn ${this.chatWidthPercent === 25 ? 'active' : ''}" title="25% Width">25%</button>
-                <button id="chatWidth33-${this.windowId}" class="width-btn ${this.chatWidthPercent === 33 ? 'active' : ''}" title="33% Width">33%</button>
-                <button id="chatWidth50-${this.windowId}" class="width-btn ${this.chatWidthPercent === 50 ? 'active' : ''}" title="50% Width">50%</button>
-            </div>
+<button id="toggleAssistantBtn-${this.windowId}" class="code-toolbar-btn code-assistant-toggle" title="Toggle AI Assistant">
+    <span class="material-symbols-outlined">smart_toy</span>
+    <span>${this.assistantVisible ? 'Hide' : 'Show'} AI</span>
+</button>
+
+<!-- Chat Width Controls -->
+<div id="chatWidthControls-${this.windowId}" style="
+    display: ${this.assistantVisible ? 'flex' : 'none'};
+    gap: 4px;
+    align-items: center;
+">
+    <span style="font-size: 12px; color: var(--nebula-text-secondary);">Chat:</span>
+    <button id="chatWidth25-${this.windowId}" class="code-width-btn ${this.chatWidthPercent === 25 ? 'active' : ''}" title="25% Width">25%</button>
+    <button id="chatWidth33-${this.windowId}" class="code-width-btn ${this.chatWidthPercent === 33 ? 'active' : ''}" title="33% Width">33%</button>
+    <button id="chatWidth50-${this.windowId}" class="code-width-btn ${this.chatWidthPercent === 50 ? 'active' : ''}" title="50% Width">50%</button>
+</div>
         `;
-        
+
         // NEW: File Tab Bar
         const tabBar = document.createElement('div');
         tabBar.id = `fileTabBar-${this.windowId}`;
@@ -382,7 +430,7 @@ applySavedLayout() {
             overflow-y: hidden;
             flex-shrink: 0;
         `;
-        
+
         tabBar.innerHTML = `
             <div class="tab-list" id="tabList-${this.windowId}" style="
                 display: flex;
@@ -403,7 +451,7 @@ applySavedLayout() {
                 <span class="material-symbols-outlined" style="font-size: 18px;">add</span>
             </button>
         `;
-        
+
         // Editor Container with Output Panel
         const editorContainer = document.createElement('div');
         editorContainer.style.cssText = `
@@ -412,7 +460,7 @@ applySavedLayout() {
             flex-direction: column;
             min-height: 0;
         `;
-        
+
         // Monaco Editor (original)
         const monacoContainer = document.createElement('div');
         monacoContainer.id = `monacoEditor-${this.windowId}`;
@@ -420,7 +468,7 @@ applySavedLayout() {
             flex: 1;
             min-height: 0;
         `;
-        
+
         // ⚡ NEW: Output Panel (initially hidden)
         const outputPanel = document.createElement('div');
         outputPanel.id = `outputPanel-${this.windowId}`;
@@ -434,7 +482,7 @@ applySavedLayout() {
             overflow: hidden;
             transition: height 0.3s ease;
         `;
-        
+
         outputPanel.innerHTML = `
             <div style="
                 padding: 8px 16px;
@@ -469,10 +517,10 @@ applySavedLayout() {
                 white-space: pre-wrap;
             ">Ready to run JavaScript code... 🚀</div>
         `;
-        
+
         editorContainer.appendChild(monacoContainer);
         editorContainer.appendChild(outputPanel);
-        
+
         // NEW: Status bar for file info
         const statusBar = document.createElement('div');
         statusBar.className = 'code-status-bar';
@@ -488,31 +536,37 @@ applySavedLayout() {
             color: var(--nebula-text-secondary);
             flex-shrink: 0;
         `;
-        
+
         statusBar.innerHTML = `
             <span id="fileStatus-${this.windowId}">Ready</span>
             <span id="fileInfo-${this.windowId}">No file open</span>
         `;
-        
+
         editorContainer.appendChild(statusBar);
-        
+
         editorSide.appendChild(toolbar);
         editorSide.appendChild(tabBar); // NEW: Add tab bar
         editorSide.appendChild(editorContainer);
-        
+
         return editorSide;
     }
-    
+
     createChatSide() {
         const chatSide = document.createElement('div');
         chatSide.className = 'code-chat-side';
         chatSide.style.cssText = `
-            width: 400px;
-            display: flex;
-            flex-direction: column;
-            background: var(--nebula-surface);
-        `;
-        
+            width: 33%;
+    flex-shrink: 0;
+    flex-grow: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--nebula-surface);
+        flex-shrink: 0;
+        flex-grow: 0;
+        min-width: 250px;
+        max-width: 60%;
+    `;
+
         // AI Service Selector (original + enhanced)
         const chatHeader = document.createElement('div');
         chatHeader.style.cssText = `
@@ -520,7 +574,7 @@ applySavedLayout() {
             border-bottom: 1px solid var(--nebula-border);
             background: var(--nebula-surface-elevated);
         `;
-        
+
         chatHeader.innerHTML = `
             <div style="margin-bottom: 12px;">
                 <label style="display: block; font-size: 12px; font-weight: 600; color: var(--nebula-text-secondary); margin-bottom: 4px;">AI ASSISTANT</label>
@@ -532,9 +586,9 @@ applySavedLayout() {
                     background: var(--nebula-bg-primary);
                     color: var(--nebula-text-primary);
                 ">
-                    ${Object.entries(this.aiServices).map(([key, service]) => 
-                        `<option value="${key}">${service.icon} ${service.name}</option>`
-                    ).join('')}
+                    ${Object.entries(this.aiServices).map(([key, service]) =>
+            `<option value="${key}">${service.icon} ${service.name}</option>`
+        ).join('')}
                 </select>
             </div>
             
@@ -560,7 +614,7 @@ applySavedLayout() {
                 </button>
             </div>
         `;
-        
+
         // Webview Container (original)
         const webviewContainer = document.createElement('div');
         webviewContainer.id = `webviewContainer-${this.windowId}`;
@@ -569,7 +623,7 @@ applySavedLayout() {
             position: relative;
             background: var(--nebula-bg-primary);
         `;
-        
+
         // Loading indicator (original)
         webviewContainer.innerHTML = `
             <div id="chatLoading-${this.windowId}" style="
@@ -586,13 +640,13 @@ applySavedLayout() {
                 Loading AI Assistant...
             </div>
         `;
-        
+
         chatSide.appendChild(chatHeader);
         chatSide.appendChild(webviewContainer);
-        
+
         return chatSide;
     }
-    
+
     setupEventListeners() {
         // NEW: Template selector
         document.getElementById(`templateSelect-${this.windowId}`)?.addEventListener('change', (e) => {
@@ -601,34 +655,34 @@ applySavedLayout() {
                 e.target.value = ''; // Reset selector
             }
         });
-        
+
         // Language selector (original)
         document.getElementById(`languageSelect-${this.windowId}`)?.addEventListener('change', (e) => {
             this.switchLanguage(e.target.value);
         });
-        
+
         // AI Service selector (original)
         document.getElementById(`aiServiceSelect-${this.windowId}`)?.addEventListener('change', (e) => {
             this.switchAIService(e.target.value);
         });
-        
+
         // File operations - ENHANCED with real filesystem
         document.getElementById(`newFileBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.newFile();
         });
-        
+
         document.getElementById(`openFileBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.openFile();
         });
-        
+
         document.getElementById(`saveBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.saveFile();
         });
-        
+
         document.getElementById(`saveAsBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.saveAsFile();
         });
-        
+
         // NEW: Symbol navigation
         document.getElementById(`symbolSelect-${this.windowId}`)?.addEventListener('change', (e) => {
             if (e.target.value) {
@@ -636,63 +690,63 @@ applySavedLayout() {
                 e.target.value = ''; // Reset selector
             }
         });
-        
+
         // NEW: Tab management
         document.getElementById(`newTabBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.createNewTab();
         });
-        
+
         // ⚡ NEW: JS Execution Controls
         document.getElementById(`runBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.runJavaScript();
         });
-        
+
         document.getElementById(`debugBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.debugCode();
         });
-        
+
         document.getElementById(`toggleOutputBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.toggleOutputPanel();
         });
-        
+
         document.getElementById(`clearOutputBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.clearOutput();
         });
-        
+
         // Code operations (original)
         document.getElementById(`formatBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.formatCode();
         });
-        
+
         document.getElementById(`copyAllBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.copyAllCode();
         });
-        
+
         document.getElementById(`insertToFileBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.insertCodeToFile();
         });
-        
+
         // AI Actions (original)
         document.getElementById(`explainCodeBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.explainCode();
         });
-        
+
         document.getElementById(`optimizeCodeBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.optimizeCode();
         });
-        
+
         document.getElementById(`debugCodeBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.debugCode();
         });
-        
+
         document.getElementById(`addCommentsBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.addComments();
         });
-        
+
         document.getElementById(`generateTestsBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.generateTests();
         });
-        
+
         document.getElementById(`pasteFromAIBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.pasteFromAI();
         });
@@ -701,120 +755,120 @@ applySavedLayout() {
         document.getElementById(`toggleAssistantBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.toggleAssistant();
         });
-        
+
         // 🆕 NEW: Chat width buttons
         document.getElementById(`chatWidth25-${this.windowId}`)?.addEventListener('click', () => {
             this.setChatWidth(25);
         });
-        
+
         document.getElementById(`chatWidth33-${this.windowId}`)?.addEventListener('click', () => {
             this.setChatWidth(33);
         });
-        
+
         document.getElementById(`chatWidth50-${this.windowId}`)?.addEventListener('click', () => {
             this.setChatWidth(50);
         });
-        
+
         // 🆕 FIX: Window resize handler
         window.addEventListener('resize', () => {
             this.handleWindowResize();
         });
-        
+
 
         document.addEventListener('keydown', (e) => {
             if (!this.isWindowActive()) return;
-            
+
             // 🔥 FIX: Allow Electron dev tools shortcuts to pass through
             if (e.ctrlKey && e.shiftKey && e.key === 'I') {
                 // Don't prevent default - let Electron handle Ctrl+Shift+I
                 return;
             }
-            
+
             if (e.key === 'F12') {
                 // Don't prevent default - let Electron handle F12
                 return;
             }
-            
+
             // 🔥 FIX: Also allow Ctrl+Shift+J (Chrome dev tools alternative)
             if (e.ctrlKey && e.shiftKey && e.key === 'J') {
                 return;
             }
-            
+
             // File operations shortcuts
             if (e.ctrlKey && e.key === 's' && !e.shiftKey) {
                 e.preventDefault();
                 this.saveFile();
             }
-            
+
             if (e.ctrlKey && e.shiftKey && e.key === 'S') {
                 e.preventDefault();
                 this.saveAsFile();
             }
-            
+
             if (e.ctrlKey && e.key === 'n') {
                 e.preventDefault();
                 this.newFile();
             }
-            
+
             if (e.ctrlKey && e.key === 'o') {
                 e.preventDefault();
                 this.openFile();
             }
-            
+
             // F5 for running JavaScript (but not Ctrl+F5 for refresh)
             if (e.key === 'F5' && !e.ctrlKey) {
                 e.preventDefault();
                 this.runJavaScript();
             }
         });
-        
+
         // Add CSS for button styles
         this.addToolbarStyles();
     }
 
 
-    
+
     // ⚡ NEW: JavaScript Execution (extracted from NebulaTerminal)
     runJavaScript() {
         if (!this.monacoEditor) {
             this.writeOutput('Error: Editor not initialized', 'error');
             return;
         }
-        
+
         const code = this.monacoEditor.getValue();
         if (!code.trim()) {
             this.writeOutput('Error: No code to execute', 'error');
             return;
         }
-        
+
         // Show output panel if hidden
         if (!this.outputVisible) {
             this.toggleOutputPanel();
         }
-        
+
         this.executeJS(code);
     }
-    
+
     executeJS(code) {
         this.writeOutput(`> Running JavaScript...\n`, 'info');
-        
+
         try {
             // Capture console output (from Terminal's executeJS method)
             const originalLog = console.log;
             const originalError = console.error;
             const originalWarn = console.warn;
             let output = '';
-            
+
             const captureOutput = (...args) => {
-                output += args.map(arg => 
+                output += args.map(arg =>
                     typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
                 ).join(' ') + '\n';
             };
-            
+
             console.log = captureOutput;
             console.error = captureOutput;
             console.warn = captureOutput;
-            
+
             // Execute code in safe context - handle both expressions and full scripts
             let result;
             try {
@@ -829,48 +883,48 @@ applySavedLayout() {
                     throw firstError;
                 }
             }
-            
+
             // Restore console methods
             console.log = originalLog;
             console.error = originalError;
             console.warn = originalWarn;
-            
+
             // Show captured output
             if (output) {
                 this.writeOutput('Console Output:', 'success');
                 this.writeOutput(output.trim(), 'output');
             }
-            
+
             // Show result if not undefined
             if (result !== undefined) {
                 this.writeOutput('\nResult:', 'success');
                 this.writeOutput(
-                    typeof result === 'object' ? 
-                        JSON.stringify(result, null, 2) : String(result), 
+                    typeof result === 'object' ?
+                        JSON.stringify(result, null, 2) : String(result),
                     'result'
                 );
             }
-            
+
             this.writeOutput('\n✅ Execution completed successfully\n', 'success');
-            
+
         } catch (error) {
             this.writeOutput(`❌ JavaScript Error: ${error.message}\n`, 'error');
         }
     }
-    
+
     // ⚡ NEW: Output Panel Management
     toggleOutputPanel() {
         const outputPanel = document.getElementById(`outputPanel-${this.windowId}`);
         if (!outputPanel) return;
-        
+
         this.outputVisible = !this.outputVisible;
-        
+
         if (this.outputVisible) {
             outputPanel.style.height = '250px';
         } else {
             outputPanel.style.height = '0';
         }
-        
+
         // Update button appearance
         const toggleBtn = document.getElementById(`toggleOutputBtn-${this.windowId}`);
         if (toggleBtn) {
@@ -878,34 +932,34 @@ applySavedLayout() {
             toggleBtn.style.color = this.outputVisible ? 'white' : '';
         }
     }
-    
+
     writeOutput(text, type = 'output') {
         const outputContent = document.getElementById(`outputContent-${this.windowId}`);
         if (!outputContent) return;
-        
+
         const colors = {
             info: '#61dafb',
-            success: '#4ade80', 
+            success: '#4ade80',
             error: '#ef4444',
             result: '#fbbf24',
             output: '#d4d4d4'
         };
-        
+
         const span = document.createElement('span');
         span.style.color = colors[type] || colors.output;
         span.textContent = text + '\n';
-        
+
         outputContent.appendChild(span);
         outputContent.scrollTop = outputContent.scrollHeight;
     }
-    
+
     // ⚡ NEW: Multi-File Tab Management System
-    
+
     createNewTab(filePath = null, content = null) {
         const fileId = `file-${this.nextFileId++}`;
         const fileName = filePath ? filePath.split('/').pop() : 'Untitled';
         const language = this.detectLanguageFromPath(filePath || fileName);
-        
+
         const fileData = {
             id: fileId,
             path: filePath,
@@ -915,23 +969,23 @@ applySavedLayout() {
             hasUnsavedChanges: false,
             monacoModel: null
         };
-        
+
         this.openFiles.set(fileId, fileData);
         this.createTabElement(fileData);
         this.switchToTab(fileId);
-        
+
         console.log(`Created new tab: ${fileName}`);
         return fileId;
     }
-    
+
     createTabElement(fileData) {
         const tabList = document.getElementById(`tabList-${this.windowId}`);
         if (!tabList) return;
-        
+
         const fileIcon = this.getFileTypeIcon(fileData.name, fileData.language);
-        const displayName = fileData.name.length > 20 ? 
+        const displayName = fileData.name.length > 20 ?
             fileData.name.substring(0, 17) + '...' : fileData.name;
-        
+
         const tab = document.createElement('div');
         tab.className = 'file-tab';
         tab.dataset.fileId = fileData.id;
@@ -951,7 +1005,7 @@ applySavedLayout() {
             gap: 6px;
             max-width: 200px;
         `;
-        
+
         tab.innerHTML = `
             <span class="file-icon" style="font-size: 14px; flex-shrink: 0;">${fileIcon}</span>
             <span class="file-name" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
@@ -977,42 +1031,42 @@ applySavedLayout() {
                 <span class="material-symbols-outlined" style="font-size: 14px;">close</span>
             </button>
         `;
-        
+
         // Add event listeners
         tab.addEventListener('click', (e) => {
             if (e.target.closest('.tab-close-btn')) return;
             this.switchToTab(fileData.id);
         });
-        
+
         tab.querySelector('.tab-close-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             this.closeTab(fileData.id);
         });
-        
+
         // Add tooltip with full path
         if (fileData.path) {
             tab.title = fileData.path;
         }
-        
+
         tabList.appendChild(tab);
         fileData.tabElement = tab;
     }
-    
+
     switchToTab(fileId) {
         const fileData = this.openFiles.get(fileId);
         if (!fileData) return;
-        
+
         // Update visual state of tabs
         document.querySelectorAll(`#tabList-${this.windowId} .file-tab`).forEach(tab => {
             tab.style.background = 'var(--nebula-surface)';
             tab.style.borderBottom = 'none';
         });
-        
+
         if (fileData.tabElement) {
             fileData.tabElement.style.background = 'var(--nebula-bg-primary)';
             fileData.tabElement.style.borderBottom = '2px solid var(--nebula-primary)';
         }
-        
+
         // Switch Monaco model
         if (this.monacoEditor && monaco) {
             if (!fileData.monacoModel) {
@@ -1026,44 +1080,44 @@ applySavedLayout() {
             // Fallback editor
             this.monacoEditor.setValue(fileData.content);
         }
-        
+
         // Update current file tracking
         this.activeFileId = fileId;
         this.currentFilePath = fileData.path;
         this.hasUnsavedChanges = fileData.hasUnsavedChanges;
-        
+
         // Update language selector
         const languageSelect = document.getElementById(`languageSelect-${this.windowId}`);
         if (languageSelect) languageSelect.value = fileData.language;
-        
+
         this.updateWindowTitle();
         console.log(`Switched to tab: ${fileData.name}`);
     }
-    
+
     closeTab(fileId) {
         const fileData = this.openFiles.get(fileId);
         if (!fileData) return;
-        
+
         // Check for unsaved changes
         if (fileData.hasUnsavedChanges) {
             if (!confirm(`"${fileData.name}" has unsaved changes. Close anyway?`)) {
                 return;
             }
         }
-        
+
         // Remove tab element
         if (fileData.tabElement) {
             fileData.tabElement.remove();
         }
-        
+
         // Dispose Monaco model
         if (fileData.monacoModel) {
             fileData.monacoModel.dispose();
         }
-        
+
         // Remove from open files
         this.openFiles.delete(fileId);
-        
+
         // If this was the active tab, switch to another
         if (this.activeFileId === fileId) {
             const remainingFiles = Array.from(this.openFiles.keys());
@@ -1074,13 +1128,13 @@ applySavedLayout() {
                 this.createNewTab();
             }
         }
-        
+
         console.log(`Closed tab: ${fileData.name}`);
     }
-    
+
     detectLanguageFromPath(filePath) {
         if (!filePath) return 'javascript';
-        
+
         const extension = filePath.split('.').pop().toLowerCase();
         const languageMap = {
             'js': 'javascript',
@@ -1093,15 +1147,15 @@ applySavedLayout() {
             'md': 'markdown',
             'txt': 'plaintext'
         };
-        
+
         return languageMap[extension] || 'javascript';
     }
-    
+
     getFileTypeIcon(fileName, language) {
         if (!fileName) return '📄';
-        
+
         const extension = fileName.split('.').pop()?.toLowerCase();
-        
+
         // Better web glyph icons for different file types
         const iconMap = {
             // JavaScript/TypeScript
@@ -1109,7 +1163,7 @@ applySavedLayout() {
             'ts': '◈', // TypeScript - diamond
             'jsx': '⬟', // React JSX
             'tsx': '⬢', // React TSX
-            
+
             // Web Technologies  
             'html': '⬢', // HTML - hexagon
             'htm': '⬢',
@@ -1117,11 +1171,11 @@ applySavedLayout() {
             'scss': '◼',
             'sass': '◼',
             'less': '◼',
-            
+
             // Python
             'py': '◉', // Python - filled circle 
             'pyc': '○', // Python compiled
-            
+
             // Data/Config
             'json': '⧨', // JSON - data symbol
             'xml': '⧫', // XML - diamond
@@ -1131,14 +1185,14 @@ applySavedLayout() {
             'ini': '⚙',
             'cfg': '⚙',
             'conf': '⚙',
-            
+
             // Documentation
             'md': '◈', // Markdown - diamond outline
             'txt': '◇', // Text - empty diamond
             'rtf': '◇',
             'doc': '◇',
             'docx': '◇',
-            
+
             // Images
             'png': '⬛', // Images - filled square
             'jpg': '⬛',
@@ -1147,14 +1201,14 @@ applySavedLayout() {
             'svg': '◆', // SVG - filled diamond
             'ico': '⬛',
             'webp': '⬛',
-            
+
             // Archives
             'zip': '⬢', // Archives - hexagon
             'tar': '⬢',
             'gz': '⬢',
             'rar': '⬢',
             '7z': '⬢',
-            
+
             // Executables
             'exe': '▲', // Executables - triangle
             'msi': '▲',
@@ -1162,70 +1216,70 @@ applySavedLayout() {
             'rpm': '▲',
             'app': '▲'
         };
-        
+
         return iconMap[extension] || '◯'; // Default: empty circle
     }
-    
+
     markTabAsModified(fileId, isModified) {
         const fileData = this.openFiles.get(fileId);
         if (!fileData) return;
-        
+
         fileData.hasUnsavedChanges = isModified;
-        
+
         if (fileData.tabElement) {
             const indicator = fileData.tabElement.querySelector('.unsaved-indicator');
             if (indicator) {
                 indicator.style.display = isModified ? 'block' : 'none';
             }
         }
-        
+
         // If this is the active tab, update window title
         if (fileId === this.activeFileId) {
             this.hasUnsavedChanges = isModified;
             this.updateWindowTitle();
         }
     }
-    
+
     clearOutput() {
         const outputContent = document.getElementById(`outputContent-${this.windowId}`);
         if (outputContent) {
             outputContent.innerHTML = 'Output cleared... 🧹\n';
         }
     }
-    
+
     // Update existing methods to work with tabs
     getCurrentFileData() {
         return this.openFiles.get(this.activeFileId);
     }
-    
+
     // ⚡ NEW: Symbol Navigation (VS Code-like feature)
     updateSymbolDropdown() {
         const symbolSelect = document.getElementById(`symbolSelect-${this.windowId}`);
         if (!symbolSelect || !this.monacoEditor) return;
-        
+
         const fileData = this.getCurrentFileData();
         if (!fileData) {
             symbolSelect.innerHTML = '<option value="">📋 Go to Symbol...</option>';
             return;
         }
-        
+
         // Parse symbols based on language
         const symbols = this.parseSymbols(fileData.content, fileData.language);
-        
-        symbolSelect.innerHTML = '<option value="">📋 Go to Symbol...</option>' + 
-            symbols.map(symbol => 
+
+        symbolSelect.innerHTML = '<option value="">📋 Go to Symbol...</option>' +
+            symbols.map(symbol =>
                 `<option value="${symbol.line}">${symbol.icon} ${symbol.name}</option>`
             ).join('');
     }
-    
+
     parseSymbols(content, language) {
         const symbols = [];
         const lines = content.split('\n');
-        
+
         if (language === 'javascript' || language === 'typescript') {
             lines.forEach((line, index) => {
                 const trimmed = line.trim();
-                
+
                 // Classes
                 if (trimmed.match(/^class\s+(\w+)/)) {
                     const match = trimmed.match(/^class\s+(\w+)/);
@@ -1236,7 +1290,7 @@ applySavedLayout() {
                         type: 'class'
                     });
                 }
-                
+
                 // Functions (various patterns)
                 const funcPatterns = [
                     /^function\s+(\w+)/,           // function name()
@@ -1248,7 +1302,7 @@ applySavedLayout() {
                     /(\w+)\s*=\s*async\s*\(/,      // name = async (
                     /^\s*(\w+)\(.*\)\s*{/          // method() {
                 ];
-                
+
                 funcPatterns.forEach(pattern => {
                     const match = trimmed.match(pattern);
                     if (match && !['if', 'for', 'while', 'switch', 'catch'].includes(match[1])) {
@@ -1260,7 +1314,7 @@ applySavedLayout() {
                         });
                     }
                 });
-                
+
                 // Variables and constants
                 if (trimmed.match(/^(const|let|var)\s+(\w+)/)) {
                     const match = trimmed.match(/^(const|let|var)\s+(\w+)/);
@@ -1275,7 +1329,7 @@ applySavedLayout() {
         } else if (language === 'python') {
             lines.forEach((line, index) => {
                 const trimmed = line.trim();
-                
+
                 // Classes
                 if (trimmed.match(/^class\s+(\w+)/)) {
                     const match = trimmed.match(/^class\s+(\w+)/);
@@ -1286,7 +1340,7 @@ applySavedLayout() {
                         type: 'class'
                     });
                 }
-                
+
                 // Functions/methods
                 if (trimmed.match(/^def\s+(\w+)/)) {
                     const match = trimmed.match(/^def\s+(\w+)/);
@@ -1301,7 +1355,7 @@ applySavedLayout() {
         } else if (language === 'html') {
             lines.forEach((line, index) => {
                 const trimmed = line.trim();
-                
+
                 // HTML IDs and classes
                 const idMatch = trimmed.match(/id=["']([^"']+)["']/);
                 if (idMatch) {
@@ -1312,7 +1366,7 @@ applySavedLayout() {
                         type: 'id'
                     });
                 }
-                
+
                 const classMatch = trimmed.match(/class=["']([^"']+)["']/);
                 if (classMatch) {
                     symbols.push({
@@ -1324,22 +1378,22 @@ applySavedLayout() {
                 }
             });
         }
-        
+
         // Sort symbols by line number
         return symbols.sort((a, b) => a.line - b.line);
     }
-    
+
     goToSymbol(lineNumber) {
         if (!this.monacoEditor || !monaco) return;
-        
+
         const line = parseInt(lineNumber);
         this.monacoEditor.revealLineInCenter(line);
         this.monacoEditor.setPosition({ lineNumber: line, column: 1 });
         this.monacoEditor.focus();
-        
+
         this.writeOutput(`Jumped to line ${line}`, 'info');
     }
-    
+
     // ⚡ NEW: Template Loading System
     async loadTemplate(templateKey) {
         const template = this.templates[templateKey];
@@ -1347,42 +1401,42 @@ applySavedLayout() {
             alert('Template not found!');
             return;
         }
-        
+
         try {
             this.writeOutput(`Loading template: ${template.name}...`, 'info');
-            
+
             // Fetch the actual template file from src/Templates/
             const response = await fetch(template.path);
             if (!response.ok) {
                 throw new Error(`Failed to fetch template: ${response.status}`);
             }
-            
+
             const templateContent = await response.text();
-            
+
             if (this.monacoEditor) {
                 const currentCode = this.monacoEditor.getValue();
                 if (currentCode.trim() && !confirm(`Load template "${template.name}"?\n\nThis will replace current code.`)) {
                     return;
                 }
-                
+
                 this.monacoEditor.setValue(templateContent);
                 this.writeOutput(`✅ Template "${template.name}" loaded successfully!`, 'success');
             }
-            
+
         } catch (error) {
             this.writeOutput(`❌ Failed to load template: ${error.message}`, 'error');
             console.error('Template loading error:', error);
-            
+
             // Fallback to embedded templates if fetch fails
             this.writeOutput('Falling back to embedded template...', 'info');
             this.loadEmbeddedTemplate(templateKey);
         }
     }
-    
+
     // Fallback method for embedded templates (simple versions)
     loadEmbeddedTemplate(templateKey) {
         let templateContent = '';
-        
+
         if (templateKey === 'single-app') {
             templateContent = '// NebulaApp Single Window Template\n' +
                 'class NebulaMyApp {\n' +
@@ -1452,13 +1506,13 @@ applySavedLayout() {
                 '\n' +
                 'window.NebulaMyTabbedApp = NebulaMyTabbedApp;';
         }
-        
+
         if (this.monacoEditor && templateContent) {
             this.monacoEditor.setValue(templateContent);
             this.writeOutput('✅ Fallback template loaded!', 'success');
         }
     }
-    
+
     // Continue with existing methods...
     async initializeMonaco() {
         try {
@@ -1466,10 +1520,10 @@ applySavedLayout() {
             if (!window.monaco) {
                 await this.loadMonaco();
             }
-            
+
             const container = document.getElementById(`monacoEditor-${this.windowId}`);
             if (!container) return;
-            
+
             this.monacoEditor = monaco.editor.create(container, {
                 value: this.getWelcomeCode(),
                 language: this.currentLanguage,
@@ -1486,17 +1540,17 @@ applySavedLayout() {
                     indentation: true
                 }
             });
-            
+
             // NEW: Track changes for unsaved indicator
             this.monacoEditor.onDidChangeModelContent(() => {
                 if (this.activeFileId) {
                     this.markTabAsModified(this.activeFileId, true);
-                    
+
                     // Update content in file data
                     const fileData = this.getCurrentFileData();
                     if (fileData) {
                         fileData.content = this.monacoEditor.getValue();
-                        
+
                         // Update symbols when content changes (debounced)
                         clearTimeout(this.symbolUpdateTimeout);
                         this.symbolUpdateTimeout = setTimeout(() => {
@@ -1505,7 +1559,7 @@ applySavedLayout() {
                     }
                 }
             });
-            
+
             console.log('Monaco Editor initialized');
         } catch (error) {
             console.error('Failed to initialize Monaco Editor:', error);
@@ -1513,7 +1567,7 @@ applySavedLayout() {
             this.createFallbackEditor();
         }
     }
-    
+
     /**
      * Load Monaco Editor from CDN (original)
      */
@@ -1523,7 +1577,7 @@ applySavedLayout() {
                 resolve();
                 return;
             }
-            
+
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
             script.onload = () => {
@@ -1536,14 +1590,14 @@ applySavedLayout() {
             document.head.appendChild(script);
         });
     }
-    
+
     /**
      * Create fallback textarea editor if Monaco fails (original)
      */
     createFallbackEditor() {
         const container = document.getElementById(`monacoEditor-${this.windowId}`);
         if (!container) return;
-        
+
         container.innerHTML = `
             <textarea id="fallbackEditor-${this.windowId}" style="
                 width: 100%;
@@ -1560,7 +1614,7 @@ applySavedLayout() {
                 tab-size: 4;
             " placeholder="// Monaco Editor failed to load, using fallback editor">${this.getWelcomeCode()}</textarea>
         `;
-        
+
         this.monacoEditor = {
             getValue: () => document.getElementById(`fallbackEditor-${this.windowId}`)?.value || '',
             setValue: (value) => {
@@ -1580,14 +1634,14 @@ applySavedLayout() {
                 }
             }
         };
-        
+
         // Set up change tracking for fallback editor
         this.monacoEditor.onDidChangeModelContent(() => {
             this.hasUnsavedChanges = true;
             this.updateWindowTitle();
         });
     }
-    
+
     /**
      * Get welcome code example (original + enhanced)
      */
@@ -1621,7 +1675,7 @@ function greetUser(name = "Developer") {
 greetUser("Nebula Coder");
 
 // TODO: Start coding your amazing project here!`,
-            
+
             python: `# Welcome to Nebula Code Assistant! 🚀
 # This Monaco editor supports full Python syntax highlighting
 
@@ -1639,7 +1693,7 @@ def greet_user(name="Developer"):
 greet_user("Nebula User")
 
 # TODO: Start coding your amazing project here!`,
-            
+
             html: `<!-- Welcome to Nebula Code Assistant! 🚀 -->
 <!-- This Monaco editor supports full HTML syntax highlighting -->
 
@@ -1805,25 +1859,25 @@ function createAmazingApp() {
 
 **TODO:** Start building your amazing project here!`
         };
-        
+
         return examples[this.currentLanguage] || examples.javascript;
     }
-    
+
     /**
      * Create webview for AI service (original)
      */
     createWebview() {
         const container = document.getElementById(`webviewContainer-${this.windowId}`);
         if (!container) return;
-        
+
         this.showLoading();
-        
+
         // Remove existing webview
         if (this.webview) {
             this.webview.remove();
             this.webview = null;
         }
-        
+
         // Create new webview
         this.webview = document.createElement('webview');
         this.webview.className = 'code-webview';
@@ -1833,59 +1887,59 @@ function createAmazingApp() {
             border: none;
             background: var(--nebula-bg-primary);
         `;
-        
+
         const currentService = this.aiServices[this.currentAIService];
         this.webview.src = currentService.url;
-        
+
         this.setupWebviewListeners();
         container.appendChild(this.webview);
-        
+
         console.log(`Created code webview for ${currentService.name}`);
     }
-    
+
     /**
      * Set up webview event listeners (original)
      */
     setupWebviewListeners() {
         if (!this.webview) return;
-        
+
         this.webview.addEventListener('dom-ready', () => {
             this.hideLoading();
             console.log('Code AI webview loaded');
         });
-        
+
         this.webview.addEventListener('did-start-loading', () => {
             this.showLoading();
         });
-        
+
         this.webview.addEventListener('did-stop-loading', () => {
             this.hideLoading();
         });
-        
+
         this.webview.addEventListener('did-fail-load', (e) => {
             this.hideLoading();
             console.error('Code AI webview failed to load:', e);
         });
-        
+
         this.webview.addEventListener('new-window', (e) => {
             e.preventDefault();
             console.log('New window requested:', e.url);
         });
     }
-    
+
     /**
      * Switch programming language (original)
      */
     switchLanguage(language) {
         this.currentLanguage = language;
-        
+
         if (this.monacoEditor && monaco) {
             monaco.editor.setModelLanguage(this.monacoEditor.getModel(), language);
         }
-        
+
         console.log(`Switched to ${language}`);
     }
-    
+
     /**
      * Switch AI service (original)
      */
@@ -1894,13 +1948,13 @@ function createAmazingApp() {
             console.error('Unknown AI service:', serviceKey);
             return;
         }
-        
+
         this.currentAIService = serviceKey;
         this.createWebview();
-        
+
         console.log(`Switched to ${this.aiServices[serviceKey].name}`);
     }
-    
+
     /**
      * Show/hide loading indicator (original)
      */
@@ -1908,12 +1962,12 @@ function createAmazingApp() {
         const loading = document.getElementById(`chatLoading-${this.windowId}`);
         if (loading) loading.style.display = 'block';
     }
-    
+
     hideLoading() {
         const loading = document.getElementById(`chatLoading-${this.windowId}`);
         if (loading) loading.style.display = 'none';
     }
-    
+
     /**
      * File operations - ENHANCED with real filesystem access
      */
@@ -1923,7 +1977,7 @@ function createAmazingApp() {
                 return;
             }
         }
-        
+
         if (this.monacoEditor) {
             this.monacoEditor.setValue(this.getWelcomeCode());
         }
@@ -1934,7 +1988,7 @@ function createAmazingApp() {
         this.writeOutput('New file created', 'info');
         console.log('New file created');
     }
-    
+
     // NEW: Open file from filesystem using NATIVE dialog
     async openFile() {
         try {
@@ -1944,11 +1998,11 @@ function createAmazingApp() {
                     title: 'Open File',
                     defaultPath: await window.nebula.fs.getHomeDir()
                 });
-                
+
                 if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
                     return;
                 }
-                
+
                 const filePath = result.filePaths[0];
                 await this.loadFileContent(filePath);
             } else {
@@ -1956,16 +2010,16 @@ function createAmazingApp() {
                 const homeDir = await window.nebula.fs.getHomeDir();
                 const filePath = await this.showInputDialog('Open File', 'Enter file path to open:', homeDir + '/');
                 if (!filePath) return;
-                
+
                 await this.loadFileContent(filePath);
             }
-            
+
         } catch (error) {
             this.writeOutput(`❌ Failed to open file: ${error.message}`, 'error');
             console.error('File open error:', error);
         }
     }
-    
+
     // NEW: Load file content (extracted for reuse)
     async loadFileContent(filePath) {
         // Check if file exists
@@ -1974,17 +2028,17 @@ function createAmazingApp() {
             alert('File not found: ' + filePath);
             return;
         }
-        
+
         // Read file content
         this.writeOutput(`Opening file: ${filePath}...`, 'info');
         const content = await window.nebula.fs.readFile(filePath);
-        
+
         if (this.monacoEditor) {
             this.monacoEditor.setValue(content);
             this.currentFilePath = filePath;
             this.hasUnsavedChanges = false;
             this.updateWindowTitle();
-            
+
             // Auto-detect language from file extension
             const extension = filePath.split('.').pop().toLowerCase();
             const languageMap = {
@@ -1996,30 +2050,30 @@ function createAmazingApp() {
                 'json': 'json',
                 'md': 'markdown'
             };
-            
+
             if (languageMap[extension]) {
                 this.switchLanguage(languageMap[extension]);
                 const languageSelect = document.getElementById(`languageSelect-${this.windowId}`);
                 if (languageSelect) languageSelect.value = languageMap[extension];
             }
-            
+
             this.writeOutput(`✅ File opened successfully!`, 'success');
         }
     }
-    
+
     // ENHANCED: Save using NATIVE dialog
     async saveFile(saveAs = false) {
         if (!this.monacoEditor) return;
-        
+
         const code = this.monacoEditor.getValue();
         if (!code.trim()) {
             alert('No content to save!');
             return;
         }
-        
+
         try {
             let filePath = this.currentFilePath;
-            
+
             // If no current file or Save As requested, use native save dialog
             if (!filePath || saveAs) {
                 if (window.nebula?.dialog?.saveFile) {
@@ -2027,11 +2081,11 @@ function createAmazingApp() {
                         title: saveAs ? 'Save As' : 'Save File',
                         defaultPath: filePath || (await window.nebula.fs.getHomeDir()) + '/untitled.js'
                     });
-                    
+
                     if (result.canceled || !result.filePath) {
                         return;
                     }
-                    
+
                     filePath = result.filePath;
                 } else {
                     // Fallback to custom dialog
@@ -2041,25 +2095,25 @@ function createAmazingApp() {
                     if (!filePath) return;
                 }
             }
-            
+
             this.writeOutput(`Saving file: ${filePath}...`, 'info');
-            
+
             // Write file to filesystem
             await window.nebula.fs.writeFile(filePath, code);
-            
+
             this.currentFilePath = filePath;
             this.hasUnsavedChanges = false;
             this.updateWindowTitle();
             this.writeOutput(`✅ File saved successfully!`, 'success');
-            
+
             console.log(`File saved: ${filePath}`);
-            
+
         } catch (error) {
             this.writeOutput(`❌ Failed to save file: ${error.message}`, 'error');
             console.error('File save error:', error);
         }
     }
-    
+
     // NEW: Custom input dialog (replaces prompt())
     showInputDialog(title, message, defaultValue = '') {
         return new Promise((resolve) => {
@@ -2077,7 +2131,7 @@ function createAmazingApp() {
                 justify-content: center;
                 z-index: 10000;
             `;
-            
+
             const dialog = document.createElement('div');
             dialog.style.cssText = `
                 background: var(--nebula-surface);
@@ -2087,7 +2141,7 @@ function createAmazingApp() {
                 min-width: 400px;
                 max-width: 600px;
             `;
-            
+
             dialog.innerHTML = `
                 <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0;">${title}</h3>
                 <p style="color: var(--nebula-text-secondary); margin: 0 0 16px 0;">${message}</p>
@@ -2120,29 +2174,29 @@ function createAmazingApp() {
                     ">OK</button>
                 </div>
             `;
-            
+
             modal.appendChild(dialog);
             document.body.appendChild(modal);
-            
+
             // Focus input and select text
             const input = dialog.querySelector('#inputField');
             input.focus();
             input.select();
-            
+
             // Handle buttons
             const cleanup = (result) => {
                 document.body.removeChild(modal);
                 resolve(result);
             };
-            
+
             dialog.querySelector('#okBtn').addEventListener('click', () => {
                 cleanup(input.value.trim() || null);
             });
-            
+
             dialog.querySelector('#cancelBtn').addEventListener('click', () => {
                 cleanup(null);
             });
-            
+
             // Handle Enter/Escape keys
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -2153,38 +2207,38 @@ function createAmazingApp() {
             });
         });
     }
-    
+
     // NEW: Save As functionality
     async saveAsFile() {
         await this.saveFile(true);
     }
-    
+
     // NEW: File browser for opening files
     async browseAndOpenFile() {
         try {
             const homeDir = await window.nebula.fs.getHomeDir();
-            
+
             // Simple file browser - list directory contents
             const files = await window.nebula.fs.readDir(homeDir);
-            
+
             // Filter for code files
             const codeFiles = files.filter(file => {
                 const extensions = ['.js', '.ts', '.py', '.html', '.css', '.json', '.md', '.txt'];
                 return extensions.some(ext => file.toLowerCase().endsWith(ext));
             });
-            
+
             if (codeFiles.length === 0) {
                 alert('No code files found in home directory.');
                 return;
             }
-            
+
             // Show file selection dialog
             const selectedFile = await this.showFilePickerDialog('Select File to Open', codeFiles, homeDir);
             if (!selectedFile) return;
-            
+
             // Read and open the selected file
             const content = await window.nebula.fs.readFile(selectedFile);
-            
+
             if (this.monacoEditor) {
                 this.monacoEditor.setValue(content);
                 this.currentFilePath = selectedFile;
@@ -2192,13 +2246,13 @@ function createAmazingApp() {
                 this.updateWindowTitle();
                 this.writeOutput(`✅ File opened: ${selectedFile}`, 'success');
             }
-            
+
         } catch (error) {
             this.writeOutput(`❌ Failed to browse files: ${error.message}`, 'error');
             console.error('File browse error:', error);
         }
     }
-    
+
     // NEW: File picker dialog (replaces prompt() for file selection)
     showFilePickerDialog(title, files, basePath) {
         return new Promise((resolve) => {
@@ -2216,7 +2270,7 @@ function createAmazingApp() {
                 justify-content: center;
                 z-index: 10000;
             `;
-            
+
             const dialog = document.createElement('div');
             dialog.style.cssText = `
                 background: var(--nebula-surface);
@@ -2229,7 +2283,7 @@ function createAmazingApp() {
                 display: flex;
                 flex-direction: column;
             `;
-            
+
             const fileListHtml = files.map((file, index) => `
                 <div class="file-option" data-file="${file}" style="
                     padding: 8px 12px;
@@ -2243,7 +2297,7 @@ function createAmazingApp() {
                     📄 ${file}
                 </div>
             `).join('');
-            
+
             dialog.innerHTML = `
                 <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0;">${title}</h3>
                 <div style="
@@ -2269,12 +2323,12 @@ function createAmazingApp() {
                     ">Cancel</button>
                 </div>
             `;
-            
+
             modal.appendChild(dialog);
             document.body.appendChild(modal);
-            
+
             let selectedFile = null;
-            
+
             // Handle file selection
             dialog.querySelectorAll('.file-option').forEach(option => {
                 option.addEventListener('click', () => {
@@ -2283,32 +2337,32 @@ function createAmazingApp() {
                         o.style.background = 'transparent';
                         o.style.borderColor = 'transparent';
                     });
-                    
+
                     // Highlight selected
                     option.style.background = 'var(--nebula-primary)';
                     option.style.borderColor = 'var(--nebula-primary)';
                     option.style.color = 'white';
-                    
+
                     selectedFile = basePath + '/' + option.dataset.file;
                 });
-                
+
                 // Double click to open
                 option.addEventListener('dblclick', () => {
                     selectedFile = basePath + '/' + option.dataset.file;
                     cleanup(selectedFile);
                 });
             });
-            
+
             // Handle buttons
             const cleanup = (result) => {
                 document.body.removeChild(modal);
                 resolve(result);
             };
-            
+
             dialog.querySelector('#cancelBtn').addEventListener('click', () => {
                 cleanup(null);
             });
-            
+
             // Handle Escape key
             document.addEventListener('keydown', function escapeHandler(e) {
                 if (e.key === 'Escape') {
@@ -2318,23 +2372,23 @@ function createAmazingApp() {
             });
         });
     }
-    
+
     // NEW: Update window title and status bar with current tab
     updateWindowTitle() {
         const fileData = this.getCurrentFileData();
         const fileName = fileData ? fileData.name : 'No files open';
         const modified = fileData && fileData.hasUnsavedChanges ? ' •' : '';
-        
+
         // Update window title
         if (window.windowManager && this.windowId) {
             const title = `💻 Code Assistant Pro - ${fileName}${modified}`;
             window.windowManager.setWindowTitle(this.windowId, title);
         }
-        
+
         // Update status bar
         const fileStatus = document.getElementById(`fileStatus-${this.windowId}`);
         const fileInfo = document.getElementById(`fileInfo-${this.windowId}`);
-        
+
         if (fileStatus) {
             if (!fileData) {
                 fileStatus.textContent = 'No files open';
@@ -2342,7 +2396,7 @@ function createAmazingApp() {
                 fileStatus.textContent = fileData.hasUnsavedChanges ? 'Modified' : 'Saved';
             }
         }
-        
+
         if (fileInfo) {
             if (fileData && fileData.path) {
                 fileInfo.textContent = fileData.path;
@@ -2353,18 +2407,18 @@ function createAmazingApp() {
             }
         }
     }
-    
+
     // LEGACY: Keep old project system as backup
     saveProject() {
         // Use new file save instead
         this.saveFile();
     }
-    
+
     showLoadProjectDialog() {
         // Use new file browser instead
         this.browseAndOpenFile();
     }
-    
+
     /**
      * Code operations (original)
      */
@@ -2374,7 +2428,7 @@ function createAmazingApp() {
             console.log('Code formatted');
         }
     }
-    
+
     copyAllCode() {
         if (this.monacoEditor) {
             const code = this.monacoEditor.getValue();
@@ -2385,103 +2439,103 @@ function createAmazingApp() {
             });
         }
     }
-    
+
     insertCodeToFile() {
         if (!this.monacoEditor) return;
-        
+
         const code = this.monacoEditor.getValue();
         if (!code.trim()) {
             alert('No code to insert!');
             return;
         }
-        
+
         // TODO: Implement actual file insertion using Electron APIs
         console.log('Would insert code to file:', { code, language: this.currentLanguage });
         alert(`Ready to insert ${this.currentLanguage} code to file!\n\nThis would open a file picker and insert the code.`);
     }
-    
+
     /**
      * AI-powered code actions (original)
      */
     explainCode() {
         if (!this.monacoEditor) return;
-        
+
         const code = this.monacoEditor.getValue();
         if (!code.trim()) {
             alert('Please enter some code first!');
             return;
         }
-        
+
         // Copy code to clipboard for pasting into AI
         navigator.clipboard.writeText(`Please explain this ${this.currentLanguage} code:\n\n\`\`\`${this.currentLanguage}\n${code}\n\`\`\``);
         alert('Code explanation prompt copied to clipboard!\nPaste it into the AI chat on the right.');
     }
-    
+
     optimizeCode() {
         if (!this.monacoEditor) return;
-        
+
         const code = this.monacoEditor.getValue();
         if (!code.trim()) {
             alert('Please enter some code first!');
             return;
         }
-        
+
         navigator.clipboard.writeText(`Please optimize this ${this.currentLanguage} code for better performance:\n\n\`\`\`${this.currentLanguage}\n${code}\n\`\`\``);
         alert('Code optimization prompt copied to clipboard!\nPaste it into the AI chat on the right.');
     }
-    
+
     debugCode() {
         if (!this.monacoEditor) return;
-        
+
         const code = this.monacoEditor.getValue();
         if (!code.trim()) {
             alert('Please enter some code first!');
             return;
         }
-        
+
         navigator.clipboard.writeText(`Please help me debug this ${this.currentLanguage} code and find potential issues:\n\n\`\`\`${this.currentLanguage}\n${code}\n\`\`\``);
         alert('Debug prompt copied to clipboard!\nPaste it into the AI chat on the right.');
     }
-    
+
     addComments() {
         if (!this.monacoEditor) return;
-        
+
         const code = this.monacoEditor.getValue();
         if (!code.trim()) {
             alert('Please enter some code first!');
             return;
         }
-        
+
         navigator.clipboard.writeText(`Please add helpful comments to this ${this.currentLanguage} code:\n\n\`\`\`${this.currentLanguage}\n${code}\n\`\`\``);
         alert('Add comments prompt copied to clipboard!\nPaste it into the AI chat on the right.');
     }
-    
+
     generateTests() {
         if (!this.monacoEditor) return;
-        
+
         const code = this.monacoEditor.getValue();
         if (!code.trim()) {
             alert('Please enter some code first!');
             return;
         }
-        
+
         navigator.clipboard.writeText(`Please generate unit tests for this ${this.currentLanguage} code:\n\n\`\`\`${this.currentLanguage}\n${code}\n\`\`\``);
         alert('Generate tests prompt copied to clipboard!\nPaste it into the AI chat on the right.');
     }
-    
+
     /**
      * Paste AI-generated code (original)
      */
     async pasteFromAI() {
         if (!this.monacoEditor) return;
-        
+
         try {
             const clipboardText = await navigator.clipboard.readText();
-            
+
             // Try to extract code from clipboard (look for code blocks)
             const codeBlockMatch = clipboardText.match(/```[\w]*\n?([\s\S]*?)\n?```/);
             const codeToInsert = codeBlockMatch ? codeBlockMatch[1] : clipboardText;
-            
+
             if (codeToInsert.trim()) {
                 this.monacoEditor.setValue(codeToInsert);
                 alert('Code pasted from clipboard!');
@@ -2492,7 +2546,7 @@ function createAmazingApp() {
             alert('Failed to read from clipboard. Please paste manually.');
         }
     }
-    
+
     /**
      * Utility methods (original)
      */
@@ -2500,14 +2554,14 @@ function createAmazingApp() {
         const windowElement = document.getElementById(this.windowId);
         return windowElement && windowElement.contains(document.activeElement);
     }
-    
+
     addToolbarStyles() {
         if (document.querySelector('#code-assistant-toolbar-styles')) return;
-        
+
         const style = document.createElement('style');
         style.id = 'code-assistant-toolbar-styles';
         style.textContent = `
-            .toolbar-btn {
+            .code-toolbar-btn {
                 background: var(--nebula-surface-hover);
                 border: 1px solid var(--nebula-border);
                 color: var(--nebula-text-primary);
@@ -2522,12 +2576,12 @@ function createAmazingApp() {
                 font-weight: 500;
             }
             
-            .toolbar-btn:hover {
+            .code-toolbar-btn:hover {
                 background: var(--nebula-surface-active);
                 border-color: var(--nebula-border-hover);
             }
             
-            .toolbar-btn .material-symbols-outlined {
+            .code-toolbar-btn .material-symbols-outlined {
                 font-size: 16px;
             }
             
@@ -2535,7 +2589,7 @@ function createAmazingApp() {
                 background: var(--nebula-success-hover) !important;
             }
             
-            .ai-action-btn {
+            .code-ai-action-btn {
                 background: var(--nebula-surface);
                 border: 1px solid var(--nebula-border);
                 color: var(--nebula-text-primary);
@@ -2547,7 +2601,7 @@ function createAmazingApp() {
                 white-space: nowrap;
             }
             
-            .ai-action-btn:hover {
+            .code-ai-action-btn:hover {
                 background: var(--nebula-surface-hover);
                 border-color: var(--nebula-primary);
             }
@@ -2638,7 +2692,7 @@ function createAmazingApp() {
                 to { transform: rotate(360deg); }
             }
 
-                    .toolbar-btn {
+                    .code-toolbar-btn {
             background: var(--nebula-surface-hover);
             border: 1px solid var(--nebula-border);
             color: var(--nebula-text-primary);
@@ -2653,7 +2707,7 @@ function createAmazingApp() {
             font-weight: 500;
         }
         
-        .toolbar-btn:hover {
+        .code-toolbar-btn:hover {
             background: var(--nebula-surface-active);
             border-color: var(--nebula-border-hover);
         }
@@ -2663,7 +2717,7 @@ function createAmazingApp() {
         }
         
         /* 🆕 NEW: Width button styles */
-        .width-btn {
+        .code-width-btn {
             background: var(--nebula-surface-hover);
             border: 1px solid var(--nebula-border);
             color: var(--nebula-text-secondary);
@@ -2676,12 +2730,12 @@ function createAmazingApp() {
             text-align: center;
         }
         
-        .width-btn:hover {
+        .code-width-btn:hover {
             background: var(--nebula-surface-active);
             color: var(--nebula-text-primary);
         }
         
-        .width-btn.active {
+        .code-width-btn.active {
             background: var(--nebula-primary);
             color: white;
             border-color: var(--nebula-primary);
@@ -2689,20 +2743,20 @@ function createAmazingApp() {
         `;
         document.head.appendChild(style);
 
-        
+
     }
-    
+
     /**
      * Required methods for WindowManager integration (original)
      */
     getTitle() {
         return 'Code Assistant Pro';
     }
-    
+
     getIcon() {
         return '💻';
     }
-    
+
     cleanup() {
         // Check for unsaved changes before closing
         if (this.hasUnsavedChanges) {
@@ -2713,7 +2767,7 @@ function createAmazingApp() {
                 return false;
             }
         }
-        
+
         if (this.monacoEditor) {
             this.monacoEditor.dispose();
             this.monacoEditor = null;

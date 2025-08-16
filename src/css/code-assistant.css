@@ -1,0 +1,359 @@
+/* Code Assistant Dedicated Styles */
+/* Namespaced to avoid conflicts with assistant.css */
+
+/* Main Container */
+.code-assistant-container {
+    /* No conflicts - unique class name */
+}
+
+/* Editor Side */
+.code-editor-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--nebula-border);
+}
+
+/* Chat Side - Namespaced */
+.code-chat-side {
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    background: var(--nebula-surface);
+    transition: width 0.3s ease;
+}
+
+/* Toolbar Styles - Prefixed */
+.code-toolbar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--nebula-border);
+    background: var(--nebula-surface);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.code-toolbar-btn {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    padding: 8px 12px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    transition: var(--nebula-transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}
+
+.code-toolbar-btn:hover {
+    background: var(--nebula-surface-active);
+    border-color: var(--nebula-border-hover);
+}
+
+.code-toolbar-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.code-run-btn:hover {
+    background: var(--nebula-success-hover) !important;
+}
+
+/* Width Control Buttons - Unique naming */
+.code-width-btn {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-secondary);
+    padding: 4px 8px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    transition: var(--nebula-transition-fast);
+    min-width: 32px;
+    text-align: center;
+}
+
+.code-width-btn:hover {
+    background: var(--nebula-surface-active);
+    color: var(--nebula-text-primary);
+}
+
+.code-width-btn.active {
+    background: var(--nebula-primary);
+    color: white;
+    border-color: var(--nebula-primary);
+}
+
+/* AI Assistant Toggle - Unique naming */
+.code-assistant-toggle {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    padding: 8px 12px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    transition: var(--nebula-transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}
+
+.code-assistant-toggle.active {
+    background: var(--nebula-primary);
+    color: white;
+}
+
+.code-assistant-toggle:hover {
+    background: var(--nebula-surface-active);
+    border-color: var(--nebula-border-hover);
+}
+
+.code-assistant-toggle.active:hover {
+    background: var(--nebula-primary-hover);
+}
+
+/* Chat Header - Namespaced */
+.code-chat-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--nebula-border);
+    background: var(--nebula-surface-elevated);
+}
+
+.code-ai-selector {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--nebula-border);
+    border-radius: var(--nebula-radius-sm);
+    background: var(--nebula-bg-primary);
+    color: var(--nebula-text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--nebula-transition-fast);
+}
+
+.code-ai-selector:focus {
+    outline: none;
+    border-color: var(--nebula-primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.code-ai-selector:hover {
+    border-color: var(--nebula-border-hover);
+    background: var(--nebula-surface-hover);
+}
+
+/* AI Action Buttons - Prefixed */
+.code-ai-action-btn {
+    background: var(--nebula-surface);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+    padding: 6px 10px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    transition: var(--nebula-transition-fast);
+    white-space: nowrap;
+}
+
+.code-ai-action-btn:hover {
+    background: var(--nebula-surface-hover);
+    border-color: var(--nebula-primary);
+}
+
+/* Webview Container - Namespaced */
+.code-webview-container {
+    flex: 1;
+    position: relative;
+    background: var(--nebula-bg-primary);
+}
+
+.code-webview {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--nebula-bg-primary);
+}
+
+.code-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--nebula-text-secondary);
+    font-size: 14px;
+    text-align: center;
+    z-index: 10;
+}
+
+.code-loading .icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    display: block;
+    animation: code-spin 2s linear infinite;
+}
+
+@keyframes code-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Output Panel - Unique naming */
+.code-output-panel {
+    height: 0;
+    background: #1a1a1a;
+    border-top: 1px solid var(--nebula-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: height 0.3s ease;
+}
+
+.code-output-header {
+    padding: 8px 16px;
+    background: var(--nebula-surface);
+    border-bottom: 1px solid var(--nebula-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nebula-text-primary);
+}
+
+.code-output-content {
+    flex: 1;
+    padding: 16px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #d4d4d4;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+.code-clear-btn {
+    background: none;
+    border: none;
+    color: var(--nebula-text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--nebula-radius-sm);
+    transition: var(--nebula-transition-fast);
+}
+
+.code-clear-btn:hover {
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-primary);
+}
+
+/* Status Bar - Namespaced */
+.code-status-bar {
+    height: 24px;
+    background: var(--nebula-surface-secondary);
+    border-top: 1px solid var(--nebula-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-size: 12px;
+    color: var(--nebula-text-secondary);
+    flex-shrink: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .code-chat-side {
+        width: 350px;
+    }
+    
+    .code-toolbar {
+        gap: 8px;
+        padding: 8px 12px;
+    }
+    
+    .code-toolbar-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .code-assistant-container {
+        flex-direction: column;
+    }
+    
+    .code-editor-side {
+        border-right: none;
+        border-bottom: 1px solid var(--nebula-border);
+    }
+    
+    .code-chat-side {
+        width: 100%;
+        height: 300px;
+    }
+    
+    .code-toolbar {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .code-width-btn {
+        min-width: 28px;
+        padding: 3px 6px;
+        font-size: 10px;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .code-toolbar-btn,
+    .code-width-btn,
+    .code-ai-selector,
+    .code-ai-action-btn {
+        border-width: 2px;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    .code-toolbar-btn,
+    .code-width-btn,
+    .code-assistant-toggle,
+    .code-ai-selector,
+    .code-output-panel,
+    .code-chat-side {
+        transition: none;
+    }
+    
+    .code-loading .icon {
+        animation: none;
+    }
+}
+
+/* Focus States */
+.code-toolbar-btn:focus,
+.code-width-btn:focus,
+.code-assistant-toggle:focus,
+.code-ai-selector:focus,
+.code-ai-action-btn:focus {
+    outline: 2px solid var(--nebula-primary);
+    outline-offset: 2px;
+}
+
+/* Dark Theme Specific */
+@media (prefers-color-scheme: dark) {
+    .code-output-content {
+        background: #0d1117;
+        color: #f0f6fc;
+    }
+    
+    .code-output-header {
+        background: #21262d;
+        border-color: #30363d;
+    }
+}
