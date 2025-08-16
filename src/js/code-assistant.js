@@ -676,12 +676,12 @@ class NebulaCodeAssistant {
 
     setupEventListeners() {
         // NEW: Template selector
-        document.getElementById(`templateSelect-${this.windowId}`)?.addEventListener('change', (e) => {
-            if (e.target.value) {
-                this.loadTemplate(e.target.value);
-                e.target.value = ''; // Reset selector
-            }
-        });
+document.getElementById(`templateSelect-${this.windowId}`)?.addEventListener('change', (e) => {
+    if (e.target.value) {
+        this.showTemplateCustomizationModal(e.target.value);
+        e.target.value = ''; // Reset selector
+    }
+});
 
         // Language selector (original)
         document.getElementById(`languageSelect-${this.windowId}`)?.addEventListener('change', (e) => {
@@ -852,6 +852,7 @@ class NebulaCodeAssistant {
         // Add CSS for button styles
         this.addToolbarStyles();
     }
+
 
 
 
@@ -2575,6 +2576,725 @@ function createAmazingApp() {
     }
 
     /**
+ * Show template customization modal
+ */
+showTemplateCustomizationModal(templateKey) {
+    const template = this.templates[templateKey];
+    if (!template) {
+        alert('Template not found!');
+        return;
+    }
+
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'template-modal-overlay';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    `;
+
+    // Create modal dialog
+    const dialog = document.createElement('div');
+    dialog.className = 'template-modal-dialog';
+    dialog.style.cssText = `
+        background: var(--nebula-surface);
+        border: 1px solid var(--nebula-border);
+        border-radius: var(--nebula-radius-lg);
+        padding: 32px;
+        min-width: 500px;
+        max-width: 600px;
+        box-shadow: var(--nebula-shadow-xl);
+    `;
+
+    // Get template-specific defaults
+    const templateDefaults = this.getTemplateDefaults(templateKey);
+
+    dialog.innerHTML = `
+        <div class="modal-header" style="margin-bottom: 24px;">
+            <h2 style="
+                color: var(--nebula-text-primary);
+                margin: 0 0 8px 0;
+                font-size: 24px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            ">
+                <span style="font-size: 28px;">${templateDefaults.icon}</span>
+                Create ${template.name}
+            </h2>
+            <p style="
+                color: var(--nebula-text-secondary);
+                margin: 0;
+                font-size: 14px;
+                line-height: 1.5;
+            ">${template.description}</p>
+        </div>
+
+        <form class="template-form">
+            <!-- App Name -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="
+                    display: block;
+                    color: var(--nebula-text-primary);
+                    font-weight: 600;
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                ">App Name *</label>
+                <input 
+                    type="text" 
+                    id="appName" 
+                    value="${templateDefaults.appName}"
+                    placeholder="My Awesome App"
+                    style="
+                        width: 100%;
+                        padding: 12px 16px;
+                        border: 1px solid var(--nebula-border);
+                        border-radius: var(--nebula-radius-md);
+                        background: var(--nebula-bg-primary);
+                        color: var(--nebula-text-primary);
+                        font-size: 14px;
+                        transition: var(--nebula-transition-fast);
+                    "
+                >
+                <small style="color: var(--nebula-text-secondary); font-size: 12px;">This will be the window title and app display name</small>
+            </div>
+
+            <!-- Developer Name -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="
+                    display: block;
+                    color: var(--nebula-text-primary);
+                    font-weight: 600;
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                ">Developer</label>
+                <input 
+                    type="text" 
+                    id="developerName" 
+                    value="Nebula Developer"
+                    placeholder="Your Name"
+                    style="
+                        width: 100%;
+                        padding: 12px 16px;
+                        border: 1px solid var(--nebula-border);
+                        border-radius: var(--nebula-radius-md);
+                        background: var(--nebula-bg-primary);
+                        color: var(--nebula-text-primary);
+                        font-size: 14px;
+                        transition: var(--nebula-transition-fast);
+                    "
+                >
+            </div>
+
+            <!-- Class Name (auto-generated) -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="
+                    display: block;
+                    color: var(--nebula-text-primary);
+                    font-weight: 600;
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                ">Class Name</label>
+                <input 
+                    type="text" 
+                    id="className" 
+                    value="${templateDefaults.className}"
+                    style="
+                        width: 100%;
+                        padding: 12px 16px;
+                        border: 1px solid var(--nebula-border);
+                        border-radius: var(--nebula-radius-md);
+                        background: var(--nebula-bg-secondary);
+                        color: var(--nebula-text-secondary);
+                        font-size: 14px;
+                        font-family: 'Consolas', 'Monaco', monospace;
+                    "
+                    readonly
+                >
+                <small style="color: var(--nebula-text-secondary); font-size: 12px;">Auto-generated from app name (JavaScript class name)</small>
+            </div>
+
+            <!-- Icon Selector -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="
+                    display: block;
+                    color: var(--nebula-text-primary);
+                    font-weight: 600;
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                ">Icon</label>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <input 
+                        type="text" 
+                        id="appIcon" 
+                        value="${templateDefaults.icon}"
+                        maxlength="2"
+                        style="
+                            width: 60px;
+                            padding: 12px;
+                            border: 1px solid var(--nebula-border);
+                            border-radius: var(--nebula-radius-md);
+                            background: var(--nebula-bg-primary);
+                            color: var(--nebula-text-primary);
+                            font-size: 20px;
+                            text-align: center;
+                        "
+                    >
+                    <div class="icon-suggestions" style="display: flex; gap: 6px;">
+                        ${this.getIconSuggestionsHTML(templateKey)}
+                    </div>
+                </div>
+                <small style="color: var(--nebula-text-secondary); font-size: 12px;">Click suggestions or type your own emoji</small>
+            </div>
+
+            <!-- Template-specific fields -->
+            ${this.getTemplateSpecificFieldsHTML(templateKey)}
+
+            <!-- Description -->
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label style="
+                    display: block;
+                    color: var(--nebula-text-primary);
+                    font-weight: 600;
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                ">Description</label>
+                <textarea 
+                    id="appDescription" 
+                    placeholder="Brief description of your app..."
+                    style="
+                        width: 100%;
+                        padding: 12px 16px;
+                        border: 1px solid var(--nebula-border);
+                        border-radius: var(--nebula-radius-md);
+                        background: var(--nebula-bg-primary);
+                        color: var(--nebula-text-primary);
+                        font-size: 14px;
+                        min-height: 80px;
+                        resize: vertical;
+                        font-family: inherit;
+                    "
+                >${templateDefaults.description || ''}</textarea>
+            </div>
+        </form>
+
+        <!-- Modal Actions -->
+        <div class="modal-actions" style="
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            border-top: 1px solid var(--nebula-border);
+            padding-top: 20px;
+            margin-top: 24px;
+        ">
+            <button id="cancelBtn" style="
+                background: var(--nebula-surface-hover);
+                border: 1px solid var(--nebula-border);
+                color: var(--nebula-text-primary);
+                padding: 12px 24px;
+                border-radius: var(--nebula-radius-md);
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                transition: var(--nebula-transition-fast);
+            ">Cancel</button>
+            <button id="createBtn" style="
+                background: var(--nebula-primary);
+                border: 1px solid var(--nebula-primary);
+                color: white;
+                padding: 12px 24px;
+                border-radius: var(--nebula-radius-md);
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 600;
+                transition: var(--nebula-transition-fast);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            ">
+                <span class="material-symbols-outlined" style="font-size: 16px;">rocket_launch</span>
+                Create App
+            </button>
+        </div>
+    `;
+
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+
+    // Set up modal interactions
+    this.setupModalEventListeners(modal, templateKey);
+
+    // Focus the app name field
+    const appNameInput = dialog.querySelector('#appName');
+    if (appNameInput) {
+        appNameInput.focus();
+        appNameInput.select();
+    }
+}
+
+/**
+ * Get template-specific default values
+ */
+getTemplateDefaults(templateKey) {
+    const defaults = {
+        'single-app': {
+            appName: 'My App',
+            className: 'NebulaMyApp',
+            icon: '🚀',
+            description: 'A focused single-window application'
+        },
+        'tabbed-app': {
+            appName: 'My Tabbed App',
+            className: 'NebulaMyTabbedApp',
+            icon: '📑',
+            description: 'A multi-tab application for complex workflows'
+        },
+        'PWA-app': {
+            appName: 'My Web App',
+            className: 'NebulaMyWebApp',
+            icon: '🌐',
+            description: 'A Progressive Web App with clean interface'
+        }
+    };
+
+    return defaults[templateKey] || defaults['single-app'];
+}
+
+/**
+ * Get icon suggestions for template
+ */
+getIconSuggestionsHTML(templateKey) {
+    const iconSets = {
+        'single-app': ['🚀', '⭐', '💎', '🔧', '📱', '💻'],
+        'tabbed-app': ['📑', '📊', '📋', '🗂️', '📚', '🎯'],
+        'PWA-app': ['🌐', '📱', '🔗', '💻', '📺', '🎬', '🎵', '📧', '💬', '🛒']
+    };
+
+    const icons = iconSets[templateKey] || iconSets['single-app'];
+    
+    return icons.map(icon => 
+        `<button type="button" class="icon-suggestion" data-icon="${icon}" style="
+            background: var(--nebula-surface-hover);
+            border: 1px solid var(--nebula-border);
+            width: 36px;
+            height: 36px;
+            border-radius: var(--nebula-radius-sm);
+            cursor: pointer;
+            font-size: 16px;
+            transition: var(--nebula-transition-fast);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        " title="Use ${icon}">${icon}</button>`
+    ).join('');
+}
+
+/**
+ * Get template-specific form fields
+ */
+getTemplateSpecificFieldsHTML(templateKey) {
+    if (templateKey === 'PWA-app') {
+        return `
+            <!-- Initial URL for PWA -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="
+                    display: block;
+                    color: var(--nebula-text-primary);
+                    font-weight: 600;
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                ">Website URL *</label>
+                <input 
+                    type="url" 
+                    id="initialUrl" 
+                    value="https://example.com"
+                    placeholder="https://youtube.com"
+                    style="
+                        width: 100%;
+                        padding: 12px 16px;
+                        border: 1px solid var(--nebula-border);
+                        border-radius: var(--nebula-radius-md);
+                        background: var(--nebula-bg-primary);
+                        color: var(--nebula-text-primary);
+                        font-size: 14px;
+                        font-family: 'Consolas', 'Monaco', monospace;
+                    "
+                >
+                <small style="color: var(--nebula-text-secondary); font-size: 12px;">The website your PWA will display</small>
+            </div>
+        `;
+    }
+    
+    return ''; // No extra fields for other templates
+}
+
+/**
+ * Set up modal event listeners
+ */
+setupModalEventListeners(modal, templateKey) {
+    const dialog = modal.querySelector('.template-modal-dialog');
+    
+    // Auto-update class name when app name changes
+    const appNameInput = dialog.querySelector('#appName');
+    const classNameInput = dialog.querySelector('#className');
+    
+    appNameInput?.addEventListener('input', (e) => {
+        const appName = e.target.value.trim();
+        const className = this.generateClassName(appName);
+        if (classNameInput) {
+            classNameInput.value = className;
+        }
+    });
+
+    // Icon suggestion clicks
+    dialog.querySelectorAll('.icon-suggestion').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const icon = btn.dataset.icon;
+            const iconInput = dialog.querySelector('#appIcon');
+            if (iconInput) {
+                iconInput.value = icon;
+            }
+            
+            // Visual feedback
+            dialog.querySelectorAll('.icon-suggestion').forEach(b => {
+                b.style.background = 'var(--nebula-surface-hover)';
+            });
+            btn.style.background = 'var(--nebula-primary)';
+        });
+    });
+
+    // Cancel button
+    dialog.querySelector('#cancelBtn')?.addEventListener('click', () => {
+        this.closeModal(modal);
+    });
+
+    // Create button
+    dialog.querySelector('#createBtn')?.addEventListener('click', () => {
+        this.createCustomTemplate(modal, templateKey);
+    });
+
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            this.closeModal(modal);
+        }
+    });
+
+    // Close on escape key
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            document.removeEventListener('keydown', escapeHandler);
+            this.closeModal(modal);
+        }
+    }.bind(this));
+}
+
+/**
+ * Generate valid JavaScript class name from app name
+ */
+generateClassName(appName) {
+    if (!appName.trim()) return 'NebulaMyApp';
+    
+    // Remove special characters and spaces, capitalize words
+    const cleanName = appName
+        .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+        .replace(/\s+/g, ' ') // Normalize spaces
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join('');
+    
+    // Ensure it starts with a letter
+    const className = cleanName.match(/^[a-zA-Z]/) ? cleanName : 'Nebula' + cleanName;
+    
+    return className || 'NebulaMyApp';
+}
+
+/**
+ * Create customized template
+ */
+async createCustomTemplate(modal, templateKey) {
+    const dialog = modal.querySelector('.template-modal-dialog');
+    
+    // Collect form data
+    const formData = {
+        appName: dialog.querySelector('#appName')?.value.trim() || 'My App',
+        developerName: dialog.querySelector('#developerName')?.value.trim() || 'Nebula Developer',
+        className: dialog.querySelector('#className')?.value.trim() || 'NebulaMyApp',
+        appIcon: dialog.querySelector('#appIcon')?.value.trim() || '🚀',
+        description: dialog.querySelector('#appDescription')?.value.trim() || '',
+        initialUrl: dialog.querySelector('#initialUrl')?.value.trim() || null
+    };
+
+    // Validate required fields
+    if (!formData.appName) {
+        alert('App name is required!');
+        return;
+    }
+
+    // Show loading state
+    const createBtn = dialog.querySelector('#createBtn');
+    const originalText = createBtn.innerHTML;
+    createBtn.innerHTML = '<span class="material-symbols-outlined spinning">refresh</span> Creating...';
+    createBtn.disabled = true;
+
+    try {
+        // Load and customize template
+        const customizedCode = await this.loadAndCustomizeTemplate(templateKey, formData);
+        
+        if (customizedCode && this.monacoEditor) {
+            // Check if current code should be replaced
+            const currentCode = this.monacoEditor.getValue();
+            if (currentCode.trim() && !confirm(`Create "${formData.appName}"?\n\nThis will replace current code.`)) {
+                return;
+            }
+
+            // Set the customized code
+            this.monacoEditor.setValue(customizedCode);
+            
+            // Update current file name if we have tabs
+            if (this.activeFileId) {
+                const fileData = this.getCurrentFileData();
+                if (fileData) {
+                    fileData.name = `${formData.appName}.js`;
+                    fileData.hasUnsavedChanges = true;
+                    if (fileData.tabElement) {
+                        const fileName = fileData.tabElement.querySelector('.file-name');
+                        if (fileName) fileName.textContent = fileData.name;
+                    }
+                }
+            }
+
+            this.writeOutput(`✅ "${formData.appName}" created successfully!`, 'success');
+            this.writeOutput(`Developer: ${formData.developerName}`, 'info');
+            if (formData.initialUrl) {
+                this.writeOutput(`URL: ${formData.initialUrl}`, 'info');
+            }
+
+            // Close modal
+            this.closeModal(modal);
+        }
+
+    } catch (error) {
+        this.writeOutput(`❌ Failed to create template: ${error.message}`, 'error');
+        console.error('Template creation error:', error);
+    } finally {
+        // Restore button
+        createBtn.innerHTML = originalText;
+        createBtn.disabled = false;
+    }
+}
+
+/**
+ * Load and customize template with user data
+ */
+async loadAndCustomizeTemplate(templateKey, formData) {
+    const template = this.templates[templateKey];
+    if (!template) throw new Error('Template not found');
+
+    try {
+        // Load template content
+        const response = await fetch(template.path);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch template: ${response.status}`);
+        }
+
+        let templateContent = await response.text();
+
+        // Apply customizations based on template type
+        templateContent = this.applyTemplateCustomizations(templateContent, templateKey, formData);
+
+        return templateContent;
+
+    } catch (error) {
+        // Fallback to embedded template
+        console.warn('Falling back to embedded template:', error);
+        return this.createEmbeddedCustomTemplate(templateKey, formData);
+    }
+}
+
+/**
+ * Apply customizations to template content
+ */
+/**
+ * Apply customizations to template content - FIXED VERSION
+ */
+applyTemplateCustomizations(templateContent, templateKey, formData) {
+    // Common replacements for all templates
+    let customized = templateContent
+        // Replace class names
+        .replace(/class\s+\w+/g, `class ${formData.className}`)
+        // Replace window titles
+        .replace(/title:\s*['"`][^'"`]*['"`]/g, `title: '${formData.appName}'`)
+        // Replace getTitle() return values
+        .replace(/getTitle\(\)\s*{\s*return\s*['"`][^'"`]*['"`]/g, `getTitle() {\n        return '${formData.appName}'`)
+        // Replace getIcon() return values
+        .replace(/getIcon\(\)\s*{\s*return\s*['"`][^'"`]*['"`]/g, `getIcon() {\n        return '${formData.appIcon}'`);
+
+    // Template-specific customizations
+    if (templateKey === 'PWA-app' && formData.initialUrl) {
+        // Replace initial URL in PWA template
+        customized = customized
+            .replace(/initialUrl\s*=\s*['"`][^'"`]*['"`]/g, `initialUrl = '${formData.initialUrl}'`)
+            .replace(/defaultHomePage:\s*['"`][^'"`]*['"`]/g, `defaultHomePage: '${formData.initialUrl}'`);
+    }
+
+    // FIX: Handle the ending registration block properly
+    // Find the original class name from the template
+    const originalClassMatch = templateContent.match(/class\s+(\w+)/);
+    const originalClassName = originalClassMatch ? originalClassMatch[1] : 'NebulaPWAHost';
+    
+    // Replace the final registration block completely
+    const properRegistration = `
+// Register the app class globally  
+window.${formData.className} = ${formData.className};
+
+// Register with launcher if available
+if (window.registerNebulaApp) {
+    window.registerNebulaApp({
+        id: '${formData.className.toLowerCase()}',
+        name: '${formData.appName}',
+        icon: '${formData.appIcon}',
+        className: '${formData.className}',
+        description: '${formData.description || ''}',
+        category: 'user-generated'
+    });
+}
+
+// Create initial instance
+new ${formData.className}();`;
+
+    // Replace everything from the first "window." assignment to the end
+    customized = customized.replace(
+        /\/\/\s*Register.*[\s\S]*$/,
+        properRegistration
+    );
+
+    // Also handle case where there's no comment, just direct registration
+    customized = customized.replace(
+        /window\.\w+\s*=\s*\w+;[\s\S]*$/,
+        properRegistration
+    );
+
+    // Add developer comment at the top
+    const header = `// ${formData.appName}
+// Created by: ${formData.developerName}
+${formData.description ? `// Description: ${formData.description}\n` : ''}// Generated by Nebula Code Assistant
+// Template: ${this.templates[templateKey].name}
+
+`;
+
+    return header + customized;
+}
+
+/**
+ * Additional helper method to ensure proper class registration
+ */
+ensureProperClassRegistration(content, className) {
+    // Make sure the final lines are correct
+    const lines = content.split('\n');
+    const lastNonEmptyLines = lines.filter(line => line.trim()).slice(-3);
+    
+    // Check if the last few lines contain proper registration
+    const hasWindowAssignment = lastNonEmptyLines.some(line => 
+        line.includes(`window.${className} = ${className}`)
+    );
+    const hasInstantiation = lastNonEmptyLines.some(line => 
+        line.includes(`new ${className}()`)
+    );
+    
+    if (!hasWindowAssignment || !hasInstantiation) {
+        // Append correct registration
+        const properEnding = `
+// Register the app with WindowManager
+window.${className} = ${className};
+new ${className}();`;
+        
+        return content.replace(/\/\/.*Register.*[\s\S]*$/, properEnding);
+    }
+    
+    return content;
+}
+
+/**
+ * Create embedded custom template (fallback)
+ */
+createEmbeddedCustomTemplate(templateKey, formData) {
+    if (templateKey === 'PWA-app') {
+        return `// ${formData.appName}
+// Created by: ${formData.developerName}
+${formData.description ? `// Description: ${formData.description}\n` : ''}
+class ${formData.className} {
+    constructor() {
+        this.windowId = null;
+        this.initialUrl = '${formData.initialUrl || 'https://example.com'}';
+        this.init();
+    }
+    
+    async init() {
+        if (!window.windowManager) return;
+        
+        this.windowId = window.windowManager.createWindow({
+            title: '${formData.appName}',
+            width: 1200,
+            height: 800,
+            resizable: true
+        });
+        
+        window.windowManager.loadApp(this.windowId, this);
+    }
+    
+    render() {
+        // PWA implementation here
+        const container = document.createElement('div');
+        container.innerHTML = '<h1>${formData.appName}</h1>';
+        return container;
+    }
+    
+    getTitle() { return '${formData.appName}'; }
+    getIcon() { return '${formData.appIcon}'; }
+    cleanup() { console.log('${formData.appName} cleanup'); }
+}
+
+window.${formData.className} = ${formData.className};`;
+    }
+
+    // Similar for other templates...
+    return `// ${formData.appName} - Generated Template`;
+}
+
+/**
+ * Close modal
+ */
+closeModal(modal) {
+    if (modal && modal.parentNode) {
+        modal.parentNode.removeChild(modal);
+    }
+}
+
+    /**
      * Utility methods (original)
      */
     isWindowActive() {
@@ -2767,6 +3487,34 @@ function createAmazingApp() {
             color: white;
             border-color: var(--nebula-primary);
         }
+
+        /* Template Modal Styles */
+.template-modal-overlay input:focus,
+.template-modal-overlay textarea:focus {
+    outline: none;
+    border-color: var(--nebula-primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.template-modal-overlay button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--nebula-shadow-md);
+}
+
+.template-modal-overlay .icon-suggestion:hover {
+    background: var(--nebula-surface-active) !important;
+    transform: translateY(-1px);
+    box-shadow: var(--nebula-shadow-sm);
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
         `;
         document.head.appendChild(style);
 
