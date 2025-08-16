@@ -1,63 +1,51 @@
-// NebulaApp PWA Template
-// Based on NebulaApp-Single.js - Modified for Progressive Web App hosting
-// Perfect for hosting web applications and websites within Nebula Desktop
+// NebulaApp PWA Template - WITH SLEEK SLIDE-UP NAV DOCK
+// Based on the WORKING NebulaApp-Single.js pattern
+// Features a hidden navigation dock that slides up from the bottom
 //
 // TODO: Replace 'PWAHost' with your app name throughout this file
-// TODO: Customize the functionality in the marked sections
+// TODO: Change the initialUrl to your desired website
 
 class NebulaPWAHost {
-    constructor(initialUrl = 'https://example.com') {
+    constructor(initialUrl = 'https://youtube.com') {
         // Initialize PWA hosting properties
         this.windowId = null;
+        this.initialUrl = initialUrl;
         this.currentUrl = initialUrl;
-        this.history = [initialUrl];
-        this.historyIndex = 0;
-        this.isLoading = false;
-        this.canGoBack = false;
-        this.canGoForward = false;
+        this.navDockVisible = false;
+        this.navDockTimeout = null;
         
-        // PWA-specific settings
-        this.settings = {
-            allowNavigation: true,
-            showAddressBar: true,
-            enableOffline: true,
-            autoInstallPrompt: true,
-            defaultHomePage: 'https://example.com'
-        };
-
         this.init();
     }
-
+    
     async init() {
         if (!window.windowManager) {
             console.error('WindowManager not available');
             return;
         }
-
-        // Create window with PWA-optimized configuration
+        
+        // Create window - same pattern as NebulaApp-Single.js
         this.windowId = window.windowManager.createWindow({
             title: 'PWA Host', // TODO: Change app title
             width: 1200,       // Wider for web content
             height: 800,       // Taller for web content
             resizable: true,
             maximizable: true,
-            minimizable: true,
-            icon: 'web' // Material icon for web apps
+            minimizable: true
         });
-
-        // Load this app into the window
+        
+        // Load this app into the window - SAME AS WORKING TEMPLATE
         window.windowManager.loadApp(this.windowId, this);
-
+        
         console.log(`PWAHost initialized with window ${this.windowId}`);
     }
-
+    
     /**
      * Called by WindowManager to render the app's content
-     * Creates a clean PWA hosting interface with just webview and context menu
+     * Clean interface with hidden slide-up nav dock
      */
     render() {
         const container = document.createElement('div');
-        container.className = 'pwa-host-container';
+        container.className = 'pwa-container';
         container.style.cssText = `
             width: 100%;
             height: 100%;
@@ -66,99 +54,52 @@ class NebulaPWAHost {
             flex-direction: column;
             overflow: hidden;
             font-family: var(--nebula-font-family);
+            position: relative;
         `;
 
-        // Create main sections - just webview and status bar
-        const webContent = this.createWebContent();
+        // Create the main content area with webview
+        const contentArea = this.createContentArea();
+        
+        // Create simple status bar
         const statusBar = this.createStatusBar();
-        const contextMenu = this.createContextMenu();
+        
+        // 🌟 NEW: Create the slide-up nav dock
+        const navDock = this.createNavDock();
+        
+        // 🌟 NEW: Create invisible trigger area
+        const triggerArea = this.createTriggerArea();
 
         // Assemble the UI
-        container.appendChild(webContent);
+        container.appendChild(contentArea);
         container.appendChild(statusBar);
-        container.appendChild(contextMenu);
+        container.appendChild(navDock);
+        container.appendChild(triggerArea);
 
-        // Set up initialization after UI is created
+        // Setup after DOM is ready
         setTimeout(() => {
             this.setupEventListeners();
-            this.loadInitialPage();
-            this.setupContextMenu();
-        }, 0);
+        }, 100);
 
         return container;
     }
-
+    
     /**
-     * Create the right-click context menu
-     * Contains navigation controls in a popup menu
+     * Create the main content area with webview
      */
-    createContextMenu() {
-        const contextMenu = document.createElement('div');
-        contextMenu.id = 'context-menu';
-        contextMenu.className = 'pwa-context-menu';
-        contextMenu.style.cssText = `
-            position: fixed;
-            background: var(--nebula-surface);
-            border: 1px solid var(--nebula-border);
-            border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            padding: 8px 0;
-            min-width: 180px;
-            z-index: 1000;
-            display: none;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        `;
-
-        contextMenu.innerHTML = `
-            <div class="context-menu-item" id="ctx-back">
-                <span class="material-symbols-outlined">arrow_back</span>
-                <span>Go Back</span>
-            </div>
-            <div class="context-menu-item" id="ctx-forward">
-                <span class="material-symbols-outlined">arrow_forward</span>
-                <span>Go Forward</span>
-            </div>
-            <div class="context-menu-item" id="ctx-refresh">
-                <span class="material-symbols-outlined">refresh</span>
-                <span>Refresh</span>
-            </div>
-            <div class="context-menu-separator"></div>
-            <div class="context-menu-item" id="ctx-home">
-                <span class="material-symbols-outlined">home</span>
-                <span>Go Home</span>
-            </div>
-            <div class="context-menu-item" id="ctx-url">
-                <span class="material-symbols-outlined">link</span>
-                <span>Change URL</span>
-            </div>
-            <div class="context-menu-separator"></div>
-            <div class="context-menu-item" id="ctx-fullscreen">
-                <span class="material-symbols-outlined">fullscreen</span>
-                <span>Toggle Fullscreen</span>
-            </div>
-        `;
-
-        return contextMenu;
-    }
-
-    /**
-     * Create the web content area
-     * Contains the webview for hosting web content
-     */
-    createWebContent() {
-        const webContent = document.createElement('div');
-        webContent.className = 'pwa-web-content';
-        webContent.style.cssText = `
+    createContentArea() {
+        const contentArea = document.createElement('div');
+        contentArea.className = 'pwa-content';
+        contentArea.style.cssText = `
             flex: 1;
             position: relative;
             background: white;
             overflow: hidden;
         `;
 
-        // Create webview for web content
+        // Create webview
         const webview = document.createElement('webview');
-        webview.id = 'web-webview';
+        webview.id = 'pwa-webview';
+        webview.src = this.initialUrl;
         webview.style.cssText = `
             width: 100%;
             height: 100%;
@@ -166,57 +107,21 @@ class NebulaPWAHost {
             background: white;
         `;
         
-        // Set webview attributes for better compatibility and security
+        // Basic webview attributes
         webview.setAttribute('allowpopups', 'true');
-        webview.setAttribute('websecurity', 'true');
         webview.setAttribute('nodeintegration', 'false');
-        webview.setAttribute('contextIsolation', 'true');
-        webview.setAttribute('enableremotemodule', 'false');
-        webview.setAttribute('partition', 'persist:pwa-host');
 
-        // Create loading overlay
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.id = 'loading-overlay';
-        loadingOverlay.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--nebula-bg-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 16px;
-            z-index: 10;
-        `;
+        contentArea.appendChild(webview);
 
-        loadingOverlay.innerHTML = `
-            <div class="loading-spinner" style="
-                width: 32px;
-                height: 32px;
-                border: 3px solid var(--nebula-border);
-                border-top: 3px solid var(--nebula-primary);
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            "></div>
-            <span style="color: var(--nebula-text-secondary);">Loading...</span>
-        `;
-
-        webContent.appendChild(webview);
-        webContent.appendChild(loadingOverlay);
-
-        return webContent;
+        return contentArea;
     }
-
+    
     /**
-     * Create the status bar
-     * Shows loading status and page info
+     * Create simple status bar
      */
     createStatusBar() {
         const statusBar = document.createElement('div');
-        statusBar.className = 'pwa-statusbar';
+        statusBar.className = 'pwa-status';
         statusBar.style.cssText = `
             height: 24px;
             background: var(--nebula-surface);
@@ -227,484 +132,408 @@ class NebulaPWAHost {
             font-size: 12px;
             color: var(--nebula-text-secondary);
             flex-shrink: 0;
+            z-index: 10;
+            position: relative;
         `;
 
         statusBar.innerHTML = `
-            <span id="status-text">Ready</span>
+            <span id="pwa-status-text">Ready</span>
             <div style="flex: 1;"></div>
-            <span id="page-info"></span>
+            <span id="pwa-shortcuts" style="font-size: 11px; opacity: 0.7;">Hover bottom edge for navigation dock</span>
+            <div style="width: 8px;"></div>
+            <span id="pwa-url-info">${this.currentUrl}</span>
         `;
 
         return statusBar;
     }
-
+    
     /**
-     * Set up event listeners for PWA functionality
+     * 🌟 NEW: Create the slide-up navigation dock
+     */
+    createNavDock() {
+        const navDock = document.createElement('div');
+        navDock.id = 'pwa-nav-dock';
+        navDock.className = 'nav-dock';
+        navDock.style.cssText = `
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 8px;
+            display: flex;
+            gap: 4px;
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            opacity: 0;
+            pointer-events: none;
+        `;
+
+        navDock.innerHTML = `
+            <button class="dock-btn" data-action="back" title="Go Back (Alt+←)">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <button class="dock-btn" data-action="forward" title="Go Forward (Alt+→)">
+                <span class="material-symbols-outlined">arrow_forward</span>
+            </button>
+            <div class="dock-separator"></div>
+            <button class="dock-btn" data-action="reload" title="Reload (F5)">
+                <span class="material-symbols-outlined">refresh</span>
+            </button>
+            <button class="dock-btn" data-action="stop" title="Stop (Esc)">
+                <span class="material-symbols-outlined">stop</span>
+            </button>
+            <div class="dock-separator"></div>
+            <button class="dock-btn" data-action="home" title="Home (Ctrl+H)">
+                <span class="material-symbols-outlined">home</span>
+            </button>
+        `;
+
+        return navDock;
+    }
+    
+    /**
+     * 🌟 NEW: Create invisible trigger area at bottom
+     */
+    createTriggerArea() {
+        const triggerArea = document.createElement('div');
+        triggerArea.id = 'pwa-trigger';
+        triggerArea.className = 'nav-trigger';
+        triggerArea.style.cssText = `
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 3px;
+            z-index: 999;
+            cursor: pointer;
+            background: transparent;
+        `;
+
+        return triggerArea;
+    }
+    
+    /**
+     * Setup event listeners with nav dock functionality
      */
     setupEventListeners() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        if (!container) return;
+        const webview = document.getElementById('pwa-webview');
+        const navDock = document.getElementById('pwa-nav-dock');
+        const triggerArea = document.getElementById('pwa-trigger');
+        
+        if (!webview) {
+            console.error('PWA: Webview not found');
+            return;
+        }
 
-        const webview = container.querySelector('#web-webview');
+        console.log('PWA: Setting up event listeners...');
 
         // Webview events
-        if (webview) {
-            webview.addEventListener('dom-ready', () => this.onPageLoad());
-            webview.addEventListener('did-fail-load', () => this.onPageError());
-            webview.addEventListener('did-start-loading', () => this.onStartLoading());
-            webview.addEventListener('did-stop-loading', () => this.onStopLoading());
-            webview.addEventListener('page-title-updated', (e) => this.onTitleUpdate(e.title));
-            webview.addEventListener('did-navigate', (e) => this.onNavigate(e.url));
-            webview.addEventListener('did-navigate-in-page', (e) => this.onNavigateInPage(e.url));
-            webview.addEventListener('new-window', (e) => this.onNewWindow(e.url));
+        webview.addEventListener('did-start-loading', () => {
+            this.updateStatus('Loading...');
+            this.updateNavButtons();
+        });
+
+        webview.addEventListener('did-stop-loading', () => {
+            this.updateStatus('Loaded');
+            this.updateNavButtons();
+        });
+
+        webview.addEventListener('did-fail-load', (e) => {
+            this.updateStatus('Failed to load');
+            console.error('PWA: Failed to load:', e);
+        });
+
+        webview.addEventListener('did-navigate', (e) => {
+            this.currentUrl = e.url;
+            this.updateUrlInfo();
+            this.updateNavButtons();
+        });
+
+        // 🌟 NEW: Nav dock trigger events
+        if (triggerArea && navDock) {
+            triggerArea.addEventListener('mouseenter', () => {
+                this.showNavDock();
+            });
+
+            // Also show dock when hovering the dock itself
+            navDock.addEventListener('mouseenter', () => {
+                this.showNavDock();
+            });
+
+            navDock.addEventListener('mouseleave', () => {
+                this.scheduleHideNavDock();
+            });
+
+            // Hide when mouse leaves the bottom area
+            document.addEventListener('mousemove', (e) => {
+                const windowHeight = window.innerHeight;
+                const mouseY = e.clientY;
+                
+                // If mouse is not near bottom, hide dock
+                if (mouseY < windowHeight - 60) {
+                    this.scheduleHideNavDock();
+                }
+            });
         }
 
-        // Context menu event listeners
-        const contextMenu = container.querySelector('#context-menu');
-        if (contextMenu) {
-            contextMenu.querySelector('#ctx-back').addEventListener('click', () => {
-                this.goBack();
-                this.hideContextMenu();
-            });
-            
-            contextMenu.querySelector('#ctx-forward').addEventListener('click', () => {
-                this.goForward();
-                this.hideContextMenu();
-            });
-            
-            contextMenu.querySelector('#ctx-refresh').addEventListener('click', () => {
-                this.refresh();
-                this.hideContextMenu();
-            });
-            
-            contextMenu.querySelector('#ctx-home').addEventListener('click', () => {
-                this.goHome();
-                this.hideContextMenu();
-            });
-            
-            contextMenu.querySelector('#ctx-url').addEventListener('click', () => {
-                this.showUrlDialog();
-                this.hideContextMenu();
-            });
-            
-            contextMenu.querySelector('#ctx-fullscreen').addEventListener('click', () => {
-                this.toggleFullscreen();
-                this.hideContextMenu();
+        // 🌟 NEW: Nav dock button clicks
+        if (navDock) {
+            navDock.addEventListener('click', (e) => {
+                const button = e.target.closest('.dock-btn');
+                if (button) {
+                    const action = button.dataset.action;
+                    this.handleNavAction(action);
+                }
             });
         }
-    }
 
-    /**
-     * Load the initial page
-     */
-    loadInitialPage() {
-        this.navigateToUrl(this.currentUrl);
-    }
-
-    /**
-     * Set up context menu functionality
-     */
-    setupContextMenu() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        if (!container) return;
-
-        const webview = container.querySelector('#web-webview');
-        const contextMenu = container.querySelector('#context-menu');
-
-        if (webview && contextMenu) {
-            // Right-click on webview to show context menu
-            webview.addEventListener('contextmenu', (e) => {
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!this.isWindowActive()) return;
+            
+            if (e.altKey && e.key === 'ArrowLeft') {
                 e.preventDefault();
-                this.showContextMenu(e.clientX, e.clientY);
-            });
+                this.handleNavAction('back');
+            }
+            if (e.altKey && e.key === 'ArrowRight') {
+                e.preventDefault();
+                this.handleNavAction('forward');
+            }
+            if (e.key === 'F5') {
+                e.preventDefault();
+                this.handleNavAction('reload');
+            }
+            if (e.ctrlKey && e.key === 'h') {
+                e.preventDefault();
+                this.handleNavAction('home');
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.handleNavAction('stop');
+            }
+        });
 
-            // Hide context menu when clicking elsewhere
-            document.addEventListener('click', (e) => {
-                if (!contextMenu.contains(e.target)) {
-                    this.hideContextMenu();
-                }
-            });
-
-            // Hide context menu on escape key
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    this.hideContextMenu();
-                }
-            });
-        }
-
-        // Add CSS styles for context menu
-        this.addContextMenuStyles();
-    }
-
-    /**
-     * Show context menu at specified position
-     */
-    showContextMenu(x, y) {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        const contextMenu = container?.querySelector('#context-menu');
-        const webview = container?.querySelector('#web-webview');
+        // Add styles
+        this.addNavDockStyles();
         
-        if (!contextMenu || !webview) return;
+        console.log('PWA: Event listeners setup complete');
+    }
+    
+    /**
+     * 🌟 NEW: Show navigation dock with animation
+     */
+    showNavDock() {
+        const navDock = document.getElementById('pwa-nav-dock');
+        if (!navDock) return;
 
-        // Update menu item states
-        const backItem = contextMenu.querySelector('#ctx-back');
-        const forwardItem = contextMenu.querySelector('#ctx-forward');
+        // Clear any pending hide timeout
+        if (this.navDockTimeout) {
+            clearTimeout(this.navDockTimeout);
+            this.navDockTimeout = null;
+        }
+
+        this.navDockVisible = true;
+        navDock.style.opacity = '1';
+        navDock.style.pointerEvents = 'auto';
+        navDock.style.transform = 'translateX(-50%) translateY(-8px)';
         
-        if (backItem) {
-            backItem.classList.toggle('disabled', !webview.canGoBack());
-        }
-        if (forwardItem) {
-            forwardItem.classList.toggle('disabled', !webview.canGoForward());
-        }
-
-        // Position and show menu
-        contextMenu.style.left = `${x}px`;
-        contextMenu.style.top = `${y}px`;
-        contextMenu.style.display = 'block';
-
-        // Adjust position if menu would go off screen
-        const rect = contextMenu.getBoundingClientRect();
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-
-        if (rect.right > windowWidth) {
-            contextMenu.style.left = `${windowWidth - rect.width - 10}px`;
-        }
-        if (rect.bottom > windowHeight) {
-            contextMenu.style.top = `${windowHeight - rect.height - 10}px`;
-        }
+        this.updateNavButtons();
     }
-
+    
     /**
-     * Hide context menu
+     * 🌟 NEW: Schedule hiding the nav dock
      */
-    hideContextMenu() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        const contextMenu = container?.querySelector('#context-menu');
-        if (contextMenu) {
-            contextMenu.style.display = 'none';
-        }
-    }
-
-    /**
-     * Show URL input dialog
-     */
-    showUrlDialog() {
-        const newUrl = prompt('Enter URL:', this.currentUrl);
-        if (newUrl && newUrl.trim()) {
-            this.navigateToUrl(newUrl.trim());
-        }
-    }
-
-    /**
-     * Add CSS styles for context menu
-     */
-    addContextMenuStyles() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .context-menu-item {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 8px 16px;
-                cursor: pointer;
-                color: var(--nebula-text-primary);
-                font-size: 14px;
-                transition: background-color 0.2s;
-            }
-            
-            .context-menu-item:hover:not(.disabled) {
-                background: var(--nebula-hover);
-            }
-            
-            .context-menu-item.disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-            
-            .context-menu-item .material-symbols-outlined {
-                font-size: 18px;
-                color: var(--nebula-text-secondary);
-            }
-            
-            .context-menu-separator {
-                height: 1px;
-                background: var(--nebula-border);
-                margin: 4px 0;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    /**
-     * Navigate to a specific URL
-     */
-    navigateToUrl(url = null) {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        if (!container) return;
-
-        const webview = container.querySelector('#web-webview');
-        const loadingOverlay = container.querySelector('#loading-overlay');
-
-        if (!url) {
-            url = this.currentUrl;
-        }
-
-        if (!url) return;
-
-        // Add protocol if missing
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'https://' + url;
-        }
-
-        this.isLoading = true;
-        this.currentUrl = url;
-        
-        // Show loading overlay
-        if (loadingOverlay) loadingOverlay.style.display = 'flex';
-        
-        // Navigate webview
-        if (webview) {
-            webview.loadURL(url);
+    scheduleHideNavDock() {
+        if (this.navDockTimeout) {
+            clearTimeout(this.navDockTimeout);
         }
         
-        this.updateStatus('Loading...');
+        this.navDockTimeout = setTimeout(() => {
+            this.hideNavDock();
+        }, 1500); // Hide after 1.5 seconds
     }
-
+    
     /**
-     * Go back in history
+     * 🌟 NEW: Hide navigation dock with animation
      */
-    goBack() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        const webview = container?.querySelector('#web-webview');
-        if (webview && webview.canGoBack()) {
-            webview.goBack();
-        }
+    hideNavDock() {
+        const navDock = document.getElementById('pwa-nav-dock');
+        if (!navDock) return;
+
+        this.navDockVisible = false;
+        navDock.style.opacity = '0';
+        navDock.style.pointerEvents = 'none';
+        navDock.style.transform = 'translateX(-50%) translateY(100%)';
     }
-
+    
     /**
-     * Go forward in history
+     * 🌟 NEW: Update navigation button states
      */
-    goForward() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        const webview = container?.querySelector('#web-webview');
-        if (webview && webview.canGoForward()) {
-            webview.goForward();
-        }
-    }
+    updateNavButtons() {
+        const webview = document.getElementById('pwa-webview');
+        const navDock = document.getElementById('pwa-nav-dock');
+        
+        if (!webview || !navDock) return;
 
-    /**
-     * Refresh current page
-     */
-    refresh() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        const webview = container?.querySelector('#web-webview');
-        if (webview) {
-            webview.reload();
-        }
-    }
-
-    /**
-     * Go to home page
-     */
-    goHome() {
-        this.navigateToUrl(this.settings.defaultHomePage);
-    }
-
-    /**
-     * Update navigation button states
-     */
-    updateNavigationButtons() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        if (!container) return;
-
-        const backBtn = container.querySelector('#back-btn');
-        const forwardBtn = container.querySelector('#forward-btn');
-        const webview = container.querySelector('#web-webview');
-
-        if (webview && backBtn && forwardBtn) {
+        const backBtn = navDock.querySelector('[data-action="back"]');
+        const forwardBtn = navDock.querySelector('[data-action="forward"]');
+        
+        if (backBtn) {
             backBtn.disabled = !webview.canGoBack();
+            backBtn.style.opacity = webview.canGoBack() ? '1' : '0.4';
+        }
+        if (forwardBtn) {
             forwardBtn.disabled = !webview.canGoForward();
+            forwardBtn.style.opacity = webview.canGoForward() ? '1' : '0.4';
         }
     }
-
+    
     /**
-     * Handle webview start loading
+     * Handle navigation actions
      */
-    onStartLoading() {
-        this.isLoading = true;
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        const loadingOverlay = container?.querySelector('#loading-overlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'flex';
-        }
-        this.updateStatus('Loading...');
-    }
+    handleNavAction(action) {
+        const webview = document.getElementById('pwa-webview');
+        if (!webview) return;
 
-    /**
-     * Handle webview stop loading
-     */
-    onStopLoading() {
-        this.isLoading = false;
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        const loadingOverlay = container?.querySelector('#loading-overlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-        }
-        this.updateNavigationButtons();
-    }
+        console.log('PWA: Nav action:', action);
 
-    /**
-     * Handle page navigation
-     */
-    onNavigate(url) {
-        this.currentUrl = url;
-        this.updatePageInfo();
-        this.updateNavigationButtons();
-    }
-
-    /**
-     * Handle in-page navigation (like hash changes)
-     */
-    onNavigateInPage(url) {
-        this.currentUrl = url;
-        this.updatePageInfo();
-    }
-
-    /**
-     * Handle page title updates
-     */
-    onTitleUpdate(title) {
-        // Update window title if desired
-        if (window.windowManager && this.windowId) {
-            window.windowManager.setWindowTitle(this.windowId, `PWA Host - ${title}`);
+        switch (action) {
+            case 'back':
+                if (webview.canGoBack()) {
+                    webview.goBack();
+                }
+                break;
+            case 'forward':
+                if (webview.canGoForward()) {
+                    webview.goForward();
+                }
+                break;
+            case 'reload':
+                webview.reload();
+                break;
+            case 'stop':
+                webview.stop();
+                break;
+            case 'home':
+                webview.loadURL(this.initialUrl);
+                break;
         }
     }
-
+    
     /**
-     * Handle new window requests
-     */
-    onNewWindow(url) {
-        // Handle popup windows - could open in new PWA host instance
-        console.log('New window requested:', url);
-        // TODO: Implement new window handling
-    }
-
-    /**
-     * Handle page load completion
-     */
-    onPageLoad() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        if (!container) return;
-
-        const loadingOverlay = container.querySelector('#loading-overlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-        }
-
-        this.isLoading = false;
-        this.updateStatus('Page loaded');
-        this.updatePageInfo();
-    }
-
-    /**
-     * Handle page load error
-     */
-    onPageError() {
-        this.isLoading = false;
-        this.updateStatus('Failed to load page');
-    }
-
-    /**
-     * Update status bar text
+     * Update status text
      */
     updateStatus(message) {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        if (!container) return;
-
-        const statusText = container.querySelector('#status-text');
+        const statusText = document.getElementById('pwa-status-text');
         if (statusText) {
             statusText.textContent = message;
         }
     }
-
+    
     /**
-     * Update page info in status bar
+     * Update URL info
      */
-    updatePageInfo() {
-        const container = document.querySelector(`[data-window-id="${this.windowId}"] .pwa-host-container`);
-        if (!container) return;
-
-        const pageInfo = container.querySelector('#page-info');
-        if (pageInfo) {
+    updateUrlInfo() {
+        const urlInfo = document.getElementById('pwa-url-info');
+        if (urlInfo) {
             try {
                 const url = new URL(this.currentUrl);
-                pageInfo.textContent = url.hostname;
+                urlInfo.textContent = url.hostname;
             } catch (e) {
-                pageInfo.textContent = '';
+                urlInfo.textContent = this.currentUrl;
             }
         }
     }
-
+    
     /**
-     * Toggle fullscreen mode
+     * Check if this window is currently active
      */
-    toggleFullscreen() {
-        if (window.windowManager && this.windowId) {
-            // Use Nebula's window manager to toggle fullscreen
-            window.windowManager.toggleFullscreen(this.windowId);
-        }
-        this.updateStatus('Toggled fullscreen');
+    isWindowActive() {
+        const windowElement = document.getElementById(this.windowId);
+        return windowElement && windowElement.classList.contains('active');
     }
-
+    
     /**
-     * Called when the window is being closed
+     * 🌟 NEW: Add CSS styles for navigation dock
      */
-    onDestroy() {
-        console.log('PWAHost is being destroyed');
-        // Clean up resources
+    addNavDockStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .dock-btn {
+                width: 40px;
+                height: 40px;
+                background: var(--nebula-surface-hover);
+                border: 1px solid var(--nebula-border);
+                border-radius: 8px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                color: var(--nebula-text-primary);
+            }
+            
+            .dock-btn:hover:not(:disabled) {
+                background: var(--nebula-primary);
+                color: white;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            }
+            
+            .dock-btn:active {
+                transform: translateY(0);
+            }
+            
+            .dock-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+            
+            .dock-btn .material-symbols-outlined {
+                font-size: 20px;
+            }
+            
+            .dock-separator {
+                width: 1px;
+                height: 24px;
+                background: var(--nebula-border);
+                margin: 0 4px;
+                align-self: center;
+            }
+            
+            .nav-trigger:hover {
+                background: rgba(255, 255, 255, 0.1);
+            }
+        `;
+        document.head.appendChild(style);
     }
-
+    
     /**
-     * Called when the window is resized
-     */
-    onResize(width, height) {
-        console.log(`PWAHost resized to ${width}x${height}`);
-        // Handle responsive adjustments if needed
-    }
-
-    /**
-     * Called when the window gains focus
-     */
-    onFocus() {
-        console.log('PWAHost gained focus');
-    }
-
-    /**
-     * Called when the window loses focus
-     */
-    onBlur() {
-        console.log('PWAHost lost focus');
-    }
-
-    /**
-     * Get window title
+     * Required methods for WindowManager integration
      */
     getTitle() {
         return 'PWA Host';
     }
-
-    /**
-     * Get window icon
-     */
+    
     getIcon() {
         return 'web';
+    }
+    
+    cleanup() {
+        if (this.navDockTimeout) {
+            clearTimeout(this.navDockTimeout);
+        }
+        console.log('PWA Host cleanup');
     }
 }
 
 // Export for use in NebulaDesktop
-// TODO: Change class name to match your app
 window.NebulaPWAHost = NebulaPWAHost;
 // Register the app with WindowManager
 new NebulaPWAHost();
