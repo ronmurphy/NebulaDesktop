@@ -556,9 +556,27 @@ class NebulaCodeAssistant {
         });
         
         // Keyboard shortcuts - ENHANCED with new file operations
+// Keyboard shortcuts - ENHANCED with new file operations
         document.addEventListener('keydown', (e) => {
             if (!this.isWindowActive()) return;
             
+            // 🔥 FIX: Allow Electron dev tools shortcuts to pass through
+            if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+                // Don't prevent default - let Electron handle Ctrl+Shift+I
+                return;
+            }
+            
+            if (e.key === 'F12') {
+                // Don't prevent default - let Electron handle F12
+                return;
+            }
+            
+            // 🔥 FIX: Also allow Ctrl+Shift+J (Chrome dev tools alternative)
+            if (e.ctrlKey && e.shiftKey && e.key === 'J') {
+                return;
+            }
+            
+            // File operations shortcuts
             if (e.ctrlKey && e.key === 's' && !e.shiftKey) {
                 e.preventDefault();
                 this.saveFile();
@@ -579,8 +597,8 @@ class NebulaCodeAssistant {
                 this.openFile();
             }
             
-            // NEW: F5 for running JavaScript
-            if (e.key === 'F5') {
+            // F5 for running JavaScript (but not Ctrl+F5 for refresh)
+            if (e.key === 'F5' && !e.ctrlKey) {
                 e.preventDefault();
                 this.runJavaScript();
             }
