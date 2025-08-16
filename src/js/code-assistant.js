@@ -18,6 +18,12 @@ class NebulaCodeAssistant {
         this.nextFileId = 1;
         this.symbolUpdateTimeout = null; // For debounced symbol updates
         
+
+            // NEW: Chat width management
+    this.assistantVisible = true;
+    this.chatWidth = '400px'; // Default width
+    this.chatWidthPercent = 33; // Default 33%
+    
         // Available templates for loading - NEW FEATURE
         this.templates = {
             'single-app': {
@@ -47,9 +53,41 @@ class NebulaCodeAssistant {
             gemini: { name: 'Gemini', url: 'https://gemini.google.com', icon: '💎' },
             bolt: { name: 'Bolt', url: 'https://bolt.new', icon: '⚡' }
         };
+
+            // Load saved preferences
+    this.loadLayoutPreferences();
         
         this.init();
     }
+
+    // 2. ADD NEW METHOD - Load layout preferences
+loadLayoutPreferences() {
+    try {
+        const saved = localStorage.getItem('codeAssistant-layout');
+        if (saved) {
+            const prefs = JSON.parse(saved);
+            this.assistantVisible = prefs.assistantVisible !== false; // Default true
+            this.chatWidthPercent = prefs.chatWidthPercent || 33;
+            this.chatWidth = prefs.chatWidth || '400px';
+        }
+    } catch (error) {
+        console.log('Using default layout preferences');
+    }
+}
+
+// 3. ADD NEW METHOD - Save layout preferences  
+saveLayoutPreferences() {
+    try {
+        const prefs = {
+            assistantVisible: this.assistantVisible,
+            chatWidthPercent: this.chatWidthPercent,
+            chatWidth: this.chatWidth
+        };
+        localStorage.setItem('codeAssistant-layout', JSON.stringify(prefs));
+    } catch (error) {
+        console.log('Could not save layout preferences');
+    }
+}
     
     async init() {
         if (!window.windowManager) {
@@ -97,9 +135,25 @@ class NebulaCodeAssistant {
             this.createNewTab(); // Initialize with first tab
             this.updateWindowTitle(); // Set initial window title and status
         }, 0);
+
+            // Apply saved layout after creation
+    setTimeout(() => {
+        this.applySavedLayout();
+    }, 200);
         
         return container;
     }
+
+    // 10. ADD NEW METHOD - Apply saved layout on startup
+applySavedLayout() {
+    // Apply assistant visibility
+    if (!this.assistantVisible) {
+        this.toggleAssistant();
+    }
+    
+    // Apply chat width
+    this.setChatWidth(this.chatWidthPercent);
+}
     
     createEditorSide() {
         const editorSide = document.createElement('div');
@@ -554,9 +608,31 @@ class NebulaCodeAssistant {
         document.getElementById(`pasteFromAIBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.pasteFromAI();
         });
+
+            // 🆕 NEW: Assistant toggle button
+    document.getElementById(`toggleAssistantBtn-${this.windowId}`)?.addEventListener('click', () => {
+        this.toggleAssistant();
+    });
+    
+    // 🆕 NEW: Chat width buttons
+    document.getElementById(`chatWidth25-${this.windowId}`)?.addEventListener('click', () => {
+        this.setChatWidth(25);
+    });
+    
+    document.getElementById(`chatWidth33-${this.windowId}`)?.addEventListener('click', () => {
+        this.setChatWidth(33);
+    });
+    
+    document.getElementById(`chatWidth50-${this.windowId}`)?.addEventListener('click', () => {
+        this.setChatWidth(50);
+    });
+
+        // 🆕 FIX: Window resize handler for webview bug
+    window.addEventListener('resize', () => {
+        this.handleWindowResize();
+    });
         
-        // Keyboard shortcuts - ENHANCED with new file operations
-// Keyboard shortcuts - ENHANCED with new file operations
+
         document.addEventListener('keydown', (e) => {
             if (!this.isWindowActive()) return;
             
@@ -607,6 +683,86 @@ class NebulaCodeAssistant {
         // Add CSS for button styles
         this.addToolbarStyles();
     }
+
+    // 6. ADD NEW METHOD - Toggle assistant visibility
+toggleAssistant() {
+    this.assistantVisible = !this.assistantVisible;
+    
+    const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
+    const toggleBtn = document.getElementById(`toggleAssistantBtn-${this.windowId}`);
+    const widthControls = document.getElementById(`chatWidthControls-${this.windowId}`);
+    
+    if (chatSide) {
+        chatSide.style.display = this.assistantVisible ? 'flex' : 'none';
+    }
+    
+    if (toggleBtn) {
+        toggleBtn.style.background = this.assistantVisible ? 'var(--nebula-primary)' : 'var(--nebula-surface-hover)';
+        toggleBtn.style.color = this.assistantVisible ? 'white' : 'var(--nebula-text-primary)';
+        toggleBtn.querySelector('span:last-child').textContent = this.assistantVisible ? 'Hide AI' : 'Show AI';
+    }
+    
+    if (widthControls) {
+        widthControls.style.display = this.assistantVisible ? 'flex' : 'none';
+    }
+    
+    this.saveLayoutPreferences();
+    
+    // Force resize recalculation
+    setTimeout(() => this.handleWindowResize(), 100);
+}
+
+// 7. ADD NEW METHOD - Set chat width
+setChatWidth(percent) {
+    this.chatWidthPercent = percent;
+    
+    const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
+    if (chatSide) {
+        chatSide.style.width = `${percent}%`;
+        chatSide.style.flexShrink = '0';
+    }
+    
+    // Update button states
+    document.querySelectorAll(`[id^="chatWidth"][id$="-${this.windowId}"]`).forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const activeBtn = document.getElementById(`chatWidth${percent}-${this.windowId}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+    
+    this.saveLayoutPreferences();
+    
+    // Force resize recalculation
+    setTimeout(() => this.handleWindowResize(), 100);
+}
+
+// 8. ADD NEW METHOD - Handle window resize (fixes webview bug)
+handleWindowResize() {
+    const webview = document.querySelector(`[data-window-id="${this.windowId}"] .code-webview`);
+    if (webview) {
+        // Force webview to recalculate dimensions
+        webview.style.width = '100%';
+        webview.style.height = '100%';
+        
+        // Trigger webview resize if available
+        if (webview.getWebContentsId) {
+            try {
+                webview.executeJavaScript('window.dispatchEvent(new Event("resize"))');
+            } catch (error) {
+                // Ignore errors if webview not ready
+            }
+        }
+    }
+    
+    // Also fix Monaco editor sizing
+    if (this.monacoEditor) {
+        setTimeout(() => {
+            this.monacoEditor.layout();
+        }, 100);
+    }
+}
     
     // ⚡ NEW: JavaScript Execution (extracted from NebulaTerminal)
     runJavaScript() {
@@ -2471,8 +2627,59 @@ function createAmazingApp() {
                 from { transform: rotate(0deg); }
                 to { transform: rotate(360deg); }
             }
+
+                    .toolbar-btn {
+            background: var(--nebula-surface-hover);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text-primary);
+            padding: 8px 12px;
+            border-radius: var(--nebula-radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            transition: var(--nebula-transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+        
+        .toolbar-btn:hover {
+            background: var(--nebula-surface-active);
+            border-color: var(--nebula-border-hover);
+        }
+        
+        .run-btn:hover {
+            background: var(--nebula-success-hover) !important;
+        }
+        
+        /* 🆕 NEW: Width button styles */
+        .width-btn {
+            background: var(--nebula-surface-hover);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text-secondary);
+            padding: 4px 8px;
+            border-radius: var(--nebula-radius-sm);
+            cursor: pointer;
+            font-size: 11px;
+            transition: var(--nebula-transition-fast);
+            min-width: 32px;
+            text-align: center;
+        }
+        
+        .width-btn:hover {
+            background: var(--nebula-surface-active);
+            color: var(--nebula-text-primary);
+        }
+        
+        .width-btn.active {
+            background: var(--nebula-primary);
+            color: white;
+            border-color: var(--nebula-primary);
+        }
         `;
         document.head.appendChild(style);
+
+        
     }
     
     /**
