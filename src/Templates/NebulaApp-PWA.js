@@ -139,7 +139,7 @@ class NebulaPWAHost {
         statusBar.innerHTML = `
             <span id="pwa-status-text">Ready</span>
             <div style="flex: 1;"></div>
-            <span id="pwa-shortcuts" style="font-size: 11px; opacity: 0.7;">Hover bottom edge for navigation dock</span>
+            <span id="pwa-shortcuts" style="font-size: 11px; opacity: 0.7;">💡 Tip: Hover left edge for navigation dock.</span>
             <div style="width: 8px;"></div>
             <span id="pwa-url-info">${this.currentUrl}</span>
         `;
@@ -157,8 +157,8 @@ class NebulaPWAHost {
         navDock.style.cssText = `
             position: absolute;
             bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100%);
+            left: 16px;
+            transform: translateY(100%);
             background: var(--nebula-surface);
             border: 1px solid var(--nebula-border);
             border-radius: 12px;
@@ -198,7 +198,7 @@ class NebulaPWAHost {
     }
     
     /**
-     * 🌟 NEW: Create invisible trigger area at bottom
+     * 🌟 NEW: Create invisible trigger area at bottom-left edge
      */
     createTriggerArea() {
         const triggerArea = document.createElement('div');
@@ -206,10 +206,10 @@ class NebulaPWAHost {
         triggerArea.className = 'nav-trigger';
         triggerArea.style.cssText = `
             position: absolute;
-            bottom: 0;
-            left: 20%;
-            right: 20%;
-            height: 3px;
+            bottom: 24px;
+            left: 0;
+            width: 8px;
+            height: 60px;
             z-index: 999;
             cursor: pointer;
             background: transparent;
@@ -270,13 +270,12 @@ class NebulaPWAHost {
                 this.scheduleHideNavDock();
             });
 
-            // Hide when mouse leaves the bottom area
+            // Hide when mouse leaves the left edge area
             document.addEventListener('mousemove', (e) => {
-                const windowHeight = window.innerHeight;
-                const mouseY = e.clientY;
+                const mouseX = e.clientX;
                 
-                // If mouse is not near bottom, hide dock
-                if (mouseY < windowHeight - 60) {
+                // If mouse is not near left edge, hide dock
+                if (mouseX > 100) {
                     this.scheduleHideNavDock();
                 }
             });
@@ -341,7 +340,7 @@ class NebulaPWAHost {
         this.navDockVisible = true;
         navDock.style.opacity = '1';
         navDock.style.pointerEvents = 'auto';
-        navDock.style.transform = 'translateX(-50%) translateY(-8px)';
+        navDock.style.transform = 'translateY(-8px)';
         
         this.updateNavButtons();
     }
@@ -369,7 +368,7 @@ class NebulaPWAHost {
         this.navDockVisible = false;
         navDock.style.opacity = '0';
         navDock.style.pointerEvents = 'none';
-        navDock.style.transform = 'translateX(-50%) translateY(100%)';
+        navDock.style.transform = 'translateY(100%)';
     }
     
     /**
@@ -508,7 +507,8 @@ class NebulaPWAHost {
             }
             
             .nav-trigger:hover {
-                background: rgba(255, 255, 255, 0.1);
+                background: rgba(0, 122, 255, 0.2);
+                border-radius: 0 4px 4px 0;
             }
         `;
         document.head.appendChild(style);
