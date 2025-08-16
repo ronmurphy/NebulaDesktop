@@ -1,0 +1,203 @@
+/* NebulaApp PWA Template Styles - Simplified Version */
+/* Companion CSS for NebulaApp-PWA.js with context menu */
+
+/* PWA Host Container */
+.pwa-host-container {
+    --pwa-primary: var(--nebula-primary, #007acc);
+    --pwa-surface: var(--nebula-surface, #ffffff);
+    --pwa-border: var(--nebula-border, #e1e5e9);
+    --pwa-text-primary: var(--nebula-text-primary, #24292f);
+    --pwa-text-secondary: var(--nebula-text-secondary, #656d76);
+    --pwa-hover: var(--nebula-hover, #f6f8fa);
+    --pwa-bg-primary: var(--nebula-bg-primary, #ffffff);
+    --pwa-bg-secondary: var(--nebula-bg-secondary, #f6f8fa);
+}
+
+/* Context Menu Styles */
+.pwa-context-menu {
+    font-family: var(--nebula-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--pwa-text-primary);
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.context-menu-item:hover:not(.disabled) {
+    background: var(--pwa-hover);
+}
+
+.context-menu-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.context-menu-item .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--pwa-text-secondary);
+    flex-shrink: 0;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: var(--pwa-border);
+    margin: 4px 0;
+}
+
+/* Web Content Area */
+.pwa-web-content {
+    position: relative;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+#web-webview {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #ffffff;
+}
+
+/* Loading Overlay */
+#loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--pwa-bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 10;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--pwa-border);
+    border-top: 3px solid var(--pwa-primary);
+    border-radius: 50%;
+    animation: pwa-spin 1s linear infinite;
+}
+
+@keyframes pwa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Status Bar */
+.pwa-statusbar {
+    background: var(--pwa-surface);
+    border-top: 1px solid var(--pwa-border);
+    font-size: 12px;
+    color: var(--pwa-text-secondary);
+    font-family: var(--nebula-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
+
+#status-text {
+    font-weight: 500;
+}
+
+#page-info {
+    opacity: 0.8;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .context-menu-item {
+        padding: 12px 16px;
+        font-size: 16px;
+    }
+    
+    .context-menu-item .material-symbols-outlined {
+        font-size: 20px;
+    }
+    
+    .pwa-context-menu {
+        min-width: 200px;
+    }
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+    .pwa-host-container {
+        --pwa-primary: #58a6ff;
+        --pwa-surface: #21262d;
+        --pwa-border: #30363d;
+        --pwa-text-primary: #f0f6fc;
+        --pwa-text-secondary: #8b949e;
+        --pwa-hover: #30363d;
+        --pwa-bg-primary: #0d1117;
+        --pwa-bg-secondary: #161b22;
+    }
+    
+    #web-webview {
+        background: #0d1117;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .toolbar-btn {
+        border: 1px solid var(--pwa-border);
+    }
+    
+    #address-input {
+        border-width: 2px;
+    }
+    
+    .loading-spinner {
+        border-width: 4px;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    .toolbar-btn {
+        transition: none;
+    }
+    
+    .toolbar-btn:hover:not(:disabled) {
+        transform: none;
+    }
+    
+    #address-input {
+        transition: none;
+    }
+    
+    .loading-spinner {
+        animation: none;
+    }
+}
+
+/* Focus Styles for Accessibility */
+.context-menu-item:focus-visible {
+    outline: 2px solid var(--pwa-primary);
+    outline-offset: -2px;
+    background: var(--pwa-hover);
+}
+
+/* Print Styles */
+@media print {
+    .pwa-statusbar,
+    .pwa-context-menu {
+        display: none;
+    }
+    
+    .pwa-web-content {
+        height: 100vh;
+    }
+}
+
