@@ -21,7 +21,7 @@ class NebulaCodeAssistant {
 
             // NEW: Chat width management
     this.assistantVisible = true;
-    this.chatWidth = '400px'; // Default width
+    // this.chatWidth = '400px'; // Default width
     this.chatWidthPercent = 33; // Default 33%
     
         // Available templates for loading - NEW FEATURE
@@ -66,27 +66,101 @@ loadLayoutPreferences() {
         const saved = localStorage.getItem('codeAssistant-layout');
         if (saved) {
             const prefs = JSON.parse(saved);
-            this.assistantVisible = prefs.assistantVisible !== false; // Default true
+            this.assistantVisible = prefs.assistantVisible !== false;
             this.chatWidthPercent = prefs.chatWidthPercent || 33;
-            this.chatWidth = prefs.chatWidth || '400px';
         }
     } catch (error) {
         console.log('Using default layout preferences');
     }
 }
 
-// 3. ADD NEW METHOD - Save layout preferences  
 saveLayoutPreferences() {
     try {
         const prefs = {
             assistantVisible: this.assistantVisible,
-            chatWidthPercent: this.chatWidthPercent,
-            chatWidth: this.chatWidth
+            chatWidthPercent: this.chatWidthPercent
         };
         localStorage.setItem('codeAssistant-layout', JSON.stringify(prefs));
     } catch (error) {
         console.log('Could not save layout preferences');
     }
+}
+
+toggleAssistant() {
+    this.assistantVisible = !this.assistantVisible;
+    
+    const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
+    const toggleBtn = document.getElementById(`toggleAssistantBtn-${this.windowId}`);
+    const widthControls = document.getElementById(`chatWidthControls-${this.windowId}`);
+    
+    if (chatSide) {
+        chatSide.style.display = this.assistantVisible ? 'flex' : 'none';
+    }
+    
+    if (toggleBtn) {
+        toggleBtn.style.background = this.assistantVisible ? 'var(--nebula-primary)' : 'var(--nebula-surface-hover)';
+        toggleBtn.style.color = this.assistantVisible ? 'white' : 'var(--nebula-text-primary)';
+        toggleBtn.querySelector('span:last-child').textContent = this.assistantVisible ? 'Hide AI' : 'Show AI';
+    }
+    
+    if (widthControls) {
+        widthControls.style.display = this.assistantVisible ? 'flex' : 'none';
+    }
+    
+    this.saveLayoutPreferences();
+    setTimeout(() => this.handleWindowResize(), 100);
+}
+
+setChatWidth(percent) {
+    this.chatWidthPercent = percent;
+    
+    const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
+    if (chatSide) {
+        chatSide.style.width = `${percent}%`;
+        chatSide.style.flexShrink = '0';
+    }
+    
+    // Update button states
+    document.querySelectorAll(`[id^="chatWidth"][id$="-${this.windowId}"]`).forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const activeBtn = document.getElementById(`chatWidth${percent}-${this.windowId}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+    
+    this.saveLayoutPreferences();
+    setTimeout(() => this.handleWindowResize(), 100);
+}
+
+handleWindowResize() {
+    const webview = document.querySelector(`[data-window-id="${this.windowId}"] .code-webview`);
+    if (webview) {
+        webview.style.width = '100%';
+        webview.style.height = '100%';
+        
+        if (webview.getWebContentsId) {
+            try {
+                webview.executeJavaScript('window.dispatchEvent(new Event("resize"))');
+            } catch (error) {
+                // Ignore errors if webview not ready
+            }
+        }
+    }
+    
+    if (this.monacoEditor) {
+        setTimeout(() => {
+            this.monacoEditor.layout();
+        }, 100);
+    }
+}
+
+applySavedLayout() {
+    if (!this.assistantVisible) {
+        this.toggleAssistant();
+    }
+    this.setChatWidth(this.chatWidthPercent);
 }
     
     async init() {
@@ -144,16 +218,7 @@ saveLayoutPreferences() {
         return container;
     }
 
-    // 10. ADD NEW METHOD - Apply saved layout on startup
-applySavedLayout() {
-    // Apply assistant visibility
-    if (!this.assistantVisible) {
-        this.toggleAssistant();
-    }
-    
-    // Apply chat width
-    this.setChatWidth(this.chatWidthPercent);
-}
+
     
     createEditorSide() {
         const editorSide = document.createElement('div');
@@ -278,6 +343,29 @@ applySavedLayout() {
             <button id="insertToFileBtn-${this.windowId}" class="toolbar-btn" title="Insert Code to File">
                 <span class="material-symbols-outlined">insert_drive_file</span>
             </button>
+
+                        <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
+            
+            <!-- 🆕 NEW: Assistant Layout Controls -->
+            <button id="toggleAssistantBtn-${this.windowId}" class="toolbar-btn" title="Toggle AI Assistant" style="
+                background: ${this.assistantVisible ? 'var(--nebula-primary)' : 'var(--nebula-surface-hover)'};
+                color: ${this.assistantVisible ? 'white' : 'var(--nebula-text-primary)'};
+            ">
+                <span class="material-symbols-outlined">smart_toy</span>
+                <span>${this.assistantVisible ? 'Hide' : 'Show'} AI</span>
+            </button>
+            
+            <!-- Chat Width Controls -->
+            <div id="chatWidthControls-${this.windowId}" style="
+                display: ${this.assistantVisible ? 'flex' : 'none'};
+                gap: 4px;
+                align-items: center;
+            ">
+                <span style="font-size: 12px; color: var(--nebula-text-secondary);">Chat:</span>
+                <button id="chatWidth25-${this.windowId}" class="width-btn ${this.chatWidthPercent === 25 ? 'active' : ''}" title="25% Width">25%</button>
+                <button id="chatWidth33-${this.windowId}" class="width-btn ${this.chatWidthPercent === 33 ? 'active' : ''}" title="33% Width">33%</button>
+                <button id="chatWidth50-${this.windowId}" class="width-btn ${this.chatWidthPercent === 50 ? 'active' : ''}" title="50% Width">50%</button>
+            </div>
         `;
         
         // NEW: File Tab Bar
@@ -609,28 +697,28 @@ applySavedLayout() {
             this.pasteFromAI();
         });
 
-            // 🆕 NEW: Assistant toggle button
-    document.getElementById(`toggleAssistantBtn-${this.windowId}`)?.addEventListener('click', () => {
-        this.toggleAssistant();
-    });
-    
-    // 🆕 NEW: Chat width buttons
-    document.getElementById(`chatWidth25-${this.windowId}`)?.addEventListener('click', () => {
-        this.setChatWidth(25);
-    });
-    
-    document.getElementById(`chatWidth33-${this.windowId}`)?.addEventListener('click', () => {
-        this.setChatWidth(33);
-    });
-    
-    document.getElementById(`chatWidth50-${this.windowId}`)?.addEventListener('click', () => {
-        this.setChatWidth(50);
-    });
-
-        // 🆕 FIX: Window resize handler for webview bug
-    window.addEventListener('resize', () => {
-        this.handleWindowResize();
-    });
+        // 🆕 NEW: Assistant toggle button
+        document.getElementById(`toggleAssistantBtn-${this.windowId}`)?.addEventListener('click', () => {
+            this.toggleAssistant();
+        });
+        
+        // 🆕 NEW: Chat width buttons
+        document.getElementById(`chatWidth25-${this.windowId}`)?.addEventListener('click', () => {
+            this.setChatWidth(25);
+        });
+        
+        document.getElementById(`chatWidth33-${this.windowId}`)?.addEventListener('click', () => {
+            this.setChatWidth(33);
+        });
+        
+        document.getElementById(`chatWidth50-${this.windowId}`)?.addEventListener('click', () => {
+            this.setChatWidth(50);
+        });
+        
+        // 🆕 FIX: Window resize handler
+        window.addEventListener('resize', () => {
+            this.handleWindowResize();
+        });
         
 
         document.addEventListener('keydown', (e) => {
@@ -684,85 +772,7 @@ applySavedLayout() {
         this.addToolbarStyles();
     }
 
-    // 6. ADD NEW METHOD - Toggle assistant visibility
-toggleAssistant() {
-    this.assistantVisible = !this.assistantVisible;
-    
-    const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
-    const toggleBtn = document.getElementById(`toggleAssistantBtn-${this.windowId}`);
-    const widthControls = document.getElementById(`chatWidthControls-${this.windowId}`);
-    
-    if (chatSide) {
-        chatSide.style.display = this.assistantVisible ? 'flex' : 'none';
-    }
-    
-    if (toggleBtn) {
-        toggleBtn.style.background = this.assistantVisible ? 'var(--nebula-primary)' : 'var(--nebula-surface-hover)';
-        toggleBtn.style.color = this.assistantVisible ? 'white' : 'var(--nebula-text-primary)';
-        toggleBtn.querySelector('span:last-child').textContent = this.assistantVisible ? 'Hide AI' : 'Show AI';
-    }
-    
-    if (widthControls) {
-        widthControls.style.display = this.assistantVisible ? 'flex' : 'none';
-    }
-    
-    this.saveLayoutPreferences();
-    
-    // Force resize recalculation
-    setTimeout(() => this.handleWindowResize(), 100);
-}
 
-// 7. ADD NEW METHOD - Set chat width
-setChatWidth(percent) {
-    this.chatWidthPercent = percent;
-    
-    const chatSide = document.querySelector(`[data-window-id="${this.windowId}"] .code-chat-side`);
-    if (chatSide) {
-        chatSide.style.width = `${percent}%`;
-        chatSide.style.flexShrink = '0';
-    }
-    
-    // Update button states
-    document.querySelectorAll(`[id^="chatWidth"][id$="-${this.windowId}"]`).forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    const activeBtn = document.getElementById(`chatWidth${percent}-${this.windowId}`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-    }
-    
-    this.saveLayoutPreferences();
-    
-    // Force resize recalculation
-    setTimeout(() => this.handleWindowResize(), 100);
-}
-
-// 8. ADD NEW METHOD - Handle window resize (fixes webview bug)
-handleWindowResize() {
-    const webview = document.querySelector(`[data-window-id="${this.windowId}"] .code-webview`);
-    if (webview) {
-        // Force webview to recalculate dimensions
-        webview.style.width = '100%';
-        webview.style.height = '100%';
-        
-        // Trigger webview resize if available
-        if (webview.getWebContentsId) {
-            try {
-                webview.executeJavaScript('window.dispatchEvent(new Event("resize"))');
-            } catch (error) {
-                // Ignore errors if webview not ready
-            }
-        }
-    }
-    
-    // Also fix Monaco editor sizing
-    if (this.monacoEditor) {
-        setTimeout(() => {
-            this.monacoEditor.layout();
-        }, 100);
-    }
-}
     
     // ⚡ NEW: JavaScript Execution (extracted from NebulaTerminal)
     runJavaScript() {
