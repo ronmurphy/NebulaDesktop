@@ -1234,29 +1234,52 @@ function createAmazingApp() {
         console.log('New file created');
     }
     
-    // NEW: Open file from filesystem using NATIVE dialog
+    // NEW: Open file from filesystem
     async openFile() {
         try {
-            // Use native file dialog if available, fallback to custom dialog
-            if (window.nebula?.dialog?.openFile) {
-                const result = await window.nebula.dialog.openFile({
-                    title: 'Open File',
-                    defaultPath: await window.nebula.fs.getHomeDir()
-                });
+            // Get home directory as starting point
+            const homeDir = await window.nebula.fs.getHomeDir();
+            
+            // For now, prompt for file path (later we can add a file picker UI)
+            const filePath = prompt('Enter file path to open:', homeDir + '/');
+            if (!filePath) return;
+            
+            // Check if file exists
+            const exists = await window.nebula.fs.exists(filePath);
+            if (!exists) {
+                alert('File not found: ' + filePath);
+                return;
+            }
+            
+            // Read file content
+            this.writeOutput(`Opening file: ${filePath}...`, 'info');
+            const content = await window.nebula.fs.readFile(filePath);
+            
+            if (this.monacoEditor) {
+                this.monacoEditor.setValue(content);
+                this.currentFilePath = filePath;
+                this.hasUnsavedChanges = false;
+                this.updateWindowTitle();
                 
-                if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
-                    return;
+                // Auto-detect language from file extension
+                const extension = filePath.split('.').pop().toLowerCase();
+                const languageMap = {
+                    'js': 'javascript',
+                    'ts': 'typescript',
+                    'py': 'python',
+                    'html': 'html',
+                    'css': 'css',
+                    'json': 'json',
+                    'md': 'markdown'
+                };
+                
+                if (languageMap[extension]) {
+                    this.switchLanguage(languageMap[extension]);
+                    const languageSelect = document.getElementById(`languageSelect-${this.windowId}`);
+                    if (languageSelect) languageSelect.value = languageMap[extension];
                 }
                 
-                const filePath = result.filePaths[0];
-                await this.loadFileContent(filePath);
-            } else {
-                // Fallback to custom dialog
-                const homeDir = await window.nebula.fs.getHomeDir();
-                const filePath = await this.showInputDialog('Open File', 'Enter file path to open:', homeDir + '/');
-                if (!filePath) return;
-                
-                await this.loadFileContent(filePath);
+                this.writeOutput(`✅ File opened successfully!`, 'success');
             }
             
         } catch (error) {
@@ -1265,48 +1288,7 @@ function createAmazingApp() {
         }
     }
     
-    // NEW: Load file content (extracted for reuse)
-    async loadFileContent(filePath) {
-        // Check if file exists
-        const exists = await window.nebula.fs.exists(filePath);
-        if (!exists) {
-            alert('File not found: ' + filePath);
-            return;
-        }
-        
-        // Read file content
-        this.writeOutput(`Opening file: ${filePath}...`, 'info');
-        const content = await window.nebula.fs.readFile(filePath);
-        
-        if (this.monacoEditor) {
-            this.monacoEditor.setValue(content);
-            this.currentFilePath = filePath;
-            this.hasUnsavedChanges = false;
-            this.updateWindowTitle();
-            
-            // Auto-detect language from file extension
-            const extension = filePath.split('.').pop().toLowerCase();
-            const languageMap = {
-                'js': 'javascript',
-                'ts': 'typescript',
-                'py': 'python',
-                'html': 'html',
-                'css': 'css',
-                'json': 'json',
-                'md': 'markdown'
-            };
-            
-            if (languageMap[extension]) {
-                this.switchLanguage(languageMap[extension]);
-                const languageSelect = document.getElementById(`languageSelect-${this.windowId}`);
-                if (languageSelect) languageSelect.value = languageMap[extension];
-            }
-            
-            this.writeOutput(`✅ File opened successfully!`, 'success');
-        }
-    }
-    
-    // ENHANCED: Save using NATIVE dialog
+    // ENHANCED: Save current file or save as new file
     async saveFile(saveAs = false) {
         if (!this.monacoEditor) return;
         
@@ -1319,26 +1301,12 @@ function createAmazingApp() {
         try {
             let filePath = this.currentFilePath;
             
-            // If no current file or Save As requested, use native save dialog
+            // If no current file or Save As requested, prompt for new path
             if (!filePath || saveAs) {
-                if (window.nebula?.dialog?.saveFile) {
-                    const result = await window.nebula.dialog.saveFile({
-                        title: saveAs ? 'Save As' : 'Save File',
-                        defaultPath: filePath || (await window.nebula.fs.getHomeDir()) + '/untitled.js'
-                    });
-                    
-                    if (result.canceled || !result.filePath) {
-                        return;
-                    }
-                    
-                    filePath = result.filePath;
-                } else {
-                    // Fallback to custom dialog
-                    const homeDir = await window.nebula.fs.getHomeDir();
-                    const defaultPath = filePath || homeDir + '/untitled.js';
-                    filePath = await this.showInputDialog('Save File', 'Save file as:', defaultPath);
-                    if (!filePath) return;
-                }
+                const homeDir = await window.nebula.fs.getHomeDir();
+                const defaultPath = filePath || homeDir + '/untitled.js';
+                filePath = prompt('Save file as:', defaultPath);
+                if (!filePath) return;
             }
             
             this.writeOutput(`Saving file: ${filePath}...`, 'info');
@@ -1357,100 +1325,6 @@ function createAmazingApp() {
             this.writeOutput(`❌ Failed to save file: ${error.message}`, 'error');
             console.error('File save error:', error);
         }
-    }
-    
-    // NEW: Custom input dialog (replaces prompt())
-    showInputDialog(title, message, defaultValue = '') {
-        return new Promise((resolve) => {
-            // Create modal dialog
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.7);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-            `;
-            
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                background: var(--nebula-surface);
-                border: 1px solid var(--nebula-border);
-                border-radius: var(--nebula-radius-md);
-                padding: 24px;
-                min-width: 400px;
-                max-width: 600px;
-            `;
-            
-            dialog.innerHTML = `
-                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0;">${title}</h3>
-                <p style="color: var(--nebula-text-secondary); margin: 0 0 16px 0;">${message}</p>
-                <input type="text" id="inputField" value="${defaultValue}" style="
-                    width: 100%;
-                    padding: 8px 12px;
-                    border: 1px solid var(--nebula-border);
-                    border-radius: var(--nebula-radius-sm);
-                    background: var(--nebula-bg-primary);
-                    color: var(--nebula-text-primary);
-                    font-size: 14px;
-                    margin-bottom: 16px;
-                ">
-                <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                    <button id="cancelBtn" style="
-                        background: var(--nebula-surface-hover);
-                        border: 1px solid var(--nebula-border);
-                        color: var(--nebula-text-primary);
-                        padding: 8px 16px;
-                        border-radius: var(--nebula-radius-sm);
-                        cursor: pointer;
-                    ">Cancel</button>
-                    <button id="okBtn" style="
-                        background: var(--nebula-primary);
-                        border: 1px solid var(--nebula-primary);
-                        color: white;
-                        padding: 8px 16px;
-                        border-radius: var(--nebula-radius-sm);
-                        cursor: pointer;
-                    ">OK</button>
-                </div>
-            `;
-            
-            modal.appendChild(dialog);
-            document.body.appendChild(modal);
-            
-            // Focus input and select text
-            const input = dialog.querySelector('#inputField');
-            input.focus();
-            input.select();
-            
-            // Handle buttons
-            const cleanup = (result) => {
-                document.body.removeChild(modal);
-                resolve(result);
-            };
-            
-            dialog.querySelector('#okBtn').addEventListener('click', () => {
-                cleanup(input.value.trim() || null);
-            });
-            
-            dialog.querySelector('#cancelBtn').addEventListener('click', () => {
-                cleanup(null);
-            });
-            
-            // Handle Enter/Escape keys
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    cleanup(input.value.trim() || null);
-                } else if (e.key === 'Escape') {
-                    cleanup(null);
-                }
-            });
-        });
     }
     
     // NEW: Save As functionality
@@ -1478,144 +1352,29 @@ function createAmazingApp() {
             }
             
             // Show file selection dialog
-            const selectedFile = await this.showFilePickerDialog('Select File to Open', codeFiles, homeDir);
-            if (!selectedFile) return;
+            const fileList = codeFiles.map((file, index) => `${index + 1}. ${file}`).join('\n');
+            const selection = prompt(`Select a file to open:\n\n${fileList}\n\nEnter file number:`);
             
-            // Read and open the selected file
-            const content = await window.nebula.fs.readFile(selectedFile);
-            
-            if (this.monacoEditor) {
-                this.monacoEditor.setValue(content);
-                this.currentFilePath = selectedFile;
-                this.hasUnsavedChanges = false;
-                this.updateWindowTitle();
-                this.writeOutput(`✅ File opened: ${selectedFile}`, 'success');
+            const fileIndex = parseInt(selection) - 1;
+            if (fileIndex >= 0 && fileIndex < codeFiles.length) {
+                const selectedFile = homeDir + '/' + codeFiles[fileIndex];
+                
+                // Read and open the selected file
+                const content = await window.nebula.fs.readFile(selectedFile);
+                
+                if (this.monacoEditor) {
+                    this.monacoEditor.setValue(content);
+                    this.currentFilePath = selectedFile;
+                    this.hasUnsavedChanges = false;
+                    this.updateWindowTitle();
+                    this.writeOutput(`✅ File opened: ${selectedFile}`, 'success');
+                }
             }
             
         } catch (error) {
             this.writeOutput(`❌ Failed to browse files: ${error.message}`, 'error');
             console.error('File browse error:', error);
         }
-    }
-    
-    // NEW: File picker dialog (replaces prompt() for file selection)
-    showFilePickerDialog(title, files, basePath) {
-        return new Promise((resolve) => {
-            // Create modal dialog
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.7);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-            `;
-            
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                background: var(--nebula-surface);
-                border: 1px solid var(--nebula-border);
-                border-radius: var(--nebula-radius-md);
-                padding: 24px;
-                min-width: 500px;
-                max-width: 700px;
-                max-height: 80vh;
-                display: flex;
-                flex-direction: column;
-            `;
-            
-            const fileListHtml = files.map((file, index) => `
-                <div class="file-option" data-file="${file}" style="
-                    padding: 8px 12px;
-                    border: 1px solid transparent;
-                    border-radius: var(--nebula-radius-sm);
-                    cursor: pointer;
-                    color: var(--nebula-text-primary);
-                    transition: var(--nebula-transition-fast);
-                " onmouseover="this.style.background='var(--nebula-surface-hover)'" 
-                   onmouseout="this.style.background='transparent'">
-                    📄 ${file}
-                </div>
-            `).join('');
-            
-            dialog.innerHTML = `
-                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0;">${title}</h3>
-                <div style="
-                    flex: 1;
-                    border: 1px solid var(--nebula-border);
-                    border-radius: var(--nebula-radius-sm);
-                    padding: 12px;
-                    background: var(--nebula-bg-primary);
-                    overflow-y: auto;
-                    margin-bottom: 16px;
-                    max-height: 300px;
-                ">
-                    ${fileListHtml}
-                </div>
-                <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                    <button id="cancelBtn" style="
-                        background: var(--nebula-surface-hover);
-                        border: 1px solid var(--nebula-border);
-                        color: var(--nebula-text-primary);
-                        padding: 8px 16px;
-                        border-radius: var(--nebula-radius-sm);
-                        cursor: pointer;
-                    ">Cancel</button>
-                </div>
-            `;
-            
-            modal.appendChild(dialog);
-            document.body.appendChild(modal);
-            
-            let selectedFile = null;
-            
-            // Handle file selection
-            dialog.querySelectorAll('.file-option').forEach(option => {
-                option.addEventListener('click', () => {
-                    // Remove previous selection
-                    dialog.querySelectorAll('.file-option').forEach(o => {
-                        o.style.background = 'transparent';
-                        o.style.borderColor = 'transparent';
-                    });
-                    
-                    // Highlight selected
-                    option.style.background = 'var(--nebula-primary)';
-                    option.style.borderColor = 'var(--nebula-primary)';
-                    option.style.color = 'white';
-                    
-                    selectedFile = basePath + '/' + option.dataset.file;
-                });
-                
-                // Double click to open
-                option.addEventListener('dblclick', () => {
-                    selectedFile = basePath + '/' + option.dataset.file;
-                    cleanup(selectedFile);
-                });
-            });
-            
-            // Handle buttons
-            const cleanup = (result) => {
-                document.body.removeChild(modal);
-                resolve(result);
-            };
-            
-            dialog.querySelector('#cancelBtn').addEventListener('click', () => {
-                cleanup(null);
-            });
-            
-            // Handle Escape key
-            document.addEventListener('keydown', function escapeHandler(e) {
-                if (e.key === 'Escape') {
-                    document.removeEventListener('keydown', escapeHandler);
-                    cleanup(null);
-                }
-            });
-        });
     }
     
     // NEW: Update window title and status bar with current file

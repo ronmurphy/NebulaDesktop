@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, session, screen, dialog } = require('electron');
 const path = require('path');
 
 // Enable hot reload in development
@@ -18,7 +18,7 @@ class NebulaDesktop {
 
     createMainWindow() {
         const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-        
+
         this.mainWindow = new BrowserWindow({
             width: this.isFullscreen ? width : 1400,
             height: this.isFullscreen ? height : 900,
@@ -34,7 +34,7 @@ class NebulaDesktop {
         });
 
         this.mainWindow.loadFile('src/index.html');
-        
+
         if (process.argv.includes('--dev')) {
             this.mainWindow.webContents.openDevTools();
         }
@@ -101,30 +101,30 @@ class NebulaDesktop {
         ipcMain.handle('fs:readfile', async (event, filePath, encoding = null) => {
             try {
                 const fs = require('fs').promises;
-                
+
                 // Detect if this is likely a binary file based on extension
                 const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.tiff', '.svg'];
                 const videoExtensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.ogv', '.m4v'];
                 const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
                 const binaryExtensions = [...imageExtensions, ...videoExtensions, ...audioExtensions, '.exe', '.bin', '.dll', '.so'];
-                
+
                 const ext = path.extname(filePath).toLowerCase();
                 const isBinaryFile = binaryExtensions.includes(ext);
-                
+
                 if (encoding === null) {
                     // Auto-detect encoding based on file type
                     encoding = isBinaryFile ? null : 'utf8';
                 }
-                
+
                 console.log(`Reading file: ${filePath}, binary: ${isBinaryFile}, encoding: ${encoding}`);
-                
+
                 const data = await fs.readFile(filePath, encoding);
-                
+
                 // For binary files, convert Buffer to Uint8Array for better browser compatibility
                 if (isBinaryFile && Buffer.isBuffer(data)) {
                     return new Uint8Array(data);
                 }
-                
+
                 return data;
             } catch (error) {
                 console.error(`Error reading file ${filePath}:`, error);
@@ -211,11 +211,11 @@ class NebulaDesktop {
             try {
                 const { spawn } = require('child_process');
                 const os = require('os');
-                
+
                 return new Promise((resolve, reject) => {
                     // Determine the shell and command
                     let shell, shellArgs;
-                    
+
                     if (os.platform() === 'win32') {
                         shell = 'cmd.exe';
                         shellArgs = ['/c', command, ...args];
@@ -282,11 +282,50 @@ class NebulaDesktop {
                 cpuCount: os.cpus().length
             };
         });
+
+        // Native file dialogs
+        ipcMain.handle('dialog:openFile', async (event, options = {}) => {
+            try {
+                const result = await dialog.showOpenDialog(this.mainWindow, {
+                    properties: ['openFile'],
+                    filters: [
+                        { name: 'Code Files', extensions: ['js', 'ts', 'py', 'html', 'css', 'json', 'md', 'txt'] },
+                        { name: 'JavaScript', extensions: ['js'] },
+                        { name: 'All Files', extensions: ['*'] }
+                    ],
+                    ...options
+                });
+                return result;
+            } catch (error) {
+                throw error;
+            }
+        });
+
+        ipcMain.handle('dialog:saveFile', async (event, options = {}) => {
+            try {
+                const result = await dialog.showSaveDialog(this.mainWindow, {
+                    filters: [
+                        { name: 'JavaScript', extensions: ['js'] },
+                        { name: 'TypeScript', extensions: ['ts'] },
+                        { name: 'Python', extensions: ['py'] },
+                        { name: 'HTML', extensions: ['html'] },
+                        { name: 'CSS', extensions: ['css'] },
+                        { name: 'JSON', extensions: ['json'] },
+                        { name: 'Markdown', extensions: ['md'] },
+                        { name: 'All Files', extensions: ['*'] }
+                    ],
+                    ...options
+                });
+                return result;
+            } catch (error) {
+                throw error;
+            }
+        });
     }
 
     createAppWindow(options) {
         const windowId = Date.now().toString();
-        
+
         const window = new BrowserWindow({
             width: options.width || 800,
             height: options.height || 600,
@@ -301,11 +340,11 @@ class NebulaDesktop {
         });
 
         this.childWindows.set(windowId, window);
-        
+
         window.once('ready-to-show', () => {
             window.show();
         });
-        
+
         window.on('closed', () => {
             this.childWindows.delete(windowId);
         });
