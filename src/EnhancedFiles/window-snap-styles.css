@@ -1,0 +1,520 @@
+/* Enhanced Window Manager Styles - Icons + Snap Functionality */
+
+/* Window Icon Styles */
+.window-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    flex-shrink: 0;
+    min-width: 20px;
+    height: 20px;
+}
+
+/* Emoji icons */
+.window-icon.emoji-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+/* Material Icons */
+.window-icon.material-icon {
+    font-size: 18px;
+}
+
+.window-icon.material-icon .material-symbols-outlined {
+    font-size: 18px;
+    font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 20;
+}
+
+/* Web Glyph icons */
+.window-icon.glyph-icon {
+    font-size: 16px;
+    font-family: 'Arial Unicode MS', 'Segoe UI Symbol', sans-serif;
+    line-height: 1;
+}
+
+/* Snap Preview Overlay */
+.snap-preview {
+    position: fixed;
+    background: rgba(0, 123, 255, 0.3);
+    border: 2px solid rgba(0, 123, 255, 0.8);
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    box-shadow: 
+        0 0 20px rgba(0, 123, 255, 0.4),
+        inset 0 0 20px rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(2px);
+}
+
+.snap-preview::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    background: rgba(0, 123, 255, 0.6);
+    border-radius: 50%;
+    animation: snap-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes snap-pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+.snap-preview.fade-in {
+    opacity: 1;
+}
+
+.snap-preview.fade-out {
+    opacity: 0;
+}
+
+/* Window Snap Animation */
+.window-snapping {
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 8px 32px rgba(0, 123, 255, 0.3);
+}
+
+/* Enhanced Window Styles */
+.nebula-window {
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    min-width: 200px;
+    min-height: 150px;
+    transition: box-shadow 0.2s ease;
+}
+
+.nebula-window:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.nebula-window.focused {
+    border-color: rgba(0, 123, 255, 0.5);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(0, 123, 255, 0.3);
+}
+
+/* Titlebar Styles */
+.window-titlebar {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    user-select: none;
+    cursor: move;
+    transition: background-color 0.2s ease;
+}
+
+.window-titlebar:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.window-title {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.window-controls {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.window-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.window-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.window-btn.close:hover {
+    background: rgba(255, 59, 48, 0.8);
+    color: white;
+}
+
+.window-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* Window Content */
+.window-content {
+    padding: 16px;
+    height: calc(100% - 45px);
+    overflow: auto;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Window States */
+.window-hidden {
+    display: none !important;
+}
+
+.minimizing {
+    animation: minimize-window 0.35s ease-out forwards;
+}
+
+.restoring {
+    animation: restore-window 0.3s ease-out forwards;
+}
+
+@keyframes minimize-window {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.1);
+        opacity: 0;
+    }
+}
+
+@keyframes restore-window {
+    0% {
+        transform: scale(0.1);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Resize Handles */
+.resize-handle {
+    position: absolute;
+    background: transparent;
+    z-index: 10;
+}
+
+.resize-handle:hover {
+    background: rgba(0, 123, 255, 0.2);
+}
+
+.resize-handle.resize-n {
+    top: 0;
+    left: 8px;
+    right: 8px;
+    height: 4px;
+    cursor: n-resize;
+}
+
+.resize-handle.resize-s {
+    bottom: 0;
+    left: 8px;
+    right: 8px;
+    height: 4px;
+    cursor: s-resize;
+}
+
+.resize-handle.resize-e {
+    top: 8px;
+    right: 0;
+    bottom: 8px;
+    width: 4px;
+    cursor: e-resize;
+}
+
+.resize-handle.resize-w {
+    top: 8px;
+    left: 0;
+    bottom: 8px;
+    width: 4px;
+    cursor: w-resize;
+}
+
+.resize-handle.resize-ne {
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    cursor: ne-resize;
+}
+
+.resize-handle.resize-nw {
+    top: 0;
+    left: 0;
+    width: 8px;
+    height: 8px;
+    cursor: nw-resize;
+}
+
+.resize-handle.resize-se {
+    bottom: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    cursor: se-resize;
+}
+
+.resize-handle.resize-sw {
+    bottom: 0;
+    left: 0;
+    width: 8px;
+    height: 8px;
+    cursor: sw-resize;
+}
+
+/* Snap Zone Visual Indicators (for debugging - can be removed in production) */
+.snap-zone-debug {
+    position: fixed;
+    border: 2px dashed rgba(255, 0, 0, 0.3);
+    background: rgba(255, 0, 0, 0.1);
+    pointer-events: none;
+    z-index: 9998;
+    display: none; /* Hidden by default */
+}
+
+.snap-zone-debug.active {
+    display: block;
+}
+
+/* Enhanced Snap Preview Variants */
+.snap-preview.corner {
+    border-radius: 12px;
+}
+
+.snap-preview.edge {
+    border-radius: 6px;
+}
+
+.snap-preview.top-edge::before {
+    content: '⬆';
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.9);
+    background: none;
+    animation: none;
+}
+
+.snap-preview.bottom-edge::before {
+    content: '⬇';
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.9);
+    background: none;
+    animation: none;
+}
+
+.snap-preview.left-edge::before {
+    content: '⬅';
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.9);
+    background: none;
+    animation: none;
+}
+
+.snap-preview.right-edge::before {
+    content: '➡';
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.9);
+    background: none;
+    animation: none;
+}
+
+.snap-preview.corner::before {
+    content: '⌜';
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.9);
+    background: none;
+    animation: none;
+}
+
+/* Demo Page Styles */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+#desktop {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+.demo-controls {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 16px;
+    border-radius: 8px;
+    color: white;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.demo-controls h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+}
+
+.demo-controls button {
+    display: block;
+    width: 100%;
+    margin: 8px 0;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    background: #007AFF;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.demo-controls button:hover {
+    background: #0056CC;
+    transform: translateY(-1px);
+}
+
+.demo-controls button.danger {
+    background: #FF3B30;
+}
+
+.demo-controls button.danger:hover {
+    background: #CC2E24;
+}
+
+.demo-controls .snap-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(0, 123, 255, 0.2);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 123, 255, 0.3);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.demo-controls .snap-info h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #00D4FF;
+}
+
+/* Snap Zone Indicators */
+.snap-zones-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 9997;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.snap-zones-overlay.visible {
+    opacity: 1;
+}
+
+.snap-zone-indicator {
+    position: absolute;
+    border: 2px dashed rgba(0, 123, 255, 0.5);
+    background: rgba(0, 123, 255, 0.1);
+    border-radius: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .demo-controls {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        width: auto;
+    }
+    
+    .demo-controls button {
+        padding: 12px;
+        font-size: 16px;
+    }
+    
+    .snap-system.cornerSize {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .snap-system.edgeSize {
+        width: 40px;
+    }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .snap-preview {
+        border-width: 3px;
+        background: rgba(0, 123, 255, 0.5);
+    }
+    
+    .nebula-window {
+        border-width: 2px;
+    }
+    
+    .window-titlebar {
+        background: rgba(255, 255, 255, 0.2);
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .window-snapping,
+    .snap-preview,
+    .window-btn,
+    .nebula-window {
+        transition: none;
+    }
+    
+    .snap-preview::before {
+        animation: none;
+    }
+    
+    .minimizing,
+    .restoring {
+        animation: none;
+    }
+}
+

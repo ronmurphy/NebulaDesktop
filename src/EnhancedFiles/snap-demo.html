@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced WindowManager Demo - Icons + Snap Functionality</title>
+    
+    <!-- Google Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <!-- Window Manager Styles -->
+    <link rel="stylesheet" href="window-snap-styles.css">
+</head>
+<body>
+    <div id="desktop">
+        <!-- Demo Controls Panel -->
+        <div class="demo-controls">
+            <h3>🪟 Enhanced WindowManager Demo</h3>
+            <p style="font-size: 12px; margin: 0 0 12px 0; opacity: 0.8;">Test window creation with icon support and snap functionality</p>
+            
+            <!-- Window Creation Buttons -->
+            <button onclick="createFileManager()">📁 File Manager (Emoji)</button>
+            <button onclick="createBrowser()">🌐 Browser (Material Icon)</button>
+            <button onclick="createSettings()">⚙️ Settings (Web Glyph)</button>
+            <button onclick="createPlainWindow()">Plain Window (No Icon)</button>
+            <button onclick="createCustomApp()">🎨 Custom App (Emoji)</button>
+            <button onclick="testIconUpdate()">🔄 Test Icon Update</button>
+            
+            <!-- Snap Testing -->
+            <button onclick="createSnapTestWindow()" style="background: #34C759;">🧲 Create Snap Test Window</button>
+            <button onclick="toggleSnapZoneVisibility()" style="background: #FF9500;">👁️ Toggle Snap Zone Visibility</button>
+            
+            <!-- Controls -->
+            <button onclick="closeAllWindows()" class="danger">❌ Close All Windows</button>
+            
+            <!-- Snap Instructions -->
+            <div class="snap-info">
+                <h4>🧲 Snap Instructions</h4>
+                <p><strong>Drag windows to screen edges:</strong></p>
+                <p>• <strong>Left/Right edges:</strong> Snap to half screen</p>
+                <p>• <strong>Top edge:</strong> Maximize window</p>
+                <p>• <strong>Bottom edge:</strong> Dock to bottom</p>
+                <p>• <strong>Corners:</strong> Snap to quarter screen</p>
+                <p><strong>Hold for 800ms</strong> to see preview, then release to snap!</p>
+            </div>
+        </div>
+        
+        <!-- Snap Zone Overlay (for visualization) -->
+        <div id="snapZonesOverlay" class="snap-zones-overlay">
+            <!-- Will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- WindowManager Script -->
+    <script src="WindowManager_Enhanced_Snap.js"></script>
+    
+    <script>
+        // Initialize WindowManager
+        const windowManager = new WindowManager();
+        let snapZonesVisible = false;
+
+        // Window creation functions
+        function createFileManager() {
+            const windowId = windowManager.createWindow({
+                title: 'File Manager',
+                icon: '📁',
+                iconType: 'emoji',
+                width: 600,
+                height: 400
+            });
+            
+            // Add demo content
+            const content = windowManager.windows.get(windowId).element.querySelector('.window-content');
+            content.innerHTML = `
+                <h2>📁 File Manager</h2>
+                <p>This window demonstrates <strong>emoji icon</strong> support in the titlebar.</p>
+                <p>The folder emoji (📁) appears to the left of the window title.</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 4px; margin-top: 16px;">
+                    <strong>Icon Type:</strong> Emoji<br>
+                    <strong>Icon Value:</strong> 📁<br>
+                    <strong>Usage:</strong> Perfect for simple, colorful icons
+                </div>
+                <p style="margin-top: 16px;"><strong>🧲 Try dragging this window to screen edges to test snap functionality!</strong></p>
+            `;
+        }
+
+        function createBrowser() {
+            const windowId = windowManager.createWindow({
+                title: 'Web Browser',
+                icon: 'language',
+                iconType: 'material',
+                width: 800,
+                height: 600
+            });
+            
+            const content = windowManager.windows.get(windowId).element.querySelector('.window-content');
+            content.innerHTML = `
+                <h2>🌐 Web Browser</h2>
+                <p>This window demonstrates <strong>Material Icon</strong> support in the titlebar.</p>
+                <p>The "language" Material Symbol appears to the left of the window title.</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 4px; margin-top: 16px;">
+                    <strong>Icon Type:</strong> Material<br>
+                    <strong>Icon Value:</strong> language<br>
+                    <strong>Usage:</strong> Professional, consistent Google Material Design icons
+                </div>
+                <p style="margin-top: 16px;">Material icons provide a consistent, professional look and are part of Google's Material Design system.</p>
+                <p><strong>🧲 Drag to corners to snap to quarter-screen!</strong></p>
+            `;
+        }
+
+        function createSettings() {
+            const windowId = windowManager.createWindow({
+                title: 'System Settings',
+                icon: '⚙',
+                iconType: 'glyph',
+                width: 500,
+                height: 400
+            });
+            
+            const content = windowManager.windows.get(windowId).element.querySelector('.window-content');
+            content.innerHTML = `
+                <h2>⚙ System Settings</h2>
+                <p>This window demonstrates <strong>Web Glyph</strong> support in the titlebar.</p>
+                <p>The gear symbol (⚙) appears to the left of the window title.</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 4px; margin-top: 16px;">
+                    <strong>Icon Type:</strong> Glyph<br>
+                    <strong>Icon Value:</strong> ⚙<br>
+                    <strong>Usage:</strong> Unicode symbols and special characters
+                </div>
+                <p style="margin-top: 16px;">Web glyphs use Unicode symbols that are widely supported across different fonts and systems.</p>
+                <p><strong>🧲 Drag to top edge to maximize!</strong></p>
+            `;
+        }
+
+        function createPlainWindow() {
+            const windowId = windowManager.createWindow({
+                title: 'Plain Window',
+                // No icon specified
+                width: 400,
+                height: 300
+            });
+            
+            const content = windowManager.windows.get(windowId).element.querySelector('.window-content');
+            content.innerHTML = `
+                <h2>Plain Window</h2>
+                <p>This window demonstrates the default behavior when <strong>no icon</strong> is specified.</p>
+                <p>The titlebar shows only the window title without any icon.</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 4px; margin-top: 16px;">
+                    <strong>Icon Type:</strong> None<br>
+                    <strong>Icon Value:</strong> null<br>
+                    <strong>Usage:</strong> Clean, minimal appearance
+                </div>
+                <p><strong>🧲 Drag to left/right edges for half-screen snap!</strong></p>
+            `;
+        }
+
+        function createCustomApp() {
+            const windowId = windowManager.createWindow({
+                title: 'Creative Studio',
+                icon: '🎨',
+                iconType: 'emoji',
+                width: 700,
+                height: 500
+            });
+            
+            const content = windowManager.windows.get(windowId).element.querySelector('.window-content');
+            content.innerHTML = `
+                <h2>🎨 Creative Studio</h2>
+                <p>This window demonstrates a <strong>custom application</strong> with emoji icon support.</p>
+                <p>The artist palette emoji (🎨) represents a creative application.</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 4px; margin-top: 16px;">
+                    <strong>Icon Type:</strong> Emoji<br>
+                    <strong>Icon Value:</strong> 🎨<br>
+                    <strong>Application:</strong> Creative Studio<br>
+                    <strong>Purpose:</strong> Digital art and design
+                </div>
+                <p style="margin-top: 16px;">This window can be used to test the icon update functionality. Click "Test Icon Update" to see the icon change dynamically.</p>
+                <p><strong>🧲 Try all snap zones with this window!</strong></p>
+            `;
+        }
+
+        function createSnapTestWindow() {
+            const windowId = windowManager.createWindow({
+                title: 'Snap Test Window',
+                icon: '🧲',
+                iconType: 'emoji',
+                width: 500,
+                height: 350,
+                x: window.innerWidth / 2 - 250,
+                y: window.innerHeight / 2 - 175
+            });
+            
+            const content = windowManager.windows.get(windowId).element.querySelector('.window-content');
+            content.innerHTML = `
+                <h2>🧲 Snap Test Window</h2>
+                <p>This window is specifically designed for testing snap functionality!</p>
+                
+                <div style="background: rgba(0,123,255,0.2); padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid rgba(0,123,255,0.3);">
+                    <h3 style="margin: 0 0 12px 0; color: #00D4FF;">🎯 Snap Zones to Test:</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px;">
+                        <div><strong>Left Edge:</strong> Half screen left</div>
+                        <div><strong>Right Edge:</strong> Half screen right</div>
+                        <div><strong>Top Edge:</strong> Maximize window</div>
+                        <div><strong>Bottom Edge:</strong> Dock to bottom</div>
+                        <div><strong>Top-Left:</strong> Quarter screen</div>
+                        <div><strong>Top-Right:</strong> Quarter screen</div>
+                        <div><strong>Bottom-Left:</strong> Quarter screen</div>
+                        <div><strong>Bottom-Right:</strong> Quarter screen</div>
+                    </div>
+                </div>
+                
+                <p><strong>Instructions:</strong></p>
+                <ol style="font-size: 14px; line-height: 1.6;">
+                    <li>Drag this window by its titlebar</li>
+                    <li>Move mouse to any screen edge or corner</li>
+                    <li>Hold for 800ms to see blue preview</li>
+                    <li>Release mouse to snap to that position</li>
+                </ol>
+                
+                <p style="margin-top: 16px; padding: 8px; background: rgba(255,193,7,0.2); border-radius: 4px; font-size: 14px;">
+                    💡 <strong>Tip:</strong> Toggle snap zone visibility to see the detection areas!
+                </p>
+            `;
+        }
+
+        function testIconUpdate() {
+            // Find the Creative Studio window or create one
+            let targetWindowId = null;
+            windowManager.windows.forEach((windowData, windowId) => {
+                if (windowData.config.title === 'Creative Studio' || windowData.config.title === 'Gallery') {
+                    targetWindowId = windowId;
+                }
+            });
+
+            if (!targetWindowId) {
+                // Create the window first
+                createCustomApp();
+                // Find it again
+                windowManager.windows.forEach((windowData, windowId) => {
+                    if (windowData.config.title === 'Creative Studio') {
+                        targetWindowId = windowId;
+                    }
+                });
+            }
+
+            if (targetWindowId) {
+                const windowData = windowManager.windows.get(targetWindowId);
+                const currentTitle = windowData.config.title;
+                
+                if (currentTitle === 'Creative Studio') {
+                    // Change to Gallery
+                    windowManager.setWindowIcon(targetWindowId, '🖼️', 'emoji');
+                    windowManager.setWindowTitle(targetWindowId, 'Gallery');
+                    
+                    // Update content
+                    const content = windowData.element.querySelector('.window-content');
+                    content.innerHTML = `
+                        <h2>🖼️ Gallery</h2>
+                        <p>The window icon and title have been <strong>dynamically updated!</strong></p>
+                        <p>This demonstrates the setWindowIcon() method in action.</p>
+                        <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 4px; margin-top: 16px;">
+                            <strong>New Icon Type:</strong> emoji<br>
+                            <strong>New Icon Value:</strong> 🖼️<br>
+                            <strong>New Title:</strong> Gallery<br>
+                            <strong>Method Used:</strong> setWindowIcon()
+                        </div>
+                        <p style="margin-top: 16px;">Click "Test Icon Update" again to cycle to the next icon type.</p>
+                    `;
+                } else if (currentTitle === 'Gallery') {
+                    // Change to Code Editor
+                    windowManager.setWindowIcon(targetWindowId, 'code', 'material');
+                    windowManager.setWindowTitle(targetWindowId, 'Code Editor');
+                    
+                    const content = windowData.element.querySelector('.window-content');
+                    content.innerHTML = `
+                        <h2>💻 Code Editor</h2>
+                        <p>Now using a <strong>Material Icon</strong> - the "code" symbol!</p>
+                        <p>This shows how to switch between different icon types dynamically.</p>
+                        <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 4px; margin-top: 16px;">
+                            <strong>New Icon Type:</strong> material<br>
+                            <strong>New Icon Value:</strong> code<br>
+                            <strong>New Title:</strong> Code Editor<br>
+                            <strong>Method Used:</strong> setWindowIcon()
+                        </div>
+                        <p style="margin-top: 16px;">Click "Test Icon Update" again to cycle to the next icon type.</p>
+                    `;
+                } else {
+                    // Change back to Creative Studio
+                    windowManager.setWindowIcon(targetWindowId, '🎨', 'emoji');
+                    windowManager.setWindowTitle(targetWindowId, 'Creative Studio');
+                    
+                    const content = windowData.element.querySelector('.window-content');
+                    content.innerHTML = `
+                        <h2>🎨 Creative Studio</h2>
+                        <p>Back to the original <strong>Creative Studio</strong> with emoji icon!</p>
+                        <p>This completes the icon update cycle demonstration.</p>
+                        <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 4px; margin-top: 16px;">
+                            <strong>Icon Type:</strong> emoji<br>
+                            <strong>Icon Value:</strong> 🎨<br>
+                            <strong>Title:</strong> Creative Studio<br>
+                            <strong>Method Used:</strong> setWindowIcon()
+                        </div>
+                        <p style="margin-top: 16px;">The icon update functionality allows you to change window icons and titles at runtime!</p>
+                    `;
+                }
+            }
+        }
+
+        function closeAllWindows() {
+            const windowIds = Array.from(windowManager.windows.keys());
+            windowIds.forEach(windowId => {
+                windowManager.closeWindow(windowId);
+            });
+        }
+
+        function toggleSnapZoneVisibility() {
+            snapZonesVisible = !snapZonesVisible;
+            const overlay = document.getElementById('snapZonesOverlay');
+            
+            if (snapZonesVisible) {
+                overlay.classList.add('visible');
+                createSnapZoneIndicators();
+            } else {
+                overlay.classList.remove('visible');
+                overlay.innerHTML = '';
+            }
+        }
+
+        function createSnapZoneIndicators() {
+            const overlay = document.getElementById('snapZonesOverlay');
+            overlay.innerHTML = '';
+            
+            // Create visual indicators for each snap zone
+            const zones = [
+                { name: 'Left Edge', x: 0, y: 0, width: 50, height: '100vh', color: 'rgba(255, 0, 0, 0.3)' },
+                { name: 'Right Edge', x: 'calc(100vw - 50px)', y: 0, width: 50, height: '100vh', color: 'rgba(255, 0, 0, 0.3)' },
+                { name: 'Top Edge', x: 0, y: 0, width: '100vw', height: 50, color: 'rgba(0, 255, 0, 0.3)' },
+                { name: 'Bottom Edge', x: 0, y: 'calc(100vh - 50px)', width: '100vw', height: 50, color: 'rgba(0, 255, 0, 0.3)' },
+                { name: 'Top-Left', x: 0, y: 0, width: 100, height: 100, color: 'rgba(0, 0, 255, 0.4)' },
+                { name: 'Top-Right', x: 'calc(100vw - 100px)', y: 0, width: 100, height: 100, color: 'rgba(0, 0, 255, 0.4)' },
+                { name: 'Bottom-Left', x: 0, y: 'calc(100vh - 100px)', width: 100, height: 100, color: 'rgba(0, 0, 255, 0.4)' },
+                { name: 'Bottom-Right', x: 'calc(100vw - 100px)', y: 'calc(100vh - 100px)', width: 100, height: 100, color: 'rgba(0, 0, 255, 0.4)' }
+            ];
+            
+            zones.forEach(zone => {
+                const indicator = document.createElement('div');
+                indicator.className = 'snap-zone-indicator';
+                indicator.style.cssText = `
+                    left: ${zone.x};
+                    top: ${zone.y};
+                    width: ${zone.width}px;
+                    height: ${zone.height}px;
+                    background: ${zone.color};
+                    border: 2px dashed rgba(255, 255, 255, 0.6);
+                `;
+                
+                // Add label
+                const label = document.createElement('div');
+                label.textContent = zone.name;
+                label.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    color: white;
+                    font-size: 12px;
+                    font-weight: bold;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+                    pointer-events: none;
+                    text-align: center;
+                `;
+                indicator.appendChild(label);
+                
+                overlay.appendChild(indicator);
+            });
+        }
+
+        // Initialize with a welcome message
+        window.addEventListener('load', () => {
+            console.log('Enhanced WindowManager with Snap Functionality loaded!');
+            console.log('Features:');
+            console.log('- Icon support (emoji, Material Icons, web glyphs)');
+            console.log('- Window snapping to edges and corners');
+            console.log('- Visual snap previews with 800ms delay');
+            console.log('- Smooth snap animations');
+            console.log('- Dynamic icon updates');
+        });
+    </script>
+</body>
+</html>
+

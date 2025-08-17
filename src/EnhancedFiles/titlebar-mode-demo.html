@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced WindowManager Demo - Icons + Snap + Titlebar-Only Mode</title>
+    
+    <!-- Google Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <!-- Enhanced Window Styles -->
+    <link rel="stylesheet" href="window-titlebar-mode-styles.css">
+</head>
+<body>
+    <div id="desktop">
+        <!-- Demo Controls Panel -->
+        <div class="demo-controls">
+            <h3>🪟 Enhanced WindowManager Demo</h3>
+            <p style="font-size: 12px; margin: 0 0 12px 0; opacity: 0.8;">Test window creation with icon support, snap functionality, and titlebar-only mode</p>
+            
+            <!-- Window Creation Buttons -->
+            <button onclick="createFileManager()">📁 File Manager (Emoji)</button>
+            <button onclick="createBrowser()">🌐 Browser (Material Icon)</button>
+            <button onclick="createSettings()">⚙️ Settings (Web Glyph)</button>
+            <button onclick="createPlainWindow()">Plain Window (No Icon)</button>
+            <button onclick="createCustomApp()">🎨 Custom App (Emoji)</button>
+            
+            <!-- Feature Test Buttons -->
+            <button onclick="testIconUpdate()" class="special">🔄 Test Icon Update</button>
+            <button onclick="createTitlebarTestWindow()" class="success">🧲 Create Titlebar Test Window</button>
+            <button onclick="toggleSnapZoneVisibility()" class="special">👁️ Toggle Snap Zone Visibility</button>
+            <button onclick="closeAllWindows()" class="danger">❌ Close All Windows</button>
+            
+            <!-- Titlebar-Only Mode Instructions -->
+            <div class="titlebar-info">
+                <h4>🎯 Titlebar-Only Mode</h4>
+                <p><strong>Right-click</strong> any window titlebar to toggle titlebar-only mode!</p>
+                <ul style="margin: 8px 0 0 16px; padding: 0; font-size: 11px;">
+                    <li>Creates floating minimal header</li>
+                    <li>Stays on top of all windows</li>
+                    <li>Ignores snap system</li>
+                    <li>Right-click again to restore</li>
+                </ul>
+            </div>
+            
+            <!-- Snap Instructions -->
+            <div class="snap-info">
+                <h4>🧲 Snap Instructions</h4>
+                <p>Drag windows to screen edges:</p>
+                <ul style="margin: 8px 0 0 16px; padding: 0; font-size: 11px;">
+                    <li><strong>Left/Right edges:</strong> Snap to half screen</li>
+                    <li><strong>Top edge:</strong> Maximize window</li>
+                    <li><strong>Bottom edge:</strong> Dock to bottom</li>
+                    <li><strong>Corners:</strong> Snap to quarter screen</li>
+                </ul>
+                <p style="margin: 8px 0 0 0; font-size: 11px;"><strong>Hold for 800ms</strong> to see preview, then release to snap!</p>
+            </div>
+        </div>
+        
+        <!-- Snap Zone Indicators (for debugging) -->
+        <div class="snap-zones-overlay" id="snapZonesOverlay">
+            <div class="snap-zone-indicator" id="leftEdge" style="left: 0; top: 0; width: 50px; height: 100vh;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 123, 255, 0.8); font-weight: bold; font-size: 12px; writing-mode: vertical-rl;">Left Edge</div>
+            </div>
+            <div class="snap-zone-indicator" id="rightEdge" style="right: 0; top: 0; width: 50px; height: 100vh;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 123, 255, 0.8); font-weight: bold; font-size: 12px; writing-mode: vertical-rl;">Right Edge</div>
+            </div>
+            <div class="snap-zone-indicator" id="topEdge" style="left: 0; top: 0; width: 100vw; height: 50px;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 123, 255, 0.8); font-weight: bold; font-size: 12px;">Top Edge</div>
+            </div>
+            <div class="snap-zone-indicator" id="bottomEdge" style="left: 0; bottom: 0; width: 100vw; height: 50px;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 123, 255, 0.8); font-weight: bold; font-size: 12px;">Bottom Edge</div>
+            </div>
+            <div class="snap-zone-indicator" id="topLeft" style="left: 0; top: 0; width: 100px; height: 100px;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 123, 255, 0.8); font-weight: bold; font-size: 10px; text-align: center;">Top-<br>Left</div>
+            </div>
+            <div class="snap-zone-indicator" id="topRight" style="right: 0; top: 0; width: 100px; height: 100px;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 123, 255, 0.8); font-weight: bold; font-size: 10px; text-align: center;">Top-<br>Right</div>
+            </div>
+            <div class="snap-zone-indicator" id="bottomLeft" style="left: 0; bottom: 0; width: 100px; height: 100px;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 123, 255, 0.8); font-weight: bold; font-size: 10px; text-align: center;">Bottom-<br>Left</div>
+            </div>
+            <div class="snap-zone-indicator" id="bottomRight" style="right: 0; bottom: 0; width: 100px; height: 100px;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(0, 123, 255, 0.8); font-weight: bold; font-size: 10px; text-align: center;">Bottom-<br>Right</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced WindowManager Script -->
+    <script src="WindowManager_Enhanced_TitlebarMode.js"></script>
+
+    <script>
+        // Initialize WindowManager
+        const windowManager = new WindowManager();
+        let snapZonesVisible = false;
+
+        // Demo Functions
+        function createFileManager() {
+            const windowId = windowManager.createWindow({
+                title: 'File Manager',
+                icon: '📁',
+                iconType: 'emoji',
+                width: 600,
+                height: 400,
+                x: 100,
+                y: 100
+            });
+
+            // Add some demo content
+            const windowData = windowManager.windows.get(windowId);
+            const content = windowData.element.querySelector('.window-content');
+            content.innerHTML = `
+                <h3>📁 File Manager</h3>
+                <p>This window demonstrates <strong>emoji icon support</strong> in the titlebar.</p>
+                <p>The folder emoji (📁) appears to the left of the window title.</p>
+                <div style="margin-top: 20px; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 4px;">
+                    <h4>🎯 Try Titlebar-Only Mode:</h4>
+                    <p><strong>Right-click on this titlebar</strong> to collapse this window to just the titlebar!</p>
+                    <p>It will become a floating minimal header that stays on top of all other windows.</p>
+                </div>
+                <div style="margin-top: 16px; padding: 12px; background: rgba(0, 123, 255, 0.2); border-radius: 4px;">
+                    <h4>🧲 Test Snap Functionality:</h4>
+                    <p>Drag this window to screen edges to test snap functionality!</p>
+                </div>
+            `;
+
+            return windowId;
+        }
+
+        function createBrowser() {
+            const windowId = windowManager.createWindow({
+                title: 'Browser',
+                icon: 'language',
+                iconType: 'material',
+                width: 800,
+                height: 500,
+                x: 150,
+                y: 150
+            });
+
+            // Add some demo content
+            const windowData = windowManager.windows.get(windowId);
+            const content = windowData.element.querySelector('.window-content');
+            content.innerHTML = `
+                <h3>🌐 Browser Window</h3>
+                <p>This window demonstrates <strong>Material Icon support</strong> using Google Material Design icons.</p>
+                <p>The "language" icon appears in the titlebar, rendered using Google's Material Symbols font.</p>
+                <div style="margin-top: 20px; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 4px;">
+                    <h4>Available Material Icons:</h4>
+                    <p>language, palette, settings, home, search, favorite, star, etc.</p>
+                </div>
+                <div style="margin-top: 16px; padding: 12px; background: rgba(255, 149, 0, 0.2); border-radius: 4px;">
+                    <h4>🎯 Titlebar-Only Mode:</h4>
+                    <p><strong>Right-click the titlebar</strong> to enter titlebar-only mode and see how the Material Icon looks in the minimal floating header!</p>
+                </div>
+            `;
+
+            return windowId;
+        }
+
+        function createSettings() {
+            const windowId = windowManager.createWindow({
+                title: 'Settings',
+                icon: '⚙',
+                iconType: 'glyph',
+                width: 500,
+                height: 350,
+                x: 200,
+                y: 200
+            });
+
+            // Add some demo content
+            const windowData = windowManager.windows.get(windowId);
+            const content = windowData.element.querySelector('.window-content');
+            content.innerHTML = `
+                <h3>⚙️ Settings Panel</h3>
+                <p>This window demonstrates <strong>web glyph support</strong> using Unicode symbols.</p>
+                <p>The gear symbol (⚙) appears in the titlebar as a web glyph.</p>
+                <div style="margin-top: 20px; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 4px;">
+                    <h4>Other Web Glyphs:</h4>
+                    <p>★ ✏ ♠ ♥ ♦ ♣ ☀ ☁ ☂ ☃ ☄ ⚡ ⚽ ⚾ ⛄ ⛅ ⛈ ⛎ ⛏ ⛑ ⛓ ⛔</p>
+                </div>
+                <div style="margin-top: 16px; padding: 12px; background: rgba(34, 197, 94, 0.2); border-radius: 4px;">
+                    <h4>🎯 Test Features:</h4>
+                    <p>• <strong>Right-click titlebar</strong> for titlebar-only mode</p>
+                    <p>• <strong>Drag to edges</strong> to test snap functionality</p>
+                    <p>• <strong>Double-click titlebar</strong> to maximize</p>
+                </div>
+            `;
+
+            return windowId;
+        }
+
+        function createPlainWindow() {
+            const windowId = windowManager.createWindow({
+                title: 'Plain Window',
+                width: 450,
+                height: 300,
+                x: 250,
+                y: 250
+            });
+
+            // Add some demo content
+            const windowData = windowManager.windows.get(windowId);
+            const content = windowData.element.querySelector('.window-content');
+            content.innerHTML = `
+                <h3>Plain Window</h3>
+                <p>This window has <strong>no icon</strong> in the titlebar, demonstrating clean fallback behavior.</p>
+                <p>The titlebar shows only the title text without any icon, maintaining a clean appearance.</p>
+                <div style="margin-top: 20px; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 4px;">
+                    <h4>Features Still Work:</h4>
+                    <p>• All window management functions work normally</p>
+                    <p>• Snap functionality is fully available</p>
+                    <p>• Titlebar-only mode works perfectly</p>
+                    <p>• Resize, minimize, maximize, close all function</p>
+                </div>
+                <div style="margin-top: 16px; padding: 12px; background: rgba(139, 69, 19, 0.3); border-radius: 4px;">
+                    <h4>🎯 Try It:</h4>
+                    <p><strong>Right-click this titlebar</strong> to see titlebar-only mode without an icon!</p>
+                </div>
+            `;
+
+            return windowId;
+        }
+
+        function createCustomApp() {
+            const windowId = windowManager.createWindow({
+                title: 'Custom App',
+                icon: '🎨',
+                iconType: 'emoji',
+                width: 550,
+                height: 380,
+                x: 300,
+                y: 120
+            });
+
+            // Add some demo content
+            const windowData = windowManager.windows.get(windowId);
+            const content = windowData.element.querySelector('.window-content');
+            content.innerHTML = `
+                <h3>🎨 Custom Application</h3>
+                <p>This window demonstrates <strong>dynamic icon updates</strong> and advanced features.</p>
+                <p>Click the "Test Icon Update" button to see the icon change dynamically!</p>
+                
+                <div style="margin-top: 20px; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 4px;">
+                    <h4>Dynamic Features:</h4>
+                    <p>• Icons can be changed at runtime</p>
+                    <p>• Icon types can be switched (emoji ↔ material ↔ glyph)</p>
+                    <p>• Window titles can be updated</p>
+                    <p>• All changes work in both normal and titlebar-only modes</p>
+                </div>
+                
+                <div style="margin-top: 16px; padding: 12px; background: rgba(168, 85, 247, 0.2); border-radius: 4px;">
+                    <h4>🎯 Advanced Testing:</h4>
+                    <p>1. <strong>Right-click titlebar</strong> to enter titlebar-only mode</p>
+                    <p>2. <strong>Click "Test Icon Update"</strong> to see dynamic changes</p>
+                    <p>3. <strong>Right-click again</strong> to exit titlebar-only mode</p>
+                    <p>4. <strong>Drag to screen edges</strong> to test snap functionality</p>
+                </div>
+                
+                <div style="margin-top: 16px; padding: 12px; background: rgba(239, 68, 68, 0.2); border-radius: 4px;">
+                    <h4>⚠️ Important Notes:</h4>
+                    <p>• Titlebar-only windows ignore snap system</p>
+                    <p>• They stay on top with highest z-index</p>
+                    <p>• Resize handles are hidden in titlebar-only mode</p>
+                    <p>• All state is preserved when toggling modes</p>
+                </div>
+            `;
+
+            return windowId;
+        }
+
+        function createTitlebarTestWindow() {
+            const windowId = windowManager.createWindow({
+                title: 'Titlebar Test Window',
+                icon: '🧲',
+                iconType: 'emoji',
+                width: 700,
+                height: 450,
+                x: 120,
+                y: 80
+            });
+
+            // Add comprehensive demo content
+            const windowData = windowManager.windows.get(windowId);
+            const content = windowData.element.querySelector('.window-content');
+            content.innerHTML = `
+                <h3>🧲 Titlebar-Only Mode Test Window</h3>
+                <p>This window is specifically designed for testing the <strong>titlebar-only mode functionality</strong>!</p>
+                
+                <div style="margin-top: 20px; padding: 16px; background: rgba(0, 123, 255, 0.2); border-radius: 8px;">
+                    <h4>🎯 Titlebar-Only Mode Features to Test:</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+                        <div>
+                            <h5 style="margin: 0 0 8px 0; color: #00D4FF;">Entering Mode:</h5>
+                            <ul style="margin: 0; padding-left: 16px; font-size: 14px;">
+                                <li>Right-click titlebar</li>
+                                <li>Smooth animation</li>
+                                <li>Window body disappears</li>
+                                <li>Controls hidden</li>
+                                <li>Titlebar becomes pill-shaped</li>
+                                <li>Moves to topmost z-index</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 style="margin: 0 0 8px 0; color: #00D4FF;">In Titlebar-Only Mode:</h5>
+                            <ul style="margin: 0; padding-left: 16px; font-size: 14px;">
+                                <li>Glowing border effect</li>
+                                <li>Stays on top of all windows</li>
+                                <li>Can be dragged anywhere</li>
+                                <li>Ignores snap system</li>
+                                <li>Hover effects work</li>
+                                <li>Right-click to exit</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 16px; background: rgba(34, 197, 94, 0.2); border-radius: 8px;">
+                    <h4>🧪 Test Scenarios:</h4>
+                    <div style="margin-top: 12px;">
+                        <p><strong>1. Basic Toggle:</strong> Right-click titlebar → Enter mode → Right-click again → Exit mode</p>
+                        <p><strong>2. Drag Test:</strong> Enter titlebar-only mode → Drag around screen → Verify no snapping</p>
+                        <p><strong>3. Z-Index Test:</strong> Create multiple windows → Enter titlebar-only mode → Verify stays on top</p>
+                        <p><strong>4. State Preservation:</strong> Resize window → Enter mode → Exit mode → Verify size restored</p>
+                        <p><strong>5. Icon Test:</strong> Change icon → Enter mode → Verify icon shows in pill → Exit mode</p>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 16px; background: rgba(255, 149, 0, 0.2); border-radius: 8px;">
+                    <h4>⚡ Quick Actions:</h4>
+                    <div style="display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+                        <button onclick="windowManager.setWindowIcon('${windowId}', '🔥', 'emoji')" style="padding: 8px 12px; background: #FF6B6B; color: white; border: none; border-radius: 4px; cursor: pointer;">Change to 🔥</button>
+                        <button onclick="windowManager.setWindowIcon('${windowId}', 'star', 'material')" style="padding: 8px 12px; background: #4ECDC4; color: white; border: none; border-radius: 4px; cursor: pointer;">Change to ⭐ (Material)</button>
+                        <button onclick="windowManager.setWindowIcon('${windowId}', '★', 'glyph')" style="padding: 8px 12px; background: #45B7D1; color: white; border: none; border-radius: 4px; cursor: pointer;">Change to ★ (Glyph)</button>
+                        <button onclick="windowManager.setWindowTitle('${windowId}', 'Updated Title!')" style="padding: 8px 12px; background: #96CEB4; color: white; border: none; border-radius: 4px; cursor: pointer;">Update Title</button>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 16px; background: rgba(168, 85, 247, 0.2); border-radius: 8px;">
+                    <h4>🎨 Visual Effects in Titlebar-Only Mode:</h4>
+                    <ul style="margin: 8px 0 0 16px; padding: 0;">
+                        <li><strong>Animated Glow:</strong> Gradient border that pulses and shifts colors</li>
+                        <li><strong>Pill Shape:</strong> Rounded titlebar with backdrop blur effect</li>
+                        <li><strong>Hover Effects:</strong> Subtle animations when hovering over titlebar</li>
+                        <li><strong>Status Indicator:</strong> Small colored dot showing titlebar-only status</li>
+                        <li><strong>Drop Shadow:</strong> Enhanced shadow for better visibility</li>
+                    </ul>
+                </div>
+            `;
+
+            return windowId;
+        }
+
+        function testIconUpdate() {
+            // Find the custom app window and update its icon
+            const customAppWindow = Array.from(windowManager.windows.entries())
+                .find(([id, data]) => data.config.title === 'Custom App');
+            
+            if (customAppWindow) {
+                const [windowId, windowData] = customAppWindow;
+                const currentIcon = windowData.config.icon;
+                
+                // Cycle through different icons and types
+                if (currentIcon === '🎨') {
+                    windowManager.setWindowIcon(windowId, 'palette', 'material');
+                    windowManager.setWindowTitle(windowId, 'Custom App (Material Icon)');
+                } else if (currentIcon === 'palette') {
+                    windowManager.setWindowIcon(windowId, '★', 'glyph');
+                    windowManager.setWindowTitle(windowId, 'Custom App (Web Glyph)');
+                } else {
+                    windowManager.setWindowIcon(windowId, '🎨', 'emoji');
+                    windowManager.setWindowTitle(windowId, 'Custom App (Emoji)');
+                }
+                
+                console.log('Updated icon for Custom App window');
+            } else {
+                // Create the custom app if it doesn't exist
+                createCustomApp();
+                console.log('Created Custom App window for icon testing');
+            }
+        }
+
+        function toggleSnapZoneVisibility() {
+            snapZonesVisible = !snapZonesVisible;
+            const overlay = document.getElementById('snapZonesOverlay');
+            
+            if (snapZonesVisible) {
+                overlay.classList.add('visible');
+                console.log('Snap zones now visible');
+            } else {
+                overlay.classList.remove('visible');
+                console.log('Snap zones hidden');
+            }
+        }
+
+        function closeAllWindows() {
+            // Get all window IDs and close them
+            const windowIds = Array.from(windowManager.windows.keys());
+            windowIds.forEach(windowId => {
+                windowManager.closeWindow(windowId);
+            });
+            console.log(`Closed ${windowIds.length} windows`);
+        }
+
+        // Initialize demo with some windows
+        window.addEventListener('load', () => {
+            console.log('Enhanced WindowManager Demo Loaded');
+            console.log('Features: Icon Support + Window Snapping + Titlebar-Only Mode');
+            
+            // Create initial demo window
+            setTimeout(() => {
+                createTitlebarTestWindow();
+            }, 500);
+        });
+
+        // Add keyboard shortcuts for demo
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case '1':
+                        e.preventDefault();
+                        createFileManager();
+                        break;
+                    case '2':
+                        e.preventDefault();
+                        createBrowser();
+                        break;
+                    case '3':
+                        e.preventDefault();
+                        createSettings();
+                        break;
+                    case '4':
+                        e.preventDefault();
+                        createPlainWindow();
+                        break;
+                    case '5':
+                        e.preventDefault();
+                        createCustomApp();
+                        break;
+                    case 't':
+                        e.preventDefault();
+                        createTitlebarTestWindow();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        toggleSnapZoneVisibility();
+                        break;
+                    case 'w':
+                        e.preventDefault();
+                        closeAllWindows();
+                        break;
+                }
+            }
+        });
+
+        // Add helpful console messages
+        console.log('🎯 Titlebar-Only Mode Demo Ready!');
+        console.log('Right-click any window titlebar to toggle titlebar-only mode');
+        console.log('Keyboard shortcuts: Ctrl+1-5 (create windows), Ctrl+T (test window), Ctrl+S (toggle snap zones), Ctrl+W (close all)');
+    </script>
+</body>
+</html>
+
