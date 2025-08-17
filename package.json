@@ -7,7 +7,7 @@
     "start": "GTK_MODULES='' electron . --disable-gpu-vsync",
     "dev": "GTK_MODULES='' electron . --dev",
     "build": "electron-builder",
-    "dist": "electron-builder --linux"
+    "dist": "electron-builder -wl"
   },
   "keywords": [
     "desktop",
@@ -15,7 +15,7 @@
     "linux",
     "web-first"
   ],
-  "author": "Your Name",
+  "author": "Ron Murphy",
   "license": "MIT",
   "devDependencies": {
     "electron": "^27.0.0",
