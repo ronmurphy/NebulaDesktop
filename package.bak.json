@@ -7,9 +7,7 @@
     "start": "GTK_MODULES='' electron . --disable-gpu-vsync",
     "dev": "GTK_MODULES='' electron . --dev",
     "build": "electron-builder",
-    "dist": "electron-builder -wl",
-    "dist:linux": "electron-builder -l",
-    "dist:win": "electron-builder -w"
+    "dist": "electron-builder -wl"
   },
   "keywords": [
     "desktop",
@@ -28,31 +26,14 @@
     "appId": "com.nebuladesk.desktop",
     "productName": "NebulaDesk",
     "directories": {
-      "output": "dist",
-      "buildResources": "build"
+      "output": "dist"
     },
-    "files": [
-      "**/*"
-    ],
     "linux": {
       "target": [
         "AppImage",
         "deb"
       ],
-      "category": "System",
-      "icon": "build/icons"
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "build/icons/icon.ico",
-      "artifactName": "NebulaDesk-Setup-${version}.exe"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": true,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "category": "System"
     }
   }
 }
