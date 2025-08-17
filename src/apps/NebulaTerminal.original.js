@@ -7,53 +7,53 @@ const pathUtils = {
         // Filter out empty paths and join
         const cleanPaths = paths.filter(p => p && p !== '');
         if (cleanPaths.length === 0) return '/';
-
+        
         let result = cleanPaths.join('/');
-
+        
         // Clean up multiple slashes
         result = result.replace(/\/+/g, '/');
-
+        
         // Remove trailing slash unless it's root
         if (result.length > 1 && result.endsWith('/')) {
             result = result.slice(0, -1);
         }
-
+        
         // Ensure we have at least root
         return result || '/';
     },
-
+    
     resolve: (path) => {
         if (!path.startsWith('/')) {
             return pathUtils.join(window.nebulaTerminalCwd || '/home/user', path);
         }
         return path;
     },
-
+    
     dirname: (path) => {
         const parts = path.split('/');
         return parts.slice(0, -1).join('/') || '/';
     },
-
+    
     basename: (path) => {
         return path.split('/').pop() || '';
     },
-
+    
     extname: (path) => {
         const name = pathUtils.basename(path);
         const lastDot = name.lastIndexOf('.');
         return lastDot > 0 ? name.slice(lastDot) : '';
     },
-
+    
     isAbsolute: (path) => {
         return path.startsWith('/');
     },
-
+    
     // Normalize path by resolving . and .. components
     normalize: (inputPath) => {
         const parts = inputPath.split('/').filter(part => part !== '' && part !== '.');
         const resolved = [];
         const isAbsolute = inputPath.startsWith('/');
-
+        
         for (const part of parts) {
             if (part === '..') {
                 if (resolved.length > 0 && resolved[resolved.length - 1] !== '..') {
@@ -65,12 +65,12 @@ const pathUtils = {
                 resolved.push(part);
             }
         }
-
+        
         let result = resolved.join('/');
         if (isAbsolute) {
             result = '/' + result;
         }
-
+        
         return result || (isAbsolute ? '/' : '.');
     }
 };
@@ -80,7 +80,7 @@ const nerdIcons = {
     // Folders
     folder: '📁',
     folderOpen: '📂',
-
+    
     // Programming languages
     '.js': '🟨',
     '.ts': '🔷',
@@ -98,7 +98,7 @@ const nerdIcons = {
     '.swift': '🦉',
     '.kt': '🟣',
     '.dart': '🎯',
-
+    
     // Web files
     '.html': '🌐',
     '.css': '🎨',
@@ -106,7 +106,7 @@ const nerdIcons = {
     '.less': '🎨',
     '.vue': '💚',
     '.svelte': '🧡',
-
+    
     // Data files
     '.json': '📋',
     '.xml': '📄',
@@ -115,7 +115,7 @@ const nerdIcons = {
     '.toml': '📄',
     '.csv': '📊',
     '.sql': '🗃️',
-
+    
     // Documents
     '.md': '📝',
     '.txt': '📄',
@@ -126,7 +126,7 @@ const nerdIcons = {
     '.xlsx': '📗',
     '.ppt': '📙',
     '.pptx': '📙',
-
+    
     // Images
     '.png': '🖼️',
     '.jpg': '🖼️',
@@ -136,7 +136,7 @@ const nerdIcons = {
     '.ico': '🖼️',
     '.bmp': '🖼️',
     '.webp': '🖼️',
-
+    
     // Audio/Video
     '.mp3': '🎵',
     '.wav': '🎵',
@@ -151,27 +151,27 @@ const nerdIcons = {
     '.webm': '🎬',
     '.ogv': '🎬',
     '.m4v': '🎬',
-
+    
     // Archives
     '.zip': '📦',
     '.tar': '📦',
     '.gz': '📦',
     '.rar': '📦',
     '.7z': '📦',
-
+    
     // Config files
     '.gitignore': '🙈',
     '.env': '🔐',
     '.config': '⚙️',
     '.conf': '⚙️',
     '.ini': '⚙️',
-
+    
     // Executables
     '.exe': '⚙️',
     '.app': '📱',
     '.deb': '📦',
     '.rpm': '📦',
-
+    
     // Default
     default: '📄'
 };
@@ -181,18 +181,18 @@ function getFileIcon(name, isDirectory, iconMode = 'emoji') {
     if (iconMode === 'none') {
         return ''; // No icon at all - pure minimalism
     }
-
+    
     if (iconMode === 'text') {
         // Text-based icons for professional look
         if (isDirectory) {
             return 'DIR';
         }
-
+        
         // File extension based text icons
         const ext = pathUtils.extname(name).toLowerCase();
         const textIcons = {
             '.js': 'JS',
-            '.ts': 'TS',
+            '.ts': 'TS', 
             '.py': 'PY',
             '.java': 'JAVA',
             '.cpp': 'C++',
@@ -218,14 +218,14 @@ function getFileIcon(name, isDirectory, iconMode = 'emoji') {
             '.tar': 'TAR',
             '.pdf': 'PDF'
         };
-
+        
         return textIcons[ext] || 'FILE';
     } else {
         // Original emoji icons
         if (isDirectory) {
             return nerdIcons.folder;
         }
-
+        
         // Special files
         const lowerName = name.toLowerCase();
         if (lowerName === 'readme.md' || lowerName === 'readme.txt' || lowerName === 'readme') {
@@ -243,7 +243,7 @@ function getFileIcon(name, isDirectory, iconMode = 'emoji') {
         if (lowerName === 'makefile') {
             return '🔨';
         }
-
+        
         // By extension
         const ext = pathUtils.extname(name).toLowerCase();
         return nerdIcons[ext] || nerdIcons.default;
@@ -260,7 +260,7 @@ class NebulaTerminal {
         this.commandHistory = [];
         this.historyIndex = -1;
         this.iconStyle = localStorage.getItem('nebula-terminal-icons') || 'emoji'; // NEW: icon style setting
-
+        
         // Built-in commands that we handle internally
         this.builtinCommands = {
             help: () => this.showHelp(),
@@ -284,16 +284,12 @@ class NebulaTerminal {
             useicons: (args) => this.setIconStyle(args[0]), // NEW: useicons command
             debug: (args) => this.debugCommand(args),
             exit: () => this.closeTerminal(),
-            history: () => this.showHistory(),
-            img: (args) => this.showImage(args[0]),
-            imgls: (args) => this.listImagesInDirectory(args[0] || this.currentPath),
-            imginfo: (args) => this.showImageInfo(args[0]),
-
+            history: () => this.showHistory()
         };
-
+        
         this.init();
     }
-
+    
     async init() {
         if (!window.windowManager) {
             console.error('WindowManager not available');
@@ -311,7 +307,7 @@ class NebulaTerminal {
             console.error('Failed to get home directory:', error);
             this.currentPath = '/home/user';
         }
-
+        
         // Create terminal window
         this.windowId = window.windowManager.createWindow({
             title: 'Nebula Terminal',
@@ -320,13 +316,13 @@ class NebulaTerminal {
             hasTabBar: false,
             resizable: true
         });
-
+        
         // Load terminal into window
         window.windowManager.loadApp(this.windowId, this);
-
+        
         console.log(`Terminal initialized with window ${this.windowId}, cwd: ${this.currentPath}`);
     }
-
+    
     /**
      * Called by WindowManager to render the terminal
      */
@@ -342,7 +338,7 @@ class NebulaTerminal {
             font-family: 'FiraCode Nerd Font Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'SF Mono', 'Monaco', monospace;
             font-feature-settings: "liga" 1, "calt" 1;
         `;
-
+        
         // Create output area (scrollable)
         this.outputArea = document.createElement('div');
         this.outputArea.className = 'terminal-output';
@@ -356,7 +352,7 @@ class NebulaTerminal {
             white-space: pre-wrap;
             word-wrap: break-word;
         `;
-
+        
         // Create input line (fixed at bottom)
         this.inputLine = document.createElement('div');
         this.inputLine.className = 'terminal-input-line';
@@ -369,12 +365,12 @@ class NebulaTerminal {
             color: #00ff00;
             font-size: 14px;
         `;
-
+        
         // Create prompt text
         this.promptText = document.createElement('span');
         this.promptText.className = 'terminal-prompt';
         this.updatePrompt();
-
+        
         // Create input field
         this.inputField = document.createElement('input');
         this.inputField.type = 'text';
@@ -389,35 +385,35 @@ class NebulaTerminal {
             font-size: inherit;
             margin-left: 8px;
         `;
-
+        
         this.inputLine.appendChild(this.promptText);
         this.inputLine.appendChild(this.inputField);
-
+        
         container.appendChild(this.outputArea);
         container.appendChild(this.inputLine);
-
+        
         // Initialize terminal after DOM is ready
         setTimeout(() => {
             this.initTerminal();
         }, 100);
-
+        
         return container;
     }
-
+    
     /**
      * Initialize terminal functionality
      */
     initTerminal() {
         this.writeLine('Nebula Terminal v2.0 - Enhanced Edition');
         this.writeLine('Type "help" for available commands\n');
-
+        
         // Focus input field
         this.inputField.focus();
-
+        
         // Setup input handling
         this.setupInputHandling();
     }
-
+    
     /**
      * Update prompt text
      */
@@ -426,7 +422,7 @@ class NebulaTerminal {
             this.promptText.textContent = `nebula@desktop:${this.getShortPath()}$ `;
         }
     }
-
+    
     /**
      * Get short path for prompt (replace home with ~)
      */
@@ -439,7 +435,7 @@ class NebulaTerminal {
         }
         return this.currentPath || '~';
     }
-
+    
     /**
      * Setup input event handling
      */
@@ -447,12 +443,12 @@ class NebulaTerminal {
         this.inputField.addEventListener('keydown', (e) => {
             this.handleKeyPress(e);
         });
-
+        
         // Focus input when clicking anywhere in terminal
         this.outputArea.addEventListener('click', () => {
             this.inputField.focus();
         });
-
+        
         // Right-click to auto-ls when input is empty (but not on specific items)
         this.outputArea.addEventListener('contextmenu', (e) => {
             // Check if the click was on a specific file/folder item
@@ -461,9 +457,9 @@ class NebulaTerminal {
                 // Let the specific item handler deal with it
                 return;
             }
-
+            
             e.preventDefault(); // Prevent default context menu
-
+            
             // Only auto-ls if input field is empty
             if (this.inputField.value.trim() === '') {
                 this.writeLine(`${this.promptText.textContent}ls`);
@@ -472,11 +468,11 @@ class NebulaTerminal {
                 this.inputField.focus();
             }
         });
-
+        
         // Also handle right-click on input area
         this.inputField.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-
+            
             // Only auto-ls if input field is empty
             if (this.inputField.value.trim() === '') {
                 this.writeLine(`${this.promptText.textContent}ls`);
@@ -486,7 +482,7 @@ class NebulaTerminal {
             }
         });
     }
-
+    
     /**
      * Handle keyboard input
      */
@@ -496,22 +492,22 @@ class NebulaTerminal {
                 e.preventDefault();
                 this.executeCommand();
                 break;
-
+                
             case 'ArrowUp':
                 e.preventDefault();
                 this.handleHistoryUp();
                 break;
-
+                
             case 'ArrowDown':
                 e.preventDefault();
                 this.handleHistoryDown();
                 break;
-
+                
             case 'Tab':
                 e.preventDefault();
                 // TODO: Implement tab completion
                 break;
-
+                
             case 'c':
                 if (e.ctrlKey) {
                     e.preventDefault();
@@ -520,7 +516,7 @@ class NebulaTerminal {
                 break;
         }
     }
-
+    
     /**
      * Handle Ctrl+C
      */
@@ -530,7 +526,7 @@ class NebulaTerminal {
         this.inputField.value = '';
         this.inputField.focus();
     }
-
+    
     /**
      * Handle history navigation
      */
@@ -544,7 +540,7 @@ class NebulaTerminal {
             this.inputField.value = this.commandHistory[this.historyIndex];
         }
     }
-
+    
     handleHistoryDown() {
         if (this.historyIndex >= 0) {
             if (this.historyIndex < this.commandHistory.length - 1) {
@@ -556,19 +552,19 @@ class NebulaTerminal {
             }
         }
     }
-
+    
     /**
      * Execute the current command
      */
     async executeCommand() {
         const command = this.inputField.value.trim();
-
+        
         // Echo the command
         this.writeLine(`${this.promptText.textContent}${command}`);
-
+        
         // Clear input
         this.inputField.value = '';
-
+        
         // Add to history if not empty and not duplicate
         if (command && command !== this.commandHistory[this.commandHistory.length - 1]) {
             this.commandHistory.push(command);
@@ -577,14 +573,14 @@ class NebulaTerminal {
             }
         }
         this.historyIndex = -1;
-
+        
         if (!command) {
             this.inputField.focus();
             return;
         }
-
+        
         const [cmd, ...args] = command.split(/\s+/);
-
+        
         try {
             // Check if it's a built-in command
             if (this.builtinCommands[cmd]) {
@@ -596,12 +592,12 @@ class NebulaTerminal {
         } catch (error) {
             this.writeError(`Error executing command: ${error.message}`);
         }
-
+        
         // Update prompt and focus input
         this.updatePrompt();
         this.inputField.focus();
     }
-
+    
     /**
      * Execute system command via IPC
      */
@@ -610,29 +606,29 @@ class NebulaTerminal {
             this.writeError('System command execution not available');
             return;
         }
-
+        
         try {
             const result = await window.nebula.terminal.exec(command, args, {
                 cwd: this.currentPath
             });
-
+            
             if (result.stdout) {
                 this.writeLine(result.stdout);
             }
-
+            
             if (result.stderr) {
                 this.writeError(result.stderr);
             }
-
+            
             if (result.exitCode !== 0 && !result.stdout && !result.stderr) {
                 this.writeError(`Command failed with exit code ${result.exitCode}`);
             }
-
+            
         } catch (error) {
             this.writeError(`Failed to execute command: ${error.message}`);
         }
     }
-
+    
     /**
      * Write line to terminal output
      */
@@ -640,7 +636,7 @@ class NebulaTerminal {
         this.outputArea.appendChild(document.createTextNode(text + '\n'));
         this.outputArea.scrollTop = this.outputArea.scrollHeight;
     }
-
+    
     /**
      * Write error message
      */
@@ -651,208 +647,62 @@ class NebulaTerminal {
         this.outputArea.appendChild(errorSpan);
         this.outputArea.scrollTop = this.outputArea.scrollHeight;
     }
-
+    
     /**
      * Clear terminal output
      */
     clearTerminal() {
         this.outputArea.textContent = '';
     }
-
+    
     /**
      * Show help
      */
-    //     showHelp() {
-    //         const helpText = `
-    // Nebula Terminal v2.0 - Enhanced Edition
-    // Built-in Commands:
-    //   help       - Show this help message
-    //   clear      - Clear the terminal screen
-    //   pwd        - Print working directory
-    //   cd <dir>   - Change directory
-    //   ls [dir]   - List directory contents (clickable files!)
-    //   ll [dir]   - List directory contents with details
-    //   cat <file> - Display file contents
-    //   mkdir <dir>- Create directory
-    //   rmdir <dir>- Remove directory
-    //   rm <file>  - Remove file
-    //   touch <file>- Create empty file
-    //   echo <text>- Print text
-    //   date       - Show current date and time
-    //   whoami     - Show current user
-    //   uname      - Show system information
-    //   js <code>  - Execute JavaScript code
-    //   mdr <file> - Open markdown file in reader
-    //   useicons <type> - Set icon style (emoji|text)
-    //   debug <cmd>- Debug commands
-    //   history    - Show command history
-    //   exit       - Close terminal
-
-    // System Commands:
-    //   Any other command will be executed as a real system command.
-    //   Examples: git status, npm list, python --version, etc.
-
-    // File Navigation:
-    //   • Click on files in 'ls' output to open them automatically!
-    //   • Right-click on folders for instant cd+ls navigation!
-    //   • Right-click on empty space for quick ls!
-    //   • Images open in image viewer
-    //   • Videos open in media player
-    //   • Text files open in text editor
-
-    // Customization:
-    //   • useicons emoji - Use emoji file icons (🖼️, 🎵, 📁)
-    //   • useicons text  - Use text file icons (IMG, AUD, JS)
-    //         `;
-    //         this.writeLine(helpText);
-    //     }
-
     showHelp() {
-        const commands = [
-            '📋 NebulaTerminal Commands:',
-            '',
-            '📁 File Operations:',
-            '  ls [dir]     - List directory contents',
-            '  ll [dir]     - List with details',
-            '  cd <dir>     - Change directory',
-            '  pwd          - Show current directory',
-            '  cat <file>   - Show file contents',
-            '  mkdir <dir>  - Create directory',
-            '  rmdir <dir>  - Remove directory',
-            '  rm <file>    - Remove file',
-            '  touch <file> - Create empty file',
-            '',
-            '🖼️ Image Commands (NEW):',
-            '  imginfo <file> - Show detailed image information',
-            '',
-            '⚙️ System Commands:',
-            '  icons <type> - Switch icon style (emoji/text)',
-            '  clear        - Clear terminal',
-            '  history      - Show command history',
-            '  help         - Show this help',
-            '  exit         - Close terminal',
-            '',
-            '💻 Advanced:',
-            '  js <code>    - Execute JavaScript',
-            '  debug <cmd>  - Debug commands',
-            '  nfetch       - System information',
-            '  mdr <file>   - Open markdown reader',
-            '',
-            '💡 Tips:',
-            '  - Click on files in listings to open them',
-            '  - Images show 🖼️ indicator in file listings',
-            '  - Use imgls to see only images in a directory',
-            '  - Arrow keys navigate command history'
-        ];
+        const helpText = `
+Nebula Terminal v2.0 - Enhanced Edition
+Built-in Commands:
+  help       - Show this help message
+  clear      - Clear the terminal screen
+  pwd        - Print working directory
+  cd <dir>   - Change directory
+  ls [dir]   - List directory contents (clickable files!)
+  ll [dir]   - List directory contents with details
+  cat <file> - Display file contents
+  mkdir <dir>- Create directory
+  rmdir <dir>- Remove directory
+  rm <file>  - Remove file
+  touch <file>- Create empty file
+  echo <text>- Print text
+  date       - Show current date and time
+  whoami     - Show current user
+  uname      - Show system information
+  js <code>  - Execute JavaScript code
+  mdr <file> - Open markdown file in reader
+  useicons <type> - Set icon style (emoji|text)
+  debug <cmd>- Debug commands
+  history    - Show command history
+  exit       - Close terminal
 
-        commands.forEach(line => this.writeLine(line));
+System Commands:
+  Any other command will be executed as a real system command.
+  Examples: git status, npm list, python --version, etc.
+
+File Navigation:
+  • Click on files in 'ls' output to open them automatically!
+  • Right-click on folders for instant cd+ls navigation!
+  • Right-click on empty space for quick ls!
+  • Images open in image viewer
+  • Videos open in media player
+  • Text files open in text editor
+
+Customization:
+  • useicons emoji - Use emoji file icons (🖼️, 🎵, 📁)
+  • useicons text  - Use text file icons (IMG, AUD, JS)
+        `;
+        this.writeLine(helpText);
     }
-
-    // NEW: Image viewing command
-    async showImage(filename) {
-        if (!filename) {
-            this.writeLine('Usage: img <filename>');
-            this.writeLine('Supported formats: .png, .jpg, .jpeg, .gif, .webp, .bmp, .svg');
-            return;
-        }
-
-        try {
-            const filePath = pathUtils.isAbsolute(filename) ?
-                filename : pathUtils.join(this.currentPath, filename);
-
-            const exists = await window.nebula.fs.exists(filePath);
-            if (!exists) {
-                this.writeError(`Image not found: ${filename}`);
-                return;
-            }
-
-            const stats = await window.nebula.fs.stat(filePath);
-            if (stats.isDirectory) {
-                this.writeError(`${filename} is a directory`);
-                return;
-            }
-
-            // Check file extension
-            const ext = pathUtils.extname(filename).toLowerCase();
-            const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
-            if (!imageExts.includes(ext)) {
-                this.writeError(`${filename} is not a supported image format`);
-                this.writeLine(`Supported formats: ${imageExts.join(', ')}`);
-                return;
-            }
-
-            // Show image info and open in viewer
-            this.writeLine(`📷 Opening image: ${filename}`);
-            this.writeLine(`📂 Path: ${filePath}`);
-            this.writeLine(`📏 Size: ${this.formatFileSize(stats.size)}`);
-            this.writeLine(`🎨 Format: ${ext.substring(1).toUpperCase()}`);
-
-            // Try to open in image viewer
-            this.openImageInViewer(filePath);
-
-        } catch (error) {
-            this.writeError(`Cannot show image: ${error.message}`);
-        }
-    }
-
-    // NEW: Show detailed image information
-    async showImageInfo(filename) {
-        if (!filename) {
-            this.writeLine('Usage: imginfo <filename>');
-            return;
-        }
-
-        try {
-            const filePath = pathUtils.isAbsolute(filename) ?
-                filename : pathUtils.join(this.currentPath, filename);
-
-            const exists = await window.nebula.fs.exists(filePath);
-            if (!exists) {
-                this.writeError(`Image not found: ${filename}`);
-                return;
-            }
-
-            const stats = await window.nebula.fs.stat(filePath);
-            const ext = pathUtils.extname(filename).toLowerCase();
-
-            this.writeLine(`📷 Image Information: ${filename}`);
-            this.writeLine('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            this.writeLine(`📂 Path: ${filePath}`);
-            this.writeLine(`📏 File Size: ${this.formatFileSize(stats.size)}`);
-            this.writeLine(`📅 Created: ${new Date(stats.birthtime).toLocaleString()}`);
-            this.writeLine(`📝 Modified: ${new Date(stats.mtime).toLocaleString()}`);
-            this.writeLine(`🎨 Format: ${ext.substring(1).toUpperCase()}`);
-            this.writeLine('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            this.writeLine('💡 Use "img <filename>" to view this image');
-
-        } catch (error) {
-            this.writeError(`Cannot get image info: ${error.message}`);
-        }
-    }
-
-    // Helper: Open image in viewer
-    openImageInViewer(filePath) {
-        try {
-            if (window.ImageViewer) {
-                const imageViewer = new window.ImageViewer(filePath);
-                this.writeLine(`✅ Opened ${pathUtils.basename(filePath)} in image viewer`);
-            } else {
-                this.writeLine(`⚠️  Image viewer app not available`);
-                this.writeLine(`📝 Add NebulaImageViewer to your desktop to view images graphically`);
-            }
-        } catch (error) {
-            this.writeError(`Cannot open image viewer: ${error.message}`);
-        }
-    }
-
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    }
-
+    
     /**
      * Change directory with proper path resolution
      */
@@ -866,7 +716,7 @@ class NebulaTerminal {
                 return;
             }
         }
-
+        
         let targetPath;
         if (pathUtils.isAbsolute(path)) {
             targetPath = pathUtils.normalize(path);
@@ -875,28 +725,28 @@ class NebulaTerminal {
             const joined = pathUtils.join(this.currentPath, path);
             targetPath = pathUtils.normalize(joined);
         }
-
+        
         try {
             const exists = await window.nebula.fs.exists(targetPath);
             if (!exists) {
                 this.writeError(`cd: ${path}: No such file or directory`);
                 return;
             }
-
+            
             const stats = await window.nebula.fs.stat(targetPath);
             if (!stats.isDirectory) {
                 this.writeError(`cd: ${path}: Not a directory`);
                 return;
             }
-
+            
             // Update current path with the clean, resolved path
             this.currentPath = targetPath;
-
+            
         } catch (error) {
             this.writeError(`cd: ${path}: ${error.message}`);
         }
     }
-
+    
     /**
      * List directory contents
      */
@@ -904,25 +754,25 @@ class NebulaTerminal {
         try {
             const targetPath = pathUtils.isAbsolute(path) ? path : pathUtils.join(this.currentPath, path);
             const exists = await window.nebula.fs.exists(targetPath);
-
+            
             if (!exists) {
                 this.writeError(`ls: ${path}: No such file or directory`);
                 return;
             }
-
+            
             const stats = await window.nebula.fs.stat(targetPath);
             if (!stats.isDirectory) {
                 this.writeError(`ls: ${path}: Not a directory`);
                 return;
             }
-
+            
             const items = await window.nebula.fs.readDir(targetPath);
-
+            
             if (items.length === 0) {
                 this.writeLine('(empty directory)');
                 return;
             }
-
+            
             // Create clickable file listing
             const listContainer = document.createElement('div');
             listContainer.style.cssText = `
@@ -931,20 +781,20 @@ class NebulaTerminal {
                 gap: 8px;
                 margin: 8px 0;
             `;
-
+            
             for (const item of items) {
                 const itemPath = pathUtils.join(targetPath, item);
                 let isDirectory = false;
-
+                
                 try {
                     const itemStats = await window.nebula.fs.stat(itemPath);
                     isDirectory = itemStats.isDirectory;
                 } catch (error) {
                     // Assume it's a file if we can't stat it
                 }
-
+                
                 const icon = getFileIcon(item, isDirectory, this.iconStyle);
-
+                
                 const itemElement = document.createElement('span');
                 itemElement.className = `file-item ${isDirectory ? 'directory-item' : 'file-item'}`;
                 itemElement.style.cssText = `
@@ -958,9 +808,9 @@ class NebulaTerminal {
                     transition: background-color 0.2s;
                     ${isDirectory ? 'border: 1px solid transparent;' : ''}
                 `;
-
+                
                 itemElement.innerHTML = `${icon} ${item}`;
-
+                
                 // Add hover effects with different styles for folders
                 itemElement.addEventListener('mouseenter', () => {
                     if (isDirectory) {
@@ -972,52 +822,52 @@ class NebulaTerminal {
                         itemElement.title = 'Click to open';
                     }
                 });
-
+                
                 itemElement.addEventListener('mouseleave', () => {
                     itemElement.style.backgroundColor = 'transparent';
                     if (isDirectory) {
                         itemElement.style.borderColor = 'transparent';
                     }
                 });
-
+                
                 // Add click handler for file/directory navigation
                 itemElement.addEventListener('click', async () => {
                     await this.handleFileClick(item, itemPath, isDirectory);
                 });
-
+                
                 // Add right-click handler for folders (instant cd + ls)
                 if (isDirectory) {
                     itemElement.addEventListener('contextmenu', async (e) => {
                         e.preventDefault();
                         e.stopPropagation(); // Prevent the general right-click handler
-
+                        
                         // Show command with clean path
                         this.writeLine(`${this.promptText.textContent}cd ${item} && ls`);
-
+                        
                         // Perform the navigation
                         await this.changeDirectory(item);
-
+                        
                         // Update prompt to show new clean path
                         this.updatePrompt();
-
+                        
                         // List contents of new directory
                         await this.listDirectory(this.currentPath);
-
+                        
                         this.inputField.focus();
                     });
                 }
-
+                
                 listContainer.appendChild(itemElement);
             }
-
+            
             this.outputArea.appendChild(listContainer);
             this.outputArea.scrollTop = this.outputArea.scrollHeight;
-
+            
         } catch (error) {
             this.writeError(`ls: ${error.message}`);
         }
     }
-
+    
     /**
      * Handle clicking on files/directories in ls output
      */
@@ -1032,17 +882,17 @@ class NebulaTerminal {
             this.writeLine(`Opening: ${name}`);
             await this.openFile(name, path);
         }
-
+        
         // Always refocus input after click
         this.inputField.focus();
     }
-
+    
     /**
      * Open file in appropriate viewer
      */
     async openFile(name, path) {
         const ext = pathUtils.extname(name).toLowerCase();
-
+        
         // Image files
         if (['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.ico', '.webp'].includes(ext)) {
             this.openImageViewer(name, path);
@@ -1065,7 +915,7 @@ class NebulaTerminal {
             this.openTextViewer(name, path);
         }
     }
-
+    
     /**
      * Open image viewer
      */
@@ -1082,7 +932,7 @@ class NebulaTerminal {
             this.writeLine('Error: Image viewer not available');
         }
     }
-
+    
     /**
      * Open media player
      */
@@ -1099,7 +949,7 @@ class NebulaTerminal {
             this.writeLine('Error: Media player not available');
         }
     }
-
+    
     /**
      * Open text viewer
      */
@@ -1114,7 +964,7 @@ class NebulaTerminal {
             this.writeError(`Cannot read file: ${error.message}`);
         }
     }
-
+    
     /**
      * NEW: Set icon style (emoji, text, or none)
      */
@@ -1127,7 +977,7 @@ class NebulaTerminal {
             this.writeLine('  none  - No icons, just filenames (minimalist)');
             return;
         }
-
+        
         const normalizedStyle = style.toLowerCase();
         if (normalizedStyle === 'emoji' || normalizedStyle === 'text' || normalizedStyle === 'none') {
             this.iconStyle = normalizedStyle;
@@ -1138,7 +988,7 @@ class NebulaTerminal {
             this.writeError('Invalid icon style. Use "emoji", "text", or "none"');
         }
     }
-
+    
     /**
      * List directory with detailed info
      */
@@ -1146,43 +996,43 @@ class NebulaTerminal {
         try {
             const targetPath = pathUtils.isAbsolute(path) ? path : pathUtils.join(this.currentPath, path);
             const exists = await window.nebula.fs.exists(targetPath);
-
+            
             if (!exists) {
                 this.writeError(`ll: ${path}: No such file or directory`);
                 return;
             }
-
+            
             const items = await window.nebula.fs.readDir(targetPath);
-
+            
             if (items.length === 0) {
                 this.writeLine('(empty directory)');
                 return;
             }
-
+            
             this.writeLine('Type Size     Modified             Name');
             this.writeLine('---- -------- -------------------- ----');
-
+            
             for (const item of items) {
                 const itemPath = pathUtils.join(targetPath, item);
-
+                
                 try {
                     const stats = await window.nebula.fs.stat(itemPath);
                     const type = stats.isDirectory ? 'DIR ' : 'FILE';
                     const size = stats.isDirectory ? '     ---' : String(stats.size).padStart(8);
                     const modified = new Date(stats.mtime).toLocaleString();
                     const icon = getFileIcon(item, stats.isDirectory, this.iconStyle);
-
+                    
                     this.writeLine(`${type} ${size} ${modified} ${icon} ${item}`);
                 } catch (error) {
                     this.writeLine(`ERR      ??? ??? ${item} (cannot stat)`);
                 }
             }
-
+            
         } catch (error) {
             this.writeError(`ll: ${error.message}`);
         }
     }
-
+    
     /**
      * Show file contents
      */
@@ -1191,31 +1041,31 @@ class NebulaTerminal {
             this.writeError('cat: missing filename');
             return;
         }
-
+        
         try {
-            const filePath = pathUtils.isAbsolute(filename) ?
+            const filePath = pathUtils.isAbsolute(filename) ? 
                 filename : pathUtils.join(this.currentPath, filename);
-
+            
             const exists = await window.nebula.fs.exists(filePath);
             if (!exists) {
                 this.writeError(`cat: ${filename}: No such file or directory`);
                 return;
             }
-
+            
             const stats = await window.nebula.fs.stat(filePath);
             if (stats.isDirectory) {
                 this.writeError(`cat: ${filename}: Is a directory`);
                 return;
             }
-
+            
             const content = await window.nebula.fs.readFile(filePath);
             this.writeLine(content);
-
+            
         } catch (error) {
             this.writeError(`cat: ${error.message}`);
         }
     }
-
+    
     /**
      * Create directory
      */
@@ -1224,19 +1074,19 @@ class NebulaTerminal {
             this.writeError('mkdir: missing directory name');
             return;
         }
-
+        
         try {
-            const dirPath = pathUtils.isAbsolute(dirname) ?
+            const dirPath = pathUtils.isAbsolute(dirname) ? 
                 dirname : pathUtils.join(this.currentPath, dirname);
-
+            
             await window.nebula.fs.mkdir(dirPath, { recursive: true });
             this.writeLine(`Created directory: ${dirname}`);
-
+            
         } catch (error) {
             this.writeError(`mkdir: ${error.message}`);
         }
     }
-
+    
     /**
      * Remove directory
      */
@@ -1245,19 +1095,19 @@ class NebulaTerminal {
             this.writeError('rmdir: missing directory name');
             return;
         }
-
+        
         try {
-            const dirPath = pathUtils.isAbsolute(dirname) ?
+            const dirPath = pathUtils.isAbsolute(dirname) ? 
                 dirname : pathUtils.join(this.currentPath, dirname);
-
+            
             await window.nebula.fs.rmdir(dirPath);
             this.writeLine(`Removed directory: ${dirname}`);
-
+            
         } catch (error) {
             this.writeError(`rmdir: ${error.message}`);
         }
     }
-
+    
     /**
      * Remove file
      */
@@ -1266,19 +1116,19 @@ class NebulaTerminal {
             this.writeError('rm: missing filename');
             return;
         }
-
+        
         try {
-            const filePath = pathUtils.isAbsolute(filename) ?
+            const filePath = pathUtils.isAbsolute(filename) ? 
                 filename : pathUtils.join(this.currentPath, filename);
-
+            
             await window.nebula.fs.unlink(filePath);
             this.writeLine(`Removed file: ${filename}`);
-
+            
         } catch (error) {
             this.writeError(`rm: ${error.message}`);
         }
     }
-
+    
     /**
      * Create empty file
      */
@@ -1287,19 +1137,19 @@ class NebulaTerminal {
             this.writeError('touch: missing filename');
             return;
         }
-
+        
         try {
-            const filePath = pathUtils.isAbsolute(filename) ?
+            const filePath = pathUtils.isAbsolute(filename) ? 
                 filename : pathUtils.join(this.currentPath, filename);
-
+            
             await window.nebula.fs.writeFile(filePath, '');
             this.writeLine(`Created file: ${filename}`);
-
+            
         } catch (error) {
             this.writeError(`touch: ${error.message}`);
         }
     }
-
+    
     /**
      * Show current user
      */
@@ -1307,7 +1157,7 @@ class NebulaTerminal {
         const env = window.nebula?.terminal?.getEnv() || {};
         this.writeLine(env.USER || 'nebula-user');
     }
-
+    
     /**
      * Show system info
      */
@@ -1315,7 +1165,7 @@ class NebulaTerminal {
         const platform = window.nebula?.system?.platform || 'unknown';
         const browser = this.getBrowserInfo();
         const screen = this.getScreenInfo();
-
+        
         this.writeLine(`NebulaDesktop 2.0`);
         this.writeLine(`Platform: ${platform}`);
         this.writeLine(`Browser: ${browser}`);
@@ -1323,7 +1173,7 @@ class NebulaTerminal {
         this.writeLine(`Uptime: ${this.getUptime()}`);
         this.writeLine(`Memory: ${this.getMemoryInfo()}`);
     }
-
+    
     /**
      * Get browser information
      */
@@ -1344,7 +1194,7 @@ class NebulaTerminal {
         }
         return 'Unknown Browser';
     }
-
+    
     /**
      * Get screen information
      */
@@ -1354,7 +1204,7 @@ class NebulaTerminal {
         const colorDepth = screen.colorDepth;
         return `${width}x${height} ${colorDepth}bit`;
     }
-
+    
     /**
      * Get simulated uptime
      */
@@ -1362,12 +1212,12 @@ class NebulaTerminal {
         const now = Date.now();
         const startTime = window.nebulaStartTime || now;
         const uptimeMs = now - startTime;
-
+        
         const seconds = Math.floor(uptimeMs / 1000) % 60;
         const minutes = Math.floor(uptimeMs / (1000 * 60)) % 60;
         const hours = Math.floor(uptimeMs / (1000 * 60 * 60)) % 24;
         const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
-
+        
         if (days > 0) {
             return `${days}d ${hours}h ${minutes}m`;
         } else if (hours > 0) {
@@ -1376,7 +1226,7 @@ class NebulaTerminal {
             return `${minutes}m ${seconds}s`;
         }
     }
-
+    
     /**
      * Get simulated memory info
      */
@@ -1385,10 +1235,10 @@ class NebulaTerminal {
         const totalMB = 8192; // 8GB
         const usedMB = Math.floor(Math.random() * 4096) + 1024; // 1-5GB used
         const usedPercent = Math.floor((usedMB / totalMB) * 100);
-
+        
         return `${usedMB}MB / ${totalMB}MB (${usedPercent}%)`;
     }
-
+    
     /**
      * Execute JavaScript code
      */
@@ -1398,39 +1248,39 @@ class NebulaTerminal {
             this.writeLine('Example: js console.log("Hello World")');
             return;
         }
-
+        
         try {
             // Capture console output
             const originalLog = console.log;
             let output = '';
             console.log = (...args) => {
-                output += args.map(arg =>
+                output += args.map(arg => 
                     typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
                 ).join(' ') + '\n';
             };
-
+            
             // Execute code
             const result = Function('"use strict"; return (' + code + ')')();
-
+            
             // Restore console.log
             console.log = originalLog;
-
+            
             // Show output
             if (output) {
                 this.writeLine('Console output:');
                 this.writeLine(output.trim());
             }
-
+            
             if (result !== undefined) {
-                this.writeLine('Result: ' + (typeof result === 'object' ?
+                this.writeLine('Result: ' + (typeof result === 'object' ? 
                     JSON.stringify(result, null, 2) : String(result)));
             }
-
+            
         } catch (error) {
             this.writeError(`JS Error: ${error.message}`);
         }
     }
-
+    
     /**
      * Show system fetch info (neofetch style)
      */
@@ -1451,10 +1301,10 @@ class NebulaTerminal {
             `   Terminal: Enhanced Nebula Terminal v2.0`,
             ''
         ];
-
+        
         lines.forEach(line => this.writeLine(line));
     }
-
+    
     /**
      * Open markdown file in reader window
      */
@@ -1467,9 +1317,9 @@ class NebulaTerminal {
 
         try {
             // Resolve file path
-            const filePath = pathUtils.isAbsolute(filename) ?
+            const filePath = pathUtils.isAbsolute(filename) ? 
                 filename : pathUtils.join(this.currentPath, filename);
-
+                
             // Check if file exists
             const exists = await window.nebula.fs.exists(filePath);
             if (!exists) {
@@ -1486,7 +1336,7 @@ class NebulaTerminal {
 
             // Read the markdown file
             const content = await window.nebula.fs.readFile(filePath);
-
+            
             // Create markdown reader window
             if (window.windowManager && window.MarkdownReader) {
                 const windowId = window.windowManager.createWindow({
@@ -1500,7 +1350,7 @@ class NebulaTerminal {
                 // Create markdown reader app instance
                 const markdownReader = new window.MarkdownReader(content, filename);
                 window.windowManager.loadApp(windowId, markdownReader);
-
+                
                 this.writeLine(`Opened ${filename} in Markdown Reader`);
             } else {
                 // Fallback: show content in terminal
@@ -1514,13 +1364,13 @@ class NebulaTerminal {
             this.writeError(`Cannot open markdown file: ${error.message}`);
         }
     }
-
+    
     /**
      * Debug command
      */
     debugCommand(args) {
         const cmd = args[0];
-
+        
         switch (cmd) {
             case 'help':
                 this.writeLine('Debug commands:');
@@ -1528,7 +1378,7 @@ class NebulaTerminal {
                 this.writeLine('  debug fs    - Show file system API status');
                 this.writeLine('  debug sys   - Show system API status');
                 break;
-
+                
             case 'vars':
                 const env = window.nebula?.terminal?.getEnv() || {};
                 this.writeLine('Environment variables:');
@@ -1536,7 +1386,7 @@ class NebulaTerminal {
                     this.writeLine(`  ${key}=${value}`);
                 });
                 break;
-
+                
             case 'fs':
                 this.writeLine('File System API Status:');
                 this.writeLine(`  Available: ${window.nebula?.fs ? 'Yes' : 'No'}`);
@@ -1545,20 +1395,20 @@ class NebulaTerminal {
                     this.writeLine(`  Methods: ${Object.keys(window.nebula.fs).join(', ')}`);
                 }
                 break;
-
+                
             case 'sys':
                 this.writeLine('System API Status:');
                 this.writeLine(`  Available: ${window.nebula?.system ? 'Yes' : 'No'}`);
                 this.writeLine(`  Terminal API: ${window.nebula?.terminal ? 'Yes' : 'No'}`);
                 this.writeLine(`  Window Manager: ${window.windowManager ? 'Yes' : 'No'}`);
                 break;
-
+                
             default:
                 this.writeLine('Usage: debug <command>');
                 this.writeLine('Use "debug help" for available commands');
         }
     }
-
+    
     /**
      * Show command history
      */
@@ -1567,13 +1417,13 @@ class NebulaTerminal {
             this.writeLine('No command history');
             return;
         }
-
+        
         this.writeLine('Command History:');
         this.commandHistory.forEach((cmd, index) => {
             this.writeLine(`${index + 1}: ${cmd}`);
         });
     }
-
+    
     /**
      * Close terminal
      */
@@ -1582,21 +1432,21 @@ class NebulaTerminal {
             window.windowManager.closeWindow(this.windowId);
         }
     }
-
+    
     /**
      * Get app title
      */
     getTitle() {
         return 'Nebula Terminal';
     }
-
+    
     /**
      * Get app icon
      */
     getIcon() {
         return '💻';
     }
-
+    
     /**
      * Cleanup when terminal is closed
      */
@@ -1686,7 +1536,7 @@ class MarkdownReader {
         // Lists
         html = html.replace(/^\* (.*$)/gm, '<li style="margin: 5px 0; color: #f8f8f2;">$1</li>');
         html = html.replace(/^- (.*$)/gm, '<li style="margin: 5px 0; color: #f8f8f2;">$1</li>');
-
+        
         // Wrap consecutive list items in ul
         html = html.replace(/(<li[^>]*>.*<\/li>\s*)+/g, '<ul style="margin: 10px 0; padding-left: 20px;">$&</ul>');
 
