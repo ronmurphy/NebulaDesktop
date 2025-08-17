@@ -307,7 +307,7 @@
 
 /* Window Content */
 .window-content {
-    padding: 16px;
+    /* padding: 16px; */
     height: calc(100% - 45px);
     overflow: auto;
     color: rgba(255, 255, 255, 0.9);
