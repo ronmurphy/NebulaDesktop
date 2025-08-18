@@ -70,22 +70,24 @@ class WidgetIntegration {
 
     addDevelopmentControls() {
         // Create a simple control panel for testing
-        const controlPanel = document.createElement('div');
-        controlPanel.id = 'widget-dev-controls';
-        controlPanel.innerHTML = `
-            <div class="dev-controls-header">
-                <span>🧩 Widget Dev Controls</span>
-                <button id="toggle-dev-controls">−</button>
-            </div>
-            <div class="dev-controls-content">
-                <button id="create-clock">Create Clock Widget</button>
-                <button id="create-minimal-clock">Create Minimal Clock</button>
-                <button id="widget-config">Widget Config</button>
-                <button id="list-widgets">List Active Widgets</button>
-                <button id="clear-widgets">Clear All Widgets</button>
-                <button id="test-positioning">Test Positioning</button>
-            </div>
-        `;
+    const existing = document.getElementById('widget-dev-controls');
+    if (existing) existing.remove();
+    
+    const controlPanel = document.createElement('div');
+    controlPanel.id = 'widget-dev-controls';
+    controlPanel.innerHTML = `
+        <div class="dev-controls-header">
+            <span>🧩 Widget Dev Controls</span>
+            <button id="toggle-dev-controls">−</button>
+        </div>
+        <div class="dev-controls-content">
+            ${this.generateWidgetButtons()}
+            <button id="widget-config">Widget Config</button>
+            <button id="list-widgets">List Active Widgets</button>
+            <button id="clear-widgets">Clear All Widgets</button>
+            <button id="test-positioning">Test Positioning</button>
+        </div>
+    `;
 
         // Style the control panel
         Object.assign(controlPanel.style, {
@@ -168,6 +170,17 @@ class WidgetIntegration {
         // Add event listeners
         this.setupControlListeners();
     }
+
+    generateWidgetButtons() {
+    if (!window.widgetSystem) return '<button disabled>Widget System Loading...</button>';
+    
+    const widgets = window.widgetSystem.getRegisteredWidgets();
+    return widgets.map(widget => 
+        `<button id="create-${widget.id}" data-widget-type="${widget.id}">
+            Create ${widget.name}
+        </button>`
+    ).join('');
+}
 
     setupControlListeners() {
         // Toggle control panel

@@ -342,8 +342,8 @@
  * ============================================================================= */
 .theme-selector {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    /* top: 20px;
+    right: 20px; */
     z-index: 10000;
     background: var(--nebula-surface);
     border: 1px solid var(--nebula-border);

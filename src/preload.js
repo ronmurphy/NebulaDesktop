@@ -1,6 +1,9 @@
 // Merging the best from both versions
 const { contextBridge, ipcRenderer } = require('electron');
 
+const fs = require('fs');
+const path = require('path');
+
 contextBridge.exposeInMainWorld('nebula', {
     // System APIs (from WME1's completeness)
     system: {
@@ -82,6 +85,8 @@ contextBridge.exposeInMainWorld('nebula', {
         openFile: (options) => ipcRenderer.invoke('dialog:openFile', options),
         saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options)
     },
+
+    
 
     // Code execution (for future debugger integration)
     code: {
