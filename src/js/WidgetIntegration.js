@@ -80,6 +80,7 @@ class WidgetIntegration {
             <div class="dev-controls-content">
                 <button id="create-clock">Create Clock Widget</button>
                 <button id="create-minimal-clock">Create Minimal Clock</button>
+                <button id="widget-config">Widget Config</button>
                 <button id="list-widgets">List Active Widgets</button>
                 <button id="clear-widgets">Clear All Widgets</button>
                 <button id="test-positioning">Test Positioning</button>
@@ -185,6 +186,11 @@ class WidgetIntegration {
         // Create minimal clock widget
         document.getElementById('create-minimal-clock')?.addEventListener('click', () => {
             this.createTestClock(true); // minimal = true
+        });
+
+        // Widget config placeholder
+        document.getElementById('widget-config')?.addEventListener('click', () => {
+            this.openWidgetConfig();
         });
 
         // List active widgets

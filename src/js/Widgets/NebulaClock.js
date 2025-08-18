@@ -1,4 +1,4 @@
-// NebulaClock.js - Demo Clock Widget
+// NebulaClock.js - Clean Clock Widget (Complete Rewrite)
 class NebulaClock extends NebulaWidget {
     constructor(config = {}) {
         super(config);
@@ -6,7 +6,8 @@ class NebulaClock extends NebulaWidget {
         this.timeFormat = config.format || '24h'; // '12h' or '24h'
         this.showSeconds = config.showSeconds !== false; // Default true
         this.showDate = config.showDate !== false; // Default true
-        this.showTitlebar = config.showTitlebar !== false; // Default true, but can be disabled
+        this.showTitlebar = config.showTitlebar !== false; // Default true
+        this.settingsMenuVisible = false;
     }
 
     init() {
@@ -19,7 +20,9 @@ class NebulaClock extends NebulaWidget {
         
         // Create the main clock container
         const clockWidget = document.createElement('div');
-        clockWidget.className = this.showTitlebar ? 'nebula-clock-widget' : 'nebula-clock-widget minimal';
+        clockWidget.className = this.showTitlebar ? 
+            'nebula-clock-widget' : 
+            'nebula-clock-widget minimal';
         
         // Store reference for updates
         this.element = clockWidget;
@@ -39,6 +42,17 @@ class NebulaClock extends NebulaWidget {
                     <div class="time-display" id="time-${this.id}">--:--</div>
                     ${this.showDate ? `<div class="date-display" id="date-${this.id}">Loading...</div>` : ''}
                 </div>
+                <div class="settings-menu" id="settings-menu-${this.id}" style="display: none;">
+                    <div class="settings-menu-item" data-action="toggle-format">
+                        <span class="menu-icon">🕐</span>
+                        <span class="menu-text">${this.timeFormat === '24h' ? 'Switch to 12h' : 'Switch to 24h'}</span>
+                    </div>
+                    <div class="settings-menu-item" data-action="widget-config">
+                        <span class="menu-icon">🎨</span>
+                        <span class="menu-text">Widget Appearance</span>
+                        <span class="menu-arrow">→</span>
+                    </div>
+                </div>
             `;
         } else {
             // Minimal widget - clock display with hover controls
@@ -50,6 +64,17 @@ class NebulaClock extends NebulaWidget {
                     </div>
                     <div class="time-display" id="time-${this.id}">--:--</div>
                     ${this.showDate ? `<div class="date-display" id="date-${this.id}">Loading...</div>` : ''}
+                </div>
+                <div class="settings-menu minimal" id="settings-menu-${this.id}" style="display: none;">
+                    <div class="settings-menu-item" data-action="toggle-format">
+                        <span class="menu-icon">🕐</span>
+                        <span class="menu-text">${this.timeFormat === '24h' ? 'Switch to 12h' : 'Switch to 24h'}</span>
+                    </div>
+                    <div class="settings-menu-item" data-action="widget-config">
+                        <span class="menu-icon">🎨</span>
+                        <span class="menu-text">Widget Appearance</span>
+                        <span class="menu-arrow">→</span>
+                    </div>
                 </div>
             `;
         }
@@ -63,36 +88,50 @@ class NebulaClock extends NebulaWidget {
         console.log('🕐 Clock widget rendered successfully', {
             id: this.id,
             titlebar: this.showTitlebar,
-            element: clockWidget,
-            dimensions: `${clockWidget.offsetWidth}x${clockWidget.offsetHeight}`
+            element: clockWidget
         });
 
         return clockWidget;
     }
 
     setupEventListeners(element) {
-        // Handle control buttons
+        // Handle control buttons and menu
         element.addEventListener('click', (e) => {
-            const action = e.target.dataset.action;
+            const action = e.target.closest('[data-action]')?.dataset.action;
             
             if (action === 'close') {
                 this.handleClose();
             } else if (action === 'settings') {
-                this.handleSettings();
+                this.toggleSettingsMenu();
+            } else if (action === 'toggle-format') {
+                this.toggleTimeFormat();
+                this.updateSettingsMenu();
+                this.hideSettingsMenu();
+            } else if (action === 'widget-config') {
+                this.openWidgetConfig();
+                this.hideSettingsMenu();
             }
         });
         
-        // Double-click for quick settings toggle
-        element.addEventListener('dblclick', () => {
-            this.handleSettings();
+        // Double-click for quick format toggle
+        element.addEventListener('dblclick', (e) => {
+            if (!e.target.closest('.widget-controls') && 
+                !e.target.closest('.minimal-controls') && 
+                !e.target.closest('.settings-menu')) {
+                this.toggleTimeFormat();
+            }
+        });
+
+        // Close settings menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest(`#${this.element.id}`) && this.settingsMenuVisible) {
+                this.hideSettingsMenu();
+            }
         });
     }
 
     startUpdating() {
-        // Update immediately
         this.updateTime();
-        
-        // Update every second
         this.updateInterval = setInterval(() => {
             this.updateTime();
         }, 1000);
@@ -103,13 +142,11 @@ class NebulaClock extends NebulaWidget {
 
         const now = new Date();
         
-        // Update time display
         const timeElement = this.element.querySelector(`#time-${this.id}`);
         if (timeElement) {
             timeElement.textContent = this.formatTime(now);
         }
 
-        // Update date display if enabled
         if (this.showDate) {
             const dateElement = this.element.querySelector(`#date-${this.id}`);
             if (dateElement) {
@@ -126,7 +163,7 @@ class NebulaClock extends NebulaWidget {
         if (this.timeFormat === '12h') {
             const ampm = hours >= 12 ? 'PM' : 'AM';
             hours = hours % 12;
-            hours = hours ? hours : 12; // 0 should be 12
+            hours = hours ? hours : 12;
             const timeString = `${hours}:${minutes}`;
             return this.showSeconds ? `${timeString}:${seconds} ${ampm}` : `${timeString} ${ampm}`;
         } else {
@@ -146,46 +183,58 @@ class NebulaClock extends NebulaWidget {
     }
 
     handleClose() {
-        // Remove this widget instance
         if (window.widgetSystem) {
             window.widgetSystem.removeWidget(this.id);
         }
     }
 
-    handleSettings() {
-        // Simple settings toggle for demo - cycle through formats
-        const formats = ['24h', '12h'];
-        const currentIndex = formats.indexOf(this.timeFormat);
-        const nextIndex = (currentIndex + 1) % formats.length;
-        
-        this.timeFormat = formats[nextIndex];
+    toggleSettingsMenu() {
+        if (this.settingsMenuVisible) {
+            this.hideSettingsMenu();
+        } else {
+            this.showSettingsMenu();
+        }
+    }
+
+    showSettingsMenu() {
+        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
+        if (!menu) return;
+
+        menu.style.display = 'block';
+        this.settingsMenuVisible = true;
+        console.log('📋 Settings menu opened');
+    }
+
+    hideSettingsMenu() {
+        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
+        if (!menu) return;
+
+        menu.style.display = 'none';
+        this.settingsMenuVisible = false;
+        console.log('📋 Settings menu closed');
+    }
+
+    toggleTimeFormat() {
+        this.timeFormat = this.timeFormat === '24h' ? '12h' : '24h';
         this.updateTime();
-        
         console.log(`🕐 Clock format changed to: ${this.timeFormat}`);
-        
-        // Show a brief notification
-        const notification = document.createElement('div');
-        notification.textContent = `Format: ${this.timeFormat === '24h' ? '24-hour' : '12-hour'}`;
-        notification.style.cssText = `
-            position: absolute;
-            top: -30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--nebula-primary, #667eea);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            pointer-events: none;
-            z-index: 1000;
-        `;
-        
-        this.element.style.position = 'relative';
-        this.element.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 1500);
+    }
+
+    openWidgetConfig() {
+        console.log('🎨 Opening widget appearance config');
+        alert('Widget Appearance Config\n\n' +
+              '• Global widget styling\n' +
+              '• Theme selection (Nebula/Glass/Custom)\n' +
+              '• Color schemes\n' +
+              '• Transparency settings\n\n' +
+              '(This will be implemented in the global widget config panel)');
+    }
+
+    updateSettingsMenu() {
+        const formatItem = this.element.querySelector('[data-action="toggle-format"] .menu-text');
+        if (formatItem) {
+            formatItem.textContent = this.timeFormat === '24h' ? 'Switch to 12h' : 'Switch to 24h';
+        }
     }
 
     cleanup() {
@@ -215,25 +264,25 @@ const clockWidgetStyles = `
     box-shadow: var(--nebula-shadow-md, 0 4px 16px rgba(0, 0, 0, 0.1));
     min-width: 200px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    overflow: hidden;
+    overflow: visible;
     transition: var(--nebula-transition, all 0.3s ease);
+    position: relative;
+    color: var(--nebula-text-primary, #1a202c);
 }
 
-/* Minimal widget style - no titlebar */
 .nebula-clock-widget.minimal {
     min-width: 150px;
-    background: rgba(var(--nebula-surface-rgb, 255, 255, 255), 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(var(--nebula-border-rgb, 226, 232, 240), 0.6);
 }
 
 .nebula-clock-widget:hover {
     box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
 }
 
-.nebula-clock-widget.dragging {
-    transform: rotate(2deg);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+.widget-dragging {
+    opacity: 0.8;
+    transform: scale(1.02);
+    transition: none;
+    z-index: 1650 !important;
 }
 
 .widget-header {
@@ -245,7 +294,8 @@ const clockWidgetStyles = `
     gap: 8px;
     font-size: 14px;
     font-weight: 600;
-    cursor: move; /* Indicates draggable area */
+    cursor: move;
+    border-radius: var(--nebula-radius-lg, 12px) var(--nebula-radius-lg, 12px) 0 0;
 }
 
 .widget-icon {
@@ -286,19 +336,18 @@ const clockWidgetStyles = `
     position: relative;
 }
 
-/* Minimal clock display */
 .clock-display.minimal {
     padding: 12px;
-    cursor: move; /* Allow dragging from main area in minimal mode */
+    cursor: move;
 }
 
-/* Minimal controls - hidden by default, show on hover */
 .minimal-controls {
     position: absolute;
     top: 4px;
     right: 4px;
     display: none;
     gap: 2px;
+    z-index: 10;
 }
 
 .nebula-clock-widget.minimal:hover .minimal-controls {
@@ -306,9 +355,9 @@ const clockWidgetStyles = `
 }
 
 .minimal-control-btn {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(102, 126, 234, 0.1);
     border: none;
-    color: var(--nebula-text-secondary, #64748b);
+    color: var(--nebula-primary, #667eea);
     width: 20px;
     height: 20px;
     border-radius: 3px;
@@ -317,24 +366,23 @@ const clockWidgetStyles = `
     align-items: center;
     justify-content: center;
     font-size: 10px;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
+    pointer-events: auto;
 }
 
 .minimal-control-btn:hover {
-    background: rgba(0, 0, 0, 0.2);
-    color: var(--nebula-text-primary, #1a202c);
+    background: rgba(102, 126, 234, 0.2);
+    color: var(--nebula-primary, #667eea);
 }
 
 .time-display {
     font-size: 24px;
     font-weight: 700;
     font-family: 'Courier New', monospace;
-    color: var(--nebula-text-primary, #1a202c);
     margin-bottom: 4px;
     letter-spacing: 1px;
 }
 
-/* Smaller time display for minimal widgets */
 .nebula-clock-widget.minimal .time-display {
     font-size: 20px;
     margin-bottom: 2px;
@@ -342,16 +390,80 @@ const clockWidgetStyles = `
 
 .date-display {
     font-size: 12px;
-    color: var(--nebula-text-secondary, #64748b);
     font-weight: 500;
+    opacity: 0.8;
+    color: var(--nebula-text-secondary, #64748b);
 }
 
-/* Smaller date display for minimal widgets */
 .nebula-clock-widget.minimal .date-display {
     font-size: 10px;
 }
 
-/* Widget layer styles */
+.settings-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--nebula-surface, #ffffff);
+    border: 1px solid var(--nebula-border, #e2e8f0);
+    border-radius: var(--nebula-radius-md, 8px);
+    box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
+    min-width: 180px;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.settings-menu.minimal {
+    top: auto;
+    bottom: 100%;
+    margin-bottom: 4px;
+}
+
+.settings-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 13px;
+    color: var(--nebula-text-primary, #1a202c);
+}
+
+.settings-menu-item:hover {
+    background: var(--nebula-surface-hover, #f1f5f9);
+}
+
+.menu-icon {
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+}
+
+.menu-text {
+    flex: 1;
+}
+
+.menu-arrow {
+    font-size: 12px;
+    color: var(--nebula-text-secondary, #64748b);
+}
+
+[data-theme="dark"] .nebula-clock-widget {
+    background: var(--nebula-surface, #2d3748);
+    border-color: var(--nebula-border, #4a5568);
+    color: var(--nebula-text-primary, #e2e8f0);
+}
+
+[data-theme="dark"] .settings-menu {
+    background: var(--nebula-surface, #2d3748);
+    border-color: var(--nebula-border, #4a5568);
+    color: var(--nebula-text-primary, #e2e8f0);
+}
+
+[data-theme="dark"] .settings-menu-item:hover {
+    background: var(--nebula-surface-hover, #4a5568);
+}
+
 .widget-layer {
     position: absolute;
     top: 0;
@@ -397,15 +509,3 @@ if (window.NebulaWidgetSystem && window.widgetSystem) {
 
 // Make the class globally available
 window.NebulaClock = NebulaClock;
-
-// Demo: Create a clock widget instance (commented out for now)
-// if (window.widgetSystem) {
-//     setTimeout(() => {
-//         const clockId = window.widgetSystem.createWidget('clock', {
-//             x: 50,
-//             y: 50,
-//             format: '12h'
-//         });
-//         console.log('🕐 Demo clock created:', clockId);
-//     }, 1000);
-// }
