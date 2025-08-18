@@ -79,6 +79,7 @@ class WidgetIntegration {
             </div>
             <div class="dev-controls-content">
                 <button id="create-clock">Create Clock Widget</button>
+                <button id="create-minimal-clock">Create Minimal Clock</button>
                 <button id="list-widgets">List Active Widgets</button>
                 <button id="clear-widgets">Clear All Widgets</button>
                 <button id="test-positioning">Test Positioning</button>
@@ -181,6 +182,11 @@ class WidgetIntegration {
             this.createTestClock();
         });
 
+        // Create minimal clock widget
+        document.getElementById('create-minimal-clock')?.addEventListener('click', () => {
+            this.createTestClock(true); // minimal = true
+        });
+
         // List active widgets
         document.getElementById('list-widgets')?.addEventListener('click', () => {
             this.listActiveWidgets();
@@ -197,7 +203,7 @@ class WidgetIntegration {
         });
     }
 
-    createTestClock() {
+    createTestClock(minimal = false) {
         if (!window.widgetSystem) {
             alert('Widget system not available!');
             return;
@@ -208,12 +214,13 @@ class WidgetIntegration {
             const x = Math.random() * (window.innerWidth - 250);
             const y = Math.random() * (window.innerHeight - 150);
             
-            console.log(`🕐 Creating test clock at position: ${x}, ${y}`);
+            console.log(`🕐 Creating ${minimal ? 'minimal' : 'titlebar'} clock at position: ${x}, ${y}`);
             
             const clockId = window.widgetSystem.createWidget('clock', {
                 x: Math.floor(x),
                 y: Math.floor(y),
-                format: Math.random() > 0.5 ? '12h' : '24h'
+                format: Math.random() > 0.5 ? '12h' : '24h',
+                showTitlebar: !minimal
             });
             
             console.log('🕐 Created test clock:', clockId);
@@ -224,6 +231,7 @@ class WidgetIntegration {
                 const widgetContainer = document.getElementById('nebula-widget-layer');
                 console.log('🔍 Widget verification:', {
                     clockId,
+                    minimal,
                     elementExists: !!widgetElement,
                     containerExists: !!widgetContainer,
                     containerChildren: widgetContainer?.children.length || 0,
@@ -236,7 +244,7 @@ class WidgetIntegration {
                 });
             }, 100);
             
-            alert(`Created clock widget: ${clockId}`);
+            alert(`Created ${minimal ? 'minimal' : 'titlebar'} clock widget: ${clockId}`);
         } catch (error) {
             console.error('❌ Failed to create clock:', error);
             alert('Failed to create clock: ' + error.message);
@@ -341,6 +349,9 @@ class WidgetIntegration {
             <div class="context-menu-item" data-action="create-clock">
                 🕐 Create Clock Widget
             </div>
+            <div class="context-menu-item" data-action="create-minimal-clock">
+                🕕 Create Minimal Clock
+            </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="widget-settings">
                 ⚙️ Widget Settings
@@ -410,7 +421,18 @@ class WidgetIntegration {
                 
                 window.widgetSystem.createWidget('clock', {
                     x: x - desktopRect.left,
-                    y: y - desktopRect.top
+                    y: y - desktopRect.top,
+                    showTitlebar: true
+                });
+            } else if (action === 'create-minimal-clock') {
+                // Calculate position relative to desktop
+                const desktop = document.getElementById('desktop');
+                const desktopRect = desktop ? desktop.getBoundingClientRect() : { left: 0, top: 0 };
+                
+                window.widgetSystem.createWidget('clock', {
+                    x: x - desktopRect.left,
+                    y: y - desktopRect.top,
+                    showTitlebar: false
                 });
             } else if (action === 'widget-settings') {
                 alert('Widget settings would open here');

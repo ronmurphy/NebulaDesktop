@@ -6,6 +6,7 @@ class NebulaClock extends NebulaWidget {
         this.timeFormat = config.format || '24h'; // '12h' or '24h'
         this.showSeconds = config.showSeconds !== false; // Default true
         this.showDate = config.showDate !== false; // Default true
+        this.showTitlebar = config.showTitlebar !== false; // Default true, but can be disabled
     }
 
     init() {
@@ -18,26 +19,40 @@ class NebulaClock extends NebulaWidget {
         
         // Create the main clock container
         const clockWidget = document.createElement('div');
-        clockWidget.className = 'nebula-clock-widget';
+        clockWidget.className = this.showTitlebar ? 'nebula-clock-widget' : 'nebula-clock-widget minimal';
         
         // Store reference for updates
         this.element = clockWidget;
 
-        // Create clock structure
-        clockWidget.innerHTML = `
-            <div class="widget-header">
-                <span class="widget-icon">🕐</span>
-                <span class="widget-title">Clock</span>
-                <div class="widget-controls">
-                    <button class="widget-control-btn" data-action="settings" title="Settings">⚙️</button>
-                    <button class="widget-control-btn" data-action="close" title="Close">×</button>
+        // Create clock structure - conditional titlebar
+        if (this.showTitlebar) {
+            clockWidget.innerHTML = `
+                <div class="widget-header">
+                    <span class="widget-icon">🕐</span>
+                    <span class="widget-title">Clock</span>
+                    <div class="widget-controls">
+                        <button class="widget-control-btn" data-action="settings" title="Settings">⚙️</button>
+                        <button class="widget-control-btn" data-action="close" title="Close">×</button>
+                    </div>
                 </div>
-            </div>
-            <div class="clock-display">
-                <div class="time-display" id="time-${this.id}">--:--</div>
-                ${this.showDate ? `<div class="date-display" id="date-${this.id}">Loading...</div>` : ''}
-            </div>
-        `;
+                <div class="clock-display">
+                    <div class="time-display" id="time-${this.id}">--:--</div>
+                    ${this.showDate ? `<div class="date-display" id="date-${this.id}">Loading...</div>` : ''}
+                </div>
+            `;
+        } else {
+            // Minimal widget - just the clock display with subtle controls
+            clockWidget.innerHTML = `
+                <div class="clock-display minimal">
+                    <div class="minimal-controls">
+                        <button class="minimal-control-btn" data-action="settings" title="Settings">⚙️</button>
+                        <button class="minimal-control-btn" data-action="close" title="Close">×</button>
+                    </div>
+                    <div class="time-display" id="time-${this.id}">--:--</div>
+                    ${this.showDate ? `<div class="date-display" id="date-${this.id}">Loading...</div>` : ''}
+                </div>
+            `;
+        }
 
         // Add event listeners
         this.setupEventListeners(clockWidget);
@@ -47,6 +62,7 @@ class NebulaClock extends NebulaWidget {
         
         console.log('🕐 Clock widget rendered successfully', {
             id: this.id,
+            titlebar: this.showTitlebar,
             element: clockWidget,
             dimensions: `${clockWidget.offsetWidth}x${clockWidget.offsetHeight}`
         });
@@ -174,6 +190,14 @@ const clockWidgetStyles = `
     transition: var(--nebula-transition, all 0.3s ease);
 }
 
+/* Minimal widget style - no titlebar */
+.nebula-clock-widget.minimal {
+    min-width: 150px;
+    background: rgba(var(--nebula-surface-rgb, 255, 255, 255), 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(var(--nebula-border-rgb, 226, 232, 240), 0.6);
+}
+
 .nebula-clock-widget:hover {
     box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
 }
@@ -230,6 +254,46 @@ const clockWidgetStyles = `
 .clock-display {
     padding: 16px;
     text-align: center;
+    position: relative;
+}
+
+/* Minimal clock display */
+.clock-display.minimal {
+    padding: 12px;
+    cursor: move; /* Allow dragging from main area in minimal mode */
+}
+
+/* Minimal controls - hidden by default, show on hover */
+.minimal-controls {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: none;
+    gap: 2px;
+}
+
+.nebula-clock-widget.minimal:hover .minimal-controls {
+    display: flex;
+}
+
+.minimal-control-btn {
+    background: rgba(0, 0, 0, 0.1);
+    border: none;
+    color: var(--nebula-text-secondary, #64748b);
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: background-color 0.2s ease;
+}
+
+.minimal-control-btn:hover {
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--nebula-text-primary, #1a202c);
 }
 
 .time-display {
@@ -241,10 +305,21 @@ const clockWidgetStyles = `
     letter-spacing: 1px;
 }
 
+/* Smaller time display for minimal widgets */
+.nebula-clock-widget.minimal .time-display {
+    font-size: 20px;
+    margin-bottom: 2px;
+}
+
 .date-display {
     font-size: 12px;
     color: var(--nebula-text-secondary, #64748b);
     font-weight: 500;
+}
+
+/* Smaller date display for minimal widgets */
+.nebula-clock-widget.minimal .date-display {
+    font-size: 10px;
 }
 
 /* Widget layer styles */
