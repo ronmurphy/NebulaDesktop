@@ -1,0 +1,512 @@
+/* Nebula Material Icons Theme System
+ * Material Icons integration with Nebula Desktop color scheme
+ * Replaces emoji icons with Material Icons using CSS
+ */
+
+/* Material Icons Font Import */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Outlined');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Round');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Sharp');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Two+Tone');
+
+/* Nebula Color Variables (from nebula-theme.css) */
+:root {
+    /* Core Brand Colors */
+    --nebula-primary: #667eea;
+    --nebula-secondary: #764ba2;
+    --nebula-accent: #4f46e5;
+    --nebula-success: #10b981;
+    --nebula-warning: #f59e0b;
+    --nebula-danger: #ef4444;
+    
+    /* Light Theme Colors */
+    --nebula-light-bg-primary: #ffffff;
+    --nebula-light-bg-secondary: #f8fafc;
+    --nebula-light-bg-tertiary: #f1f5f9;
+    --nebula-light-surface: #ffffff;
+    --nebula-light-text-primary: #1e293b;
+    --nebula-light-text-secondary: #64748b;
+    --nebula-light-border: #e2e8f0;
+    
+    /* Dark Theme Colors */
+    --nebula-dark-bg-primary: #0f172a;
+    --nebula-dark-bg-secondary: #1e293b;
+    --nebula-dark-bg-tertiary: #334155;
+    --nebula-dark-surface: #1e293b;
+    --nebula-dark-text-primary: #f8fafc;
+    --nebula-dark-text-secondary: #cbd5e1;
+    --nebula-dark-border: #334155;
+    
+    /* Nebula-Slate Theme Colors */
+    --nebula-slate-bg-primary: #475569;
+    --nebula-slate-bg-secondary: #64748b;
+    --nebula-slate-bg-tertiary: #94a3b8;
+    --nebula-slate-surface: #64748b;
+    --nebula-slate-text-primary: #f8fafc;
+    --nebula-slate-text-secondary: #e2e8f0;
+    --nebula-slate-border: #334155;
+}
+
+/* Base Material Icon Class */
+.material-icon {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-optical-sizing: auto;
+    color: var(--nebula-primary);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Material Icon Variants */
+.material-icon-outlined {
+    font-family: 'Material Icons Outlined';
+}
+
+.material-icon-round {
+    font-family: 'Material Icons Round';
+}
+
+.material-icon-sharp {
+    font-family: 'Material Icons Sharp';
+}
+
+.material-icon-two-tone {
+    font-family: 'Material Icons Two Tone';
+}
+
+/* Icon Sizes */
+.material-icon-xs { font-size: 12px; }
+.material-icon-sm { font-size: 16px; }
+.material-icon-md { font-size: 24px; }
+.material-icon-lg { font-size: 32px; }
+.material-icon-xl { font-size: 48px; }
+.material-icon-2xl { font-size: 64px; }
+
+/* Nebula Color Variants */
+.material-icon-primary { color: var(--nebula-primary); }
+.material-icon-secondary { color: var(--nebula-secondary); }
+.material-icon-accent { color: var(--nebula-accent); }
+.material-icon-success { color: var(--nebula-success); }
+.material-icon-warning { color: var(--nebula-warning); }
+.material-icon-danger { color: var(--nebula-danger); }
+
+/* Theme-aware text colors */
+[data-theme="light"] .material-icon-text { color: var(--nebula-light-text-primary); }
+[data-theme="dark"] .material-icon-text { color: var(--nebula-dark-text-primary); }
+[data-theme="nebula-slate"] .material-icon-text { color: var(--nebula-slate-text-primary); }
+
+/* Interactive States */
+.material-icon:hover {
+    color: var(--nebula-accent);
+    transform: scale(1.1);
+}
+
+.material-icon:active {
+    transform: scale(0.95);
+}
+
+/* Gradient Icons */
+.material-icon-gradient {
+    background: linear-gradient(135deg, var(--nebula-primary), var(--nebula-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.material-icon-gradient-accent {
+    background: linear-gradient(135deg, var(--nebula-accent), var(--nebula-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* App Icon Replacements - Replace Emoji with Material Icons */
+
+/* Browser App */
+.app-icon[data-app="browser"]::before,
+.app-item[data-app-id="browser"] .app-icon::before {
+    content: "language";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-primary);
+}
+
+.app-icon[data-app="browser"],
+.app-item[data-app-id="browser"] .app-icon {
+    font-size: 0; /* Hide emoji */
+}
+
+/* Files App */
+.app-icon[data-app="files"]::before,
+.app-item[data-app-id="files"] .app-icon::before {
+    content: "folder";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-warning);
+}
+
+.app-icon[data-app="files"],
+.app-item[data-app-id="files"] .app-icon {
+    font-size: 0;
+}
+
+/* Calculator App */
+.app-icon[data-app="calculator"]::before,
+.app-item[data-app-id="calculator"] .app-icon::before {
+    content: "calculate";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-accent);
+}
+
+.app-icon[data-app="calculator"],
+.app-item[data-app-id="calculator"] .app-icon {
+    font-size: 0;
+}
+
+/* Terminal App */
+.app-icon[data-app="terminal"]::before,
+.app-item[data-app-id="terminal"] .app-icon::before {
+    content: "terminal";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-dark-text-primary);
+}
+
+.app-icon[data-app="terminal"],
+.app-item[data-app-id="terminal"] .app-icon {
+    font-size: 0;
+}
+
+/* Settings App */
+.app-icon[data-app="settings"]::before,
+.app-item[data-app-id="settings"] .app-icon::before {
+    content: "settings";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-secondary);
+}
+
+.app-icon[data-app="settings"],
+.app-item[data-app-id="settings"] .app-icon {
+    font-size: 0;
+}
+
+/* Gmail App */
+.app-icon[data-app="gmail"]::before,
+.app-item[data-app-id="gmail"] .app-icon::before {
+    content: "mail";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: #ea4335; /* Gmail red */
+}
+
+.app-icon[data-app="gmail"],
+.app-item[data-app-id="gmail"] .app-icon {
+    font-size: 0;
+}
+
+/* Google Docs */
+.app-icon[data-app="docs"]::before,
+.app-item[data-app-id="docs"] .app-icon::before {
+    content: "description";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: #4285f4; /* Google blue */
+}
+
+.app-icon[data-app="docs"],
+.app-item[data-app-id="docs"] .app-icon {
+    font-size: 0;
+}
+
+/* YouTube */
+.app-icon[data-app="youtube"]::before,
+.app-item[data-app-id="youtube"] .app-icon::before {
+    content: "play_circle";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: #ff0000; /* YouTube red */
+}
+
+.app-icon[data-app="youtube"],
+.app-item[data-app-id="youtube"] .app-icon {
+    font-size: 0;
+}
+
+/* GitHub */
+.app-icon[data-app="github"]::before,
+.app-item[data-app-id="github"] .app-icon::before {
+    content: "code";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-dark-text-primary);
+}
+
+.app-icon[data-app="github"],
+.app-item[data-app-id="github"] .app-icon {
+    font-size: 0;
+}
+
+/* Widget Icons */
+
+/* Clock Widget */
+.widget[data-type="clock"] .widget-icon::before {
+    content: "schedule";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-primary);
+}
+
+.widget[data-type="clock"] .widget-icon {
+    font-size: 0;
+}
+
+/* Launcher Widget */
+.widget[data-type="launcher"] .widget-icon::before {
+    content: "apps";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-accent);
+}
+
+.widget[data-type="launcher"] .widget-icon {
+    font-size: 0;
+}
+
+/* Taskbar Widget */
+.widget[data-type="taskbar"] .widget-icon::before {
+    content: "view_list";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-secondary);
+}
+
+.widget[data-type="taskbar"] .widget-icon {
+    font-size: 0;
+}
+
+/* Assistant Widgets */
+.widget[data-type="assistant"] .widget-icon::before {
+    content: "smart_toy";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-primary);
+}
+
+.widget[data-type="art-assistant"] .widget-icon::before {
+    content: "palette";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-warning);
+}
+
+.widget[data-type="code-assistant"] .widget-icon::before {
+    content: "code";
+    font-family: 'Material Icons';
+    font-size: inherit;
+    color: var(--nebula-success);
+}
+
+.widget[data-type="assistant"] .widget-icon,
+.widget[data-type="art-assistant"] .widget-icon,
+.widget[data-type="code-assistant"] .widget-icon {
+    font-size: 0;
+}
+
+/* Window Control Icons */
+.window-control.minimize::before {
+    content: "minimize";
+    font-family: 'Material Icons';
+    font-size: 16px;
+    color: var(--nebula-warning);
+}
+
+.window-control.maximize::before {
+    content: "crop_square";
+    font-family: 'Material Icons';
+    font-size: 16px;
+    color: var(--nebula-success);
+}
+
+.window-control.close::before {
+    content: "close";
+    font-family: 'Material Icons';
+    font-size: 16px;
+    color: var(--nebula-danger);
+}
+
+.window-control.pill::before {
+    content: "picture_in_picture_alt";
+    font-family: 'Material Icons';
+    font-size: 16px;
+    color: var(--nebula-accent);
+}
+
+.window-control {
+    font-size: 0; /* Hide any text content */
+}
+
+/* Magnetic Strip Icons */
+.strip-control[data-action="settings"]::before {
+    content: "settings";
+    font-family: 'Material Icons';
+    font-size: 12px;
+    color: var(--nebula-secondary);
+}
+
+.strip-control[data-action="mode"]::before {
+    content: "view_module";
+    font-family: 'Material Icons';
+    font-size: 12px;
+    color: var(--nebula-primary);
+}
+
+.strip-control[data-action="close"]::before {
+    content: "close";
+    font-family: 'Material Icons';
+    font-size: 12px;
+    color: var(--nebula-danger);
+}
+
+/* Pill Control Icons */
+.pill-control.close::before {
+    content: "close";
+    font-family: 'Material Icons';
+    font-size: 10px;
+    color: var(--nebula-danger);
+}
+
+.pill-control.restore::before {
+    content: "open_in_full";
+    font-family: 'Material Icons';
+    font-size: 10px;
+    color: var(--nebula-success);
+}
+
+/* Animation Classes */
+.material-icon-spin {
+    animation: material-spin 2s linear infinite;
+}
+
+.material-icon-pulse {
+    animation: material-pulse 2s ease-in-out infinite;
+}
+
+.material-icon-bounce {
+    animation: material-bounce 1s ease-in-out infinite;
+}
+
+@keyframes material-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes material-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+@keyframes material-bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-10px); }
+    60% { transform: translateY(-5px); }
+}
+
+/* Utility Classes */
+.material-icon-clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.material-icon-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Theme-specific Icon Colors */
+[data-theme="light"] .material-icon-adaptive {
+    color: var(--nebula-light-text-primary);
+}
+
+[data-theme="dark"] .material-icon-adaptive {
+    color: var(--nebula-dark-text-primary);
+}
+
+[data-theme="nebula-slate"] .material-icon-adaptive {
+    color: var(--nebula-slate-text-primary);
+}
+
+/* Status Icons */
+.status-icon-online::before {
+    content: "wifi";
+    color: var(--nebula-success);
+}
+
+.status-icon-offline::before {
+    content: "wifi_off";
+    color: var(--nebula-danger);
+}
+
+.status-icon-loading::before {
+    content: "hourglass_empty";
+    color: var(--nebula-warning);
+    animation: material-spin 1s linear infinite;
+}
+
+.status-icon-error::before {
+    content: "error";
+    color: var(--nebula-danger);
+}
+
+.status-icon-success::before {
+    content: "check_circle";
+    color: var(--nebula-success);
+}
+
+.status-icon-warning::before {
+    content: "warning";
+    color: var(--nebula-warning);
+}
+
+/* Responsive Icon Sizes */
+@media (max-width: 768px) {
+    .material-icon {
+        font-size: 20px;
+    }
+    
+    .material-icon-lg {
+        font-size: 28px;
+    }
+    
+    .material-icon-xl {
+        font-size: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .material-icon {
+        font-size: 18px;
+    }
+    
+    .material-icon-lg {
+        font-size: 24px;
+    }
+    
+    .material-icon-xl {
+        font-size: 32px;
+    }
+}
+

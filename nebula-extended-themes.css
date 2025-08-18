@@ -1,0 +1,488 @@
+/* Nebula Extended Themes
+ * Additional theme variations based on the Nebula design system
+ * Extends the original Light, Dark, and Nebula-Slate themes
+ */
+
+/* =============================================================================
+ * NEBULA OCEAN THEME - Deep blue oceanic theme
+ * ============================================================================= */
+[data-theme="nebula-ocean"] {
+    /* Background Colors */
+    --nebula-bg-primary: #0c1e2e;
+    --nebula-bg-secondary: #1a3a52;
+    --nebula-bg-tertiary: #2d5a7a;
+    --nebula-surface: #1a3a52;
+    --nebula-surface-elevated: #2d5a7a;
+    --nebula-surface-hover: #3d6a8a;
+    --nebula-surface-active: #4d7a9a;
+    
+    /* Text Colors */
+    --nebula-text-primary: #e6f3ff;
+    --nebula-text-secondary: #b3d9ff;
+    --nebula-text-muted: #80bfff;
+    --nebula-text-on-primary: #ffffff;
+    --nebula-text-on-surface: #e6f3ff;
+    
+    /* Border & Divider Colors */
+    --nebula-border: #2d5a7a;
+    --nebula-border-hover: #3d6a8a;
+    --nebula-divider: #1a3a52;
+    
+    /* Window Control Colors */
+    --window-control-bg: #2d5a7a;
+    --window-control-hover: #3d6a8a;
+    --window-control-active: #4d7a9a;
+    --window-close-hover: #dc3545;
+    --window-close-active: #c82333;
+    
+    /* Taskbar & Launcher Colors */
+    --taskbar-bg: rgba(26, 58, 82, 0.95);
+    --taskbar-border: rgba(45, 90, 122, 0.8);
+    --launcher-bg: rgba(26, 58, 82, 0.98);
+    --launcher-border: rgba(45, 90, 122, 0.8);
+    
+    /* Accent Colors */
+    --nebula-primary: #4a9eff;
+    --nebula-secondary: #66b3ff;
+    --nebula-accent: #3d8bfd;
+}
+
+/* =============================================================================
+ * NEBULA FOREST THEME - Natural green forest theme
+ * ============================================================================= */
+[data-theme="nebula-forest"] {
+    /* Background Colors */
+    --nebula-bg-primary: #0d1f0d;
+    --nebula-bg-secondary: #1a3d1a;
+    --nebula-bg-tertiary: #2d5a2d;
+    --nebula-surface: #1a3d1a;
+    --nebula-surface-elevated: #2d5a2d;
+    --nebula-surface-hover: #3d6a3d;
+    --nebula-surface-active: #4d7a4d;
+    
+    /* Text Colors */
+    --nebula-text-primary: #e6ffe6;
+    --nebula-text-secondary: #b3ffb3;
+    --nebula-text-muted: #80ff80;
+    --nebula-text-on-primary: #ffffff;
+    --nebula-text-on-surface: #e6ffe6;
+    
+    /* Border & Divider Colors */
+    --nebula-border: #2d5a2d;
+    --nebula-border-hover: #3d6a3d;
+    --nebula-divider: #1a3d1a;
+    
+    /* Window Control Colors */
+    --window-control-bg: #2d5a2d;
+    --window-control-hover: #3d6a3d;
+    --window-control-active: #4d7a4d;
+    --window-close-hover: #dc3545;
+    --window-close-active: #c82333;
+    
+    /* Taskbar & Launcher Colors */
+    --taskbar-bg: rgba(26, 61, 26, 0.95);
+    --taskbar-border: rgba(45, 90, 45, 0.8);
+    --launcher-bg: rgba(26, 61, 26, 0.98);
+    --launcher-border: rgba(45, 90, 45, 0.8);
+    
+    /* Accent Colors */
+    --nebula-primary: #4ade80;
+    --nebula-secondary: #22c55e;
+    --nebula-accent: #16a34a;
+}
+
+/* =============================================================================
+ * NEBULA SUNSET THEME - Warm orange/purple sunset theme
+ * ============================================================================= */
+[data-theme="nebula-sunset"] {
+    /* Background Colors */
+    --nebula-bg-primary: #2d1b0d;
+    --nebula-bg-secondary: #4a2f1a;
+    --nebula-bg-tertiary: #6b4226;
+    --nebula-surface: #4a2f1a;
+    --nebula-surface-elevated: #6b4226;
+    --nebula-surface-hover: #8b5a3d;
+    --nebula-surface-active: #ab7a5d;
+    
+    /* Text Colors */
+    --nebula-text-primary: #fff2e6;
+    --nebula-text-secondary: #ffe6cc;
+    --nebula-text-muted: #ffd9b3;
+    --nebula-text-on-primary: #ffffff;
+    --nebula-text-on-surface: #fff2e6;
+    
+    /* Border & Divider Colors */
+    --nebula-border: #6b4226;
+    --nebula-border-hover: #8b5a3d;
+    --nebula-divider: #4a2f1a;
+    
+    /* Window Control Colors */
+    --window-control-bg: #6b4226;
+    --window-control-hover: #8b5a3d;
+    --window-control-active: #ab7a5d;
+    --window-close-hover: #dc3545;
+    --window-close-active: #c82333;
+    
+    /* Taskbar & Launcher Colors */
+    --taskbar-bg: rgba(74, 47, 26, 0.95);
+    --taskbar-border: rgba(107, 66, 38, 0.8);
+    --launcher-bg: rgba(74, 47, 26, 0.98);
+    --launcher-border: rgba(107, 66, 38, 0.8);
+    
+    /* Accent Colors */
+    --nebula-primary: #f97316;
+    --nebula-secondary: #ea580c;
+    --nebula-accent: #dc2626;
+}
+
+/* =============================================================================
+ * NEBULA MIDNIGHT THEME - Deep purple midnight theme
+ * ============================================================================= */
+[data-theme="nebula-midnight"] {
+    /* Background Colors */
+    --nebula-bg-primary: #1a0d2e;
+    --nebula-bg-secondary: #2d1a4a;
+    --nebula-bg-tertiary: #42266b;
+    --nebula-surface: #2d1a4a;
+    --nebula-surface-elevated: #42266b;
+    --nebula-surface-hover: #5a3d8b;
+    --nebula-surface-active: #7a5dab;
+    
+    /* Text Colors */
+    --nebula-text-primary: #f2e6ff;
+    --nebula-text-secondary: #e6ccff;
+    --nebula-text-muted: #d9b3ff;
+    --nebula-text-on-primary: #ffffff;
+    --nebula-text-on-surface: #f2e6ff;
+    
+    /* Border & Divider Colors */
+    --nebula-border: #42266b;
+    --nebula-border-hover: #5a3d8b;
+    --nebula-divider: #2d1a4a;
+    
+    /* Window Control Colors */
+    --window-control-bg: #42266b;
+    --window-control-hover: #5a3d8b;
+    --window-control-active: #7a5dab;
+    --window-close-hover: #dc3545;
+    --window-close-active: #c82333;
+    
+    /* Taskbar & Launcher Colors */
+    --taskbar-bg: rgba(45, 26, 74, 0.95);
+    --taskbar-border: rgba(66, 38, 107, 0.8);
+    --launcher-bg: rgba(45, 26, 74, 0.98);
+    --launcher-border: rgba(66, 38, 107, 0.8);
+    
+    /* Accent Colors */
+    --nebula-primary: #8b5cf6;
+    --nebula-secondary: #7c3aed;
+    --nebula-accent: #6d28d9;
+}
+
+/* =============================================================================
+ * NEBULA ROSE THEME - Elegant pink/rose theme
+ * ============================================================================= */
+[data-theme="nebula-rose"] {
+    /* Background Colors */
+    --nebula-bg-primary: #2d0d1a;
+    --nebula-bg-secondary: #4a1a2d;
+    --nebula-bg-tertiary: #6b2642;
+    --nebula-surface: #4a1a2d;
+    --nebula-surface-elevated: #6b2642;
+    --nebula-surface-hover: #8b3d5a;
+    --nebula-surface-active: #ab5d7a;
+    
+    /* Text Colors */
+    --nebula-text-primary: #ffe6f2;
+    --nebula-text-secondary: #ffcce6;
+    --nebula-text-muted: #ffb3d9;
+    --nebula-text-on-primary: #ffffff;
+    --nebula-text-on-surface: #ffe6f2;
+    
+    /* Border & Divider Colors */
+    --nebula-border: #6b2642;
+    --nebula-border-hover: #8b3d5a;
+    --nebula-divider: #4a1a2d;
+    
+    /* Window Control Colors */
+    --window-control-bg: #6b2642;
+    --window-control-hover: #8b3d5a;
+    --window-control-active: #ab5d7a;
+    --window-close-hover: #dc3545;
+    --window-close-active: #c82333;
+    
+    /* Taskbar & Launcher Colors */
+    --taskbar-bg: rgba(74, 26, 45, 0.95);
+    --taskbar-border: rgba(107, 38, 66, 0.8);
+    --launcher-bg: rgba(74, 26, 45, 0.98);
+    --launcher-border: rgba(107, 38, 66, 0.8);
+    
+    /* Accent Colors */
+    --nebula-primary: #f43f5e;
+    --nebula-secondary: #e11d48;
+    --nebula-accent: #be185d;
+}
+
+/* =============================================================================
+ * NEBULA CYBER THEME - Neon cyan cyberpunk theme
+ * ============================================================================= */
+[data-theme="nebula-cyber"] {
+    /* Background Colors */
+    --nebula-bg-primary: #0a0a0a;
+    --nebula-bg-secondary: #1a1a1a;
+    --nebula-bg-tertiary: #2a2a2a;
+    --nebula-surface: #1a1a1a;
+    --nebula-surface-elevated: #2a2a2a;
+    --nebula-surface-hover: #3a3a3a;
+    --nebula-surface-active: #4a4a4a;
+    
+    /* Text Colors */
+    --nebula-text-primary: #00ffff;
+    --nebula-text-secondary: #66ffff;
+    --nebula-text-muted: #99ffff;
+    --nebula-text-on-primary: #000000;
+    --nebula-text-on-surface: #00ffff;
+    
+    /* Border & Divider Colors */
+    --nebula-border: #00ffff;
+    --nebula-border-hover: #66ffff;
+    --nebula-divider: #2a2a2a;
+    
+    /* Window Control Colors */
+    --window-control-bg: #2a2a2a;
+    --window-control-hover: #3a3a3a;
+    --window-control-active: #4a4a4a;
+    --window-close-hover: #ff0066;
+    --window-close-active: #cc0052;
+    
+    /* Taskbar & Launcher Colors */
+    --taskbar-bg: rgba(26, 26, 26, 0.95);
+    --taskbar-border: rgba(0, 255, 255, 0.5);
+    --launcher-bg: rgba(26, 26, 26, 0.98);
+    --launcher-border: rgba(0, 255, 255, 0.5);
+    
+    /* Accent Colors */
+    --nebula-primary: #00ffff;
+    --nebula-secondary: #00cccc;
+    --nebula-accent: #0099cc;
+    
+    /* Special cyber effects */
+    --cyber-glow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff;
+}
+
+/* Cyber theme special effects */
+[data-theme="nebula-cyber"] .window {
+    box-shadow: var(--cyber-glow);
+}
+
+[data-theme="nebula-cyber"] .widget {
+    box-shadow: 0 0 5px #00ffff;
+}
+
+[data-theme="nebula-cyber"] .material-icon {
+    text-shadow: 0 0 5px currentColor;
+}
+
+/* =============================================================================
+ * NEBULA MINIMAL THEME - Clean minimal light theme
+ * ============================================================================= */
+[data-theme="nebula-minimal"] {
+    /* Background Colors */
+    --nebula-bg-primary: #fafafa;
+    --nebula-bg-secondary: #f5f5f5;
+    --nebula-bg-tertiary: #eeeeee;
+    --nebula-surface: #ffffff;
+    --nebula-surface-elevated: #ffffff;
+    --nebula-surface-hover: #f9f9f9;
+    --nebula-surface-active: #f0f0f0;
+    
+    /* Text Colors */
+    --nebula-text-primary: #212121;
+    --nebula-text-secondary: #757575;
+    --nebula-text-muted: #9e9e9e;
+    --nebula-text-on-primary: #ffffff;
+    --nebula-text-on-surface: #212121;
+    
+    /* Border & Divider Colors */
+    --nebula-border: #e0e0e0;
+    --nebula-border-hover: #bdbdbd;
+    --nebula-divider: #f5f5f5;
+    
+    /* Window Control Colors */
+    --window-control-bg: #f5f5f5;
+    --window-control-hover: #eeeeee;
+    --window-control-active: #e0e0e0;
+    --window-close-hover: #f44336;
+    --window-close-active: #d32f2f;
+    
+    /* Taskbar & Launcher Colors */
+    --taskbar-bg: rgba(255, 255, 255, 0.95);
+    --taskbar-border: rgba(224, 224, 224, 0.8);
+    --launcher-bg: rgba(255, 255, 255, 0.98);
+    --launcher-border: rgba(224, 224, 224, 0.8);
+    
+    /* Accent Colors */
+    --nebula-primary: #2196f3;
+    --nebula-secondary: #1976d2;
+    --nebula-accent: #1565c0;
+}
+
+/* =============================================================================
+ * THEME TRANSITION ANIMATIONS
+ * ============================================================================= */
+* {
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =============================================================================
+ * THEME SELECTOR COMPONENT
+ * ============================================================================= */
+.theme-selector {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    background: var(--nebula-surface);
+    border: 1px solid var(--nebula-border);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: var(--nebula-shadow-lg);
+}
+
+.theme-selector-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--nebula-text-secondary);
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.theme-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.theme-option {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.theme-option:hover {
+    transform: scale(1.1);
+    border-color: var(--nebula-border-hover);
+}
+
+.theme-option.active {
+    border-color: var(--nebula-primary);
+    box-shadow: 0 0 0 2px rgba(var(--nebula-primary), 0.2);
+}
+
+/* Theme option colors */
+.theme-option[data-theme="light"] {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+.theme-option[data-theme="dark"] {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+}
+
+.theme-option[data-theme="nebula-slate"] {
+    background: linear-gradient(135deg, #475569, #64748b);
+}
+
+.theme-option[data-theme="nebula-ocean"] {
+    background: linear-gradient(135deg, #0c1e2e, #2d5a7a);
+}
+
+.theme-option[data-theme="nebula-forest"] {
+    background: linear-gradient(135deg, #0d1f0d, #2d5a2d);
+}
+
+.theme-option[data-theme="nebula-sunset"] {
+    background: linear-gradient(135deg, #2d1b0d, #6b4226);
+}
+
+.theme-option[data-theme="nebula-midnight"] {
+    background: linear-gradient(135deg, #1a0d2e, #42266b);
+}
+
+.theme-option[data-theme="nebula-rose"] {
+    background: linear-gradient(135deg, #2d0d1a, #6b2642);
+}
+
+.theme-option[data-theme="nebula-cyber"] {
+    background: linear-gradient(135deg, #0a0a0a, #00ffff);
+}
+
+.theme-option[data-theme="nebula-minimal"] {
+    background: linear-gradient(135deg, #fafafa, #2196f3);
+}
+
+/* =============================================================================
+ * RESPONSIVE THEME ADJUSTMENTS
+ * ============================================================================= */
+@media (max-width: 768px) {
+    .theme-selector {
+        top: 10px;
+        right: 10px;
+        padding: 8px;
+    }
+    
+    .theme-options {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .theme-option {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* =============================================================================
+ * THEME-SPECIFIC MATERIAL ICON COLORS
+ * ============================================================================= */
+
+/* Ocean theme icons */
+[data-theme="nebula-ocean"] .material-icon-primary { color: #4a9eff; }
+[data-theme="nebula-ocean"] .material-icon-secondary { color: #66b3ff; }
+[data-theme="nebula-ocean"] .material-icon-accent { color: #3d8bfd; }
+
+/* Forest theme icons */
+[data-theme="nebula-forest"] .material-icon-primary { color: #4ade80; }
+[data-theme="nebula-forest"] .material-icon-secondary { color: #22c55e; }
+[data-theme="nebula-forest"] .material-icon-accent { color: #16a34a; }
+
+/* Sunset theme icons */
+[data-theme="nebula-sunset"] .material-icon-primary { color: #f97316; }
+[data-theme="nebula-sunset"] .material-icon-secondary { color: #ea580c; }
+[data-theme="nebula-sunset"] .material-icon-accent { color: #dc2626; }
+
+/* Midnight theme icons */
+[data-theme="nebula-midnight"] .material-icon-primary { color: #8b5cf6; }
+[data-theme="nebula-midnight"] .material-icon-secondary { color: #7c3aed; }
+[data-theme="nebula-midnight"] .material-icon-accent { color: #6d28d9; }
+
+/* Rose theme icons */
+[data-theme="nebula-rose"] .material-icon-primary { color: #f43f5e; }
+[data-theme="nebula-rose"] .material-icon-secondary { color: #e11d48; }
+[data-theme="nebula-rose"] .material-icon-accent { color: #be185d; }
+
+/* Cyber theme icons */
+[data-theme="nebula-cyber"] .material-icon-primary { color: #00ffff; }
+[data-theme="nebula-cyber"] .material-icon-secondary { color: #00cccc; }
+[data-theme="nebula-cyber"] .material-icon-accent { color: #0099cc; }
+
+/* Minimal theme icons */
+[data-theme="nebula-minimal"] .material-icon-primary { color: #2196f3; }
+[data-theme="nebula-minimal"] .material-icon-secondary { color: #1976d2; }
+[data-theme="nebula-minimal"] .material-icon-accent { color: #1565c0; }
+
