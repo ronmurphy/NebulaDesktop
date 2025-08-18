@@ -124,7 +124,8 @@ class NebulaClock extends NebulaWidget {
 
         // Close settings menu when clicking outside
         document.addEventListener('click', (e) => {
-            if (!e.target.closest(`#${this.element.id}`) && this.settingsMenuVisible) {
+            // Check if click is outside this widget element
+            if (this.element && !this.element.contains(e.target) && this.settingsMenuVisible) {
                 this.hideSettingsMenu();
             }
         });

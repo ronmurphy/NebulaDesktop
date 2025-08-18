@@ -8,20 +8,32 @@ class NebulaDesktop {
         this.assistant = null; // Add this line
 
 
-            this.runningApps = new Map(); // appType -> count
-    this.launchDebounce = new Map(); // appType -> timestamp (keep your existing debounce)
+        this.runningApps = new Map(); // appType -> count
+        this.launchDebounce = new Map(); // appType -> timestamp (keep your existing debounce)
 
         this.init();
     }
-    async init() {
-        console.log('Initializing NebulaDesk v3 with WindowManager...');
-
-        // Track startup time for jfetch
-        window.nebulaStartTime = Date.now();
-
-        // Initialize the window manager first
-        this.windowManager = new WindowManager();
-        window.windowManager = this.windowManager; // Make it globally available
+    
+async init() {
+    console.log('Initializing NebulaDesk v3 with WindowManager...');
+    
+    // Track startup time for jfetch
+    window.nebulaStartTime = Date.now();
+    
+    // Initialize the window manager first
+    this.windowManager = new WindowManager();
+    window.windowManager = this.windowManager; // Make it globally available
+    
+    // Initialize theme system (ONLY ONCE)
+    if (window.NebulaThemeManager) {
+        this.themeManager = new NebulaThemeManager();
+        window.themeManager = this.themeManager;
+        
+        // Force icon conversion after everything loads
+        setTimeout(() => {
+            this.forceIconConversion();
+        }, 1500);
+    }
 
         // Create UI components
         this.createTaskbar();
@@ -36,8 +48,38 @@ class NebulaDesktop {
 
         this.assistant = new NebulaAssistant();
 
+        window.nebulaDesktop = this;
+
         console.log('NebulaDesk ready with WindowManager!');
     }
+
+forceIconConversion() {
+    console.log('🎨 Starting forced emoji to Material Icons conversion');
+    
+    // Convert all emoji icons to Material Icons
+    const emojiToMaterial = {
+        '🕐': 'schedule',
+        '⚙️': 'settings', 
+        '×': 'close',
+        '🌐': 'language',
+        '📁': 'folder',
+        '💻': 'terminal',
+        '🧮': 'calculate'
+    };
+    
+    let converted = 0;
+    document.querySelectorAll('.widget-icon, .app-icon, .widget-control-btn').forEach(icon => {
+        const emoji = icon.textContent.trim();
+        if (emojiToMaterial[emoji]) {
+            icon.innerHTML = emojiToMaterial[emoji];
+            icon.style.fontFamily = 'Material Icons';
+            icon.classList.add('material-icon', 'material-icon-primary');
+            converted++;
+        }
+    });
+    
+    console.log(`🎨 Converted ${converted} emoji icons to Material Icons`);
+}
 
     createTaskbar() {
         this.taskbar = document.createElement('div');
@@ -295,264 +337,126 @@ class NebulaDesktop {
         this.windowManager.restoreWindowById(windowId);
     }
 
-    
-
-    // async launchApp(appId) {
-    //     console.log('Launching app:', appId);
-
-    //     const apps = this.getDefaultApps();
-    //     const appConfig = apps.find(app => app.id === appId);
-
-    //     if (!appConfig) {
-    //         console.error('App not found:', appId);
-    //         return;
-    //     }
-
-    //     try {
-    //         switch (appId) {
-    //             case 'browser':
-    //                 // Check if NebulaBrowser class is available
-    //                 if (window.NebulaBrowser) {
-    //                     new NebulaBrowser();
-    //                 } else {
-    //                     this.showError('Browser app not available. Make sure browser.js is loaded.');
-    //                 }
-    //                 break;
-
-    //             case 'files':
-    //                 // Launch file manager
-    //                 if (window.NebulaFileManager) {
-    //                     new NebulaFileManager();
-    //                 } else {
-    //                     this.showError('File Manager app not available. Make sure filemanager.js is loaded.');
-    //                 }
-    //                 break;
-
-    //             case 'terminal':
-    //                 this.launchTerminal();
-    //                 break;
-
-    //             case 'calculator':
-    //                 this.launchCalculator();
-    //                 break;
-
-    //             case 'settings':
-    //                 this.openSettings();
-    //                 break;
-
-    //             default:
-    //                 // For web apps, open in browser
-    //                 if (appConfig.url) {
-    //                     if (window.NebulaBrowser) {
-    //                         new NebulaBrowser(appConfig.url);
-    //                     } else {
-    //                         // Fallback: open in external browser
-    //                         window.open(appConfig.url, '_blank');
-    //                     }
-    //                 } else {
-    //                     this.showError(`App "${appConfig.name}" is not yet implemented.`);
-    //                 }
-    //                 break;
-    //         }
-    //     } catch (error) {
-    //         console.error('Error launching app:', error);
-    //         this.showError(`Failed to launch ${appConfig.name}: ${error.message}`);
-    //     }
-    // }
-
-
-    // ✅ ADD: Simple method to track running apps
-trackAppLaunched(appType) {
-    const current = this.runningApps.get(appType) || 0;
-    this.runningApps.set(appType, current + 1);
-    console.log(`📊 Running apps: ${appType} = ${current + 1}`);
-}
-
-trackAppClosed(appType) {
-    const current = this.runningApps.get(appType) || 0;
-    if (current > 0) {
-        this.runningApps.set(appType, current - 1);
-        console.log(`📊 Running apps: ${appType} = ${current - 1}`);
-    }
-}
-
-// ✅ MODIFY: Your existing launchApp method - just add tracking
-// async launchApp(appId) {
-//     console.log('Launching app:', appId);
-
-//     const apps = this.getDefaultApps();
-//     const appConfig = apps.find(app => app.id === appId);
-
-//     if (!appConfig) {
-//         console.error('App not found:', appId);
-//         return;
-//     }
-
-//     try {
-//         switch (appId) {
-//             case 'browser':
-//                 if (window.NebulaBrowser) {
-//                     new NebulaBrowser();
-//                     this.trackAppLaunched('browser'); // ✅ ADD
-//                 } else {
-//                     this.showError('Browser app not available. Make sure browser.js is loaded.');
-//                 }
-//                 break;
-
-//             case 'files':
-//                 if (window.NebulaFileManager) {
-//                     new NebulaFileManager();
-//                     this.trackAppLaunched('files'); // ✅ ADD
-//                 } else {
-//                     this.showError('File Manager app not available. Make sure filemanager.js is loaded.');
-//                 }
-//                 break;
-
-//             case 'terminal':
-//                 if (window.NebulaTerminal) {
-//                     new NebulaTerminal();
-//                     this.trackAppLaunched('terminal'); // ✅ ADD
-//                 } else {
-//                     this.showError('Terminal app not available. Make sure NebulaTerminal.js is loaded.');
-//                 }
-//                 break;
-
-//             case 'calculator':
-//                 this.launchCalculator();
-//                 this.trackAppLaunched('calculator'); // ✅ ADD
-//                 break;
-
-//             case 'settings':
-//                 this.openSettings();
-//                 this.trackAppLaunched('settings'); // ✅ ADD
-//                 break;
-
-//             default:
-//                 // For web apps, open in browser
-//                 if (appConfig.url) {
-//                     if (window.NebulaBrowser) {
-//                         new NebulaBrowser(appConfig.url);
-//                         this.trackAppLaunched('browser'); // ✅ ADD
-//                     } else {
-//                         // Fallback: open in external browser
-//                         window.open(appConfig.url, '_blank');
-//                     }
-//                 } else {
-//                     this.showError(`App "${appConfig.name}" is not yet implemented.`);
-//                 }
-//                 break;
-//         }
-//     } catch (error) {
-//         console.error('Error launching app:', error);
-//         this.showError(`Failed to launch ${appConfig.name}: ${error.message}`);
-//     }
-// }
-
-
-async launchApp(appId) {
-    console.log('Launching app:', appId);
-
-    const apps = this.getDefaultApps();
-    const appConfig = apps.find(app => app.id === appId);
-
-    if (!appConfig) {
-        console.error('App not found:', appId);
-        return;
+    trackAppLaunched(appType) {
+        const current = this.runningApps.get(appType) || 0;
+        this.runningApps.set(appType, current + 1);
+        console.log(`📊 Running apps: ${appType} = ${current + 1}`);
     }
 
-    try {
-        switch (appId) {
-            case 'browser':
-                if (window.NebulaBrowser) {
-                    new NebulaBrowser();
-                    this.trackAppLaunched('browser');
-                } else {
-                    this.showError('Browser app not available. Make sure browser.js is loaded.');
-                }
-                break;
+    trackAppClosed(appType) {
+        const current = this.runningApps.get(appType) || 0;
+        if (current > 0) {
+            this.runningApps.set(appType, current - 1);
+            console.log(`📊 Running apps: ${appType} = ${current - 1}`);
+        }
+    }
 
-            case 'files':
-                if (window.NebulaFileManager) {
-                    new NebulaFileManager();
-                    this.trackAppLaunched('files');
-                } else {
-                    this.showError('File Manager app not available. Make sure filemanager.js is loaded.');
-                }
-                break;
 
-            case 'terminal':
-                if (window.NebulaTerminal) {
-                    new NebulaTerminal();
-                    this.trackAppLaunched('terminal');
-                } else {
-                    this.showError('Terminal app not available. Make sure NebulaTerminal.js is loaded.');
-                }
-                break;
 
-            case 'calculator':
-                this.launchCalculator();
-                this.trackAppLaunched('calculator');
-                break;
+    async launchApp(appId) {
+        console.log('Launching app:', appId);
 
-            case 'settings':
-                // ✅ UPDATED: Use the new NebulaSettings app
-                if (window.NebulaSettings) {
-                    new NebulaSettings();
-                    this.trackAppLaunched('settings');
-                } else {
-                    this.showError('Settings app not available. Make sure NebulaSettings.js is loaded.');
-                }
-                break;
+        const apps = this.getDefaultApps();
+        const appConfig = apps.find(app => app.id === appId);
 
-            default:
-                // For web apps, open in browser
-                if (appConfig.url) {
+        if (!appConfig) {
+            console.error('App not found:', appId);
+            return;
+        }
+
+        try {
+            switch (appId) {
+                case 'browser':
                     if (window.NebulaBrowser) {
-                        new NebulaBrowser(appConfig.url);
+                        new NebulaBrowser();
                         this.trackAppLaunched('browser');
                     } else {
-                        // Fallback: open in external browser
-                        window.open(appConfig.url, '_blank');
+                        this.showError('Browser app not available. Make sure browser.js is loaded.');
                     }
-                } else {
-                    this.showError(`App "${appConfig.name}" is not yet implemented.`);
-                }
-                break;
+                    break;
+
+                case 'files':
+                    if (window.NebulaFileManager) {
+                        new NebulaFileManager();
+                        this.trackAppLaunched('files');
+                    } else {
+                        this.showError('File Manager app not available. Make sure filemanager.js is loaded.');
+                    }
+                    break;
+
+                case 'terminal':
+                    if (window.NebulaTerminal) {
+                        new NebulaTerminal();
+                        this.trackAppLaunched('terminal');
+                    } else {
+                        this.showError('Terminal app not available. Make sure NebulaTerminal.js is loaded.');
+                    }
+                    break;
+
+                case 'calculator':
+                    this.launchCalculator();
+                    this.trackAppLaunched('calculator');
+                    break;
+
+                case 'settings':
+                    // ✅ UPDATED: Use the new NebulaSettings app
+                    if (window.NebulaSettings) {
+                        new NebulaSettings();
+                        this.trackAppLaunched('settings');
+                    } else {
+                        this.showError('Settings app not available. Make sure NebulaSettings.js is loaded.');
+                    }
+                    break;
+
+                default:
+                    // For web apps, open in browser
+                    if (appConfig.url) {
+                        if (window.NebulaBrowser) {
+                            new NebulaBrowser(appConfig.url);
+                            this.trackAppLaunched('browser');
+                        } else {
+                            // Fallback: open in external browser
+                            window.open(appConfig.url, '_blank');
+                        }
+                    } else {
+                        this.showError(`App "${appConfig.name}" is not yet implemented.`);
+                    }
+                    break;
+            }
+        } catch (error) {
+            console.error('Error launching app:', error);
+            this.showError(`Failed to launch ${appConfig.name}: ${error.message}`);
         }
-    } catch (error) {
-        console.error('Error launching app:', error);
-        this.showError(`Failed to launch ${appConfig.name}: ${error.message}`);
     }
-}
 
 
-// ✅ ADD: Method to show running app status
-showAppManagerStatus() {
-    console.log('=== Simple App Status ===');
-    this.runningApps.forEach((count, appType) => {
-        if (count > 0) {
-            console.log(`- ${appType}: ${count} instances`);
+    // ✅ ADD: Method to show running app status
+    showAppManagerStatus() {
+        console.log('=== Simple App Status ===');
+        this.runningApps.forEach((count, appType) => {
+            if (count > 0) {
+                console.log(`- ${appType}: ${count} instances`);
+            }
+        });
+
+        const totalRunning = Array.from(this.runningApps.values()).reduce((sum, count) => sum + count, 0);
+
+        if (totalRunning === 0) {
+            this.showError('No apps currently running');
+        } else {
+            this.showError(`Running: ${totalRunning} apps total`);
         }
-    });
-    
-    const totalRunning = Array.from(this.runningApps.values()).reduce((sum, count) => sum + count, 0);
-    
-    if (totalRunning === 0) {
-        this.showError('No apps currently running');
-    } else {
-        this.showError(`Running: ${totalRunning} apps total`);
     }
-}
 
 
-launchTerminal() {
-    // Use the new NebulaTerminal class
-    if (window.NebulaTerminal) {
-        new NebulaTerminal();
-    } else {
-        this.showError('Terminal app not available. Make sure NebulaTerminal.js is loaded.');
+    launchTerminal() {
+        // Use the new NebulaTerminal class
+        if (window.NebulaTerminal) {
+            new NebulaTerminal();
+        } else {
+            this.showError('Terminal app not available. Make sure NebulaTerminal.js is loaded.');
+        }
     }
-}
 
     launchCalculator() {
         // Simple calculator app

@@ -49,6 +49,9 @@
     <link rel="stylesheet" href="css/assistant.css">
     <link rel="stylesheet" href="css/NebulaApp-PWA.css">
     <link rel="stylesheet" href="css/window-titlebar-mode-styles.css">
+    <link rel="stylesheet" href="css/nebula-material-icons.css">
+    <link rel="stylesheet" href="css/nebula-extended-themes.css">
+
 
     <!-- XTerm.js for terminal emulation -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
@@ -65,36 +68,37 @@
     -->
 
     <!-- Load WindowManager FIRST -->
- 
-<script src="js/WindowManager.js"></script>
 
-<!-- Widget System - Load BEFORE apps and renderer -->
-<script src="js/NebulaWidgetSystem.js"></script>
-<script src="js/Widgets/NebulaClock.js"></script>
+    <script src="js/WindowManager.js"></script>
+    <script src="js/nebula-theme-manager.js"></script>
 
-<!-- Load WM Apps First -->
-<script src="apps/browser.js"></script>
-<script src="apps/filemanager.js"></script>
+    <!-- Widget System - Load BEFORE apps and renderer -->
+    <script src="js/NebulaWidgetSystem.js"></script>
+    <script src="js/Widgets/NebulaClock.js"></script>
 
-<!-- Add these before renderer.js -->
-<script src="js/art-assistant.js"></script>
-<script src="js/code-assistant.js"></script>
-<script src="js/assistant.js"></script>
-<script src="apps/NebulaTerminal.js"></script>
-<script src="apps/image-viewer.js"></script>
-<script src="apps/media-player.js"></script>
-<script src="js/NebulaSettings.js"></script>
+    <!-- Load WM Apps First -->
+    <script src="apps/browser.js"></script>
+    <script src="apps/filemanager.js"></script>
 
-<!-- XTerm.js for image support -->
-<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <!-- Add these before renderer.js -->
+    <script src="js/art-assistant.js"></script>
+    <script src="js/code-assistant.js"></script>
+    <script src="js/assistant.js"></script>
+    <script src="apps/NebulaTerminal.js"></script>
+    <script src="apps/image-viewer.js"></script>
+    <script src="apps/media-player.js"></script>
+    <script src="js/NebulaSettings.js"></script>
 
-<!-- Widget Integration - Load AFTER widgets but BEFORE renderer -->
-<script src="js/WidgetIntegration.js"></script>
+    <!-- XTerm.js for image support -->
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 
-<!-- Load Desktop Environment LAST -->
-<script src="js/renderer.js"></script>
+    <!-- Widget Integration - Load AFTER widgets but BEFORE renderer -->
+    <script src="js/WidgetIntegration.js"></script>
+
+    <!-- Load Desktop Environment LAST -->
+    <script src="js/renderer.js"></script>
 </body>
 
 </html>
