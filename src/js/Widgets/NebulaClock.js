@@ -41,7 +41,7 @@ class NebulaClock extends NebulaWidget {
                 </div>
             `;
         } else {
-            // Minimal widget - just the clock display with subtle controls
+            // Minimal widget - clock display with hover controls
             clockWidget.innerHTML = `
                 <div class="clock-display minimal">
                     <div class="minimal-controls">
@@ -80,6 +80,11 @@ class NebulaClock extends NebulaWidget {
             } else if (action === 'settings') {
                 this.handleSettings();
             }
+        });
+        
+        // Double-click for quick settings toggle
+        element.addEventListener('dblclick', () => {
+            this.handleSettings();
         });
     }
 
@@ -148,15 +153,39 @@ class NebulaClock extends NebulaWidget {
     }
 
     handleSettings() {
-        // Simple settings toggle for demo
-        const newFormat = this.timeFormat === '24h' ? '12h' : '24h';
-        this.timeFormat = newFormat;
+        // Simple settings toggle for demo - cycle through formats
+        const formats = ['24h', '12h'];
+        const currentIndex = formats.indexOf(this.timeFormat);
+        const nextIndex = (currentIndex + 1) % formats.length;
+        
+        this.timeFormat = formats[nextIndex];
         this.updateTime();
         
-        console.log(`🕐 Clock format changed to: ${newFormat}`);
+        console.log(`🕐 Clock format changed to: ${this.timeFormat}`);
         
-        // You could implement a proper settings dialog here
-        alert(`Clock format changed to ${newFormat === '24h' ? '24-hour' : '12-hour'} format`);
+        // Show a brief notification
+        const notification = document.createElement('div');
+        notification.textContent = `Format: ${this.timeFormat === '24h' ? '24-hour' : '12-hour'}`;
+        notification.style.cssText = `
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--nebula-primary, #667eea);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 1000;
+        `;
+        
+        this.element.style.position = 'relative';
+        this.element.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 1500);
     }
 
     cleanup() {
