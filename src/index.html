@@ -64,31 +64,37 @@
     5. Desktop Environment (renderer.js)
     -->
 
-    <!-- Load Enhanced WindowManager FIRST -->
-    <!-- Load Apps First -->
-    <script src="js/WindowManager.js"></script>
-    <script src="apps/browser.js"></script>
-    <script src="apps/filemanager.js"></script>
+    <!-- Load WindowManager FIRST -->
+ 
+<script src="js/WindowManager.js"></script>
 
-    <!-- Add these before renderer.js -->
-    <script src="js/art-assistant.js"></script>
-    <script src="js/code-assistant.js"></script>
-    <script src="js/assistant.js"></script>
-    <!-- <script src="js/NebulaTerminal.js"></script> -->
-    <script src="apps/NebulaTerminal.js"></script>
-    <script src="apps/image-viewer.js"></script>
-    <script src="apps/media-player.js"></script>
+<!-- Widget System - Load BEFORE apps and renderer -->
+<script src="js/NebulaWidgetSystem.js"></script>
+<script src="js/Widgets/NebulaClock.js"></script>
 
-    <script src="js/NebulaSettings.js"></script> <!-- ✅ ADD THIS LINE -->
+<!-- Load WM Apps First -->
+<script src="apps/browser.js"></script>
+<script src="apps/filemanager.js"></script>
 
-    <!-- XTerm.js for image support -->
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/xterm-addon-image@0.7.0/lib/xterm-addon-image.js"></script> -->
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+<!-- Add these before renderer.js -->
+<script src="js/art-assistant.js"></script>
+<script src="js/code-assistant.js"></script>
+<script src="js/assistant.js"></script>
+<script src="apps/NebulaTerminal.js"></script>
+<script src="apps/image-viewer.js"></script>
+<script src="apps/media-player.js"></script>
+<script src="js/NebulaSettings.js"></script>
 
-    <!-- Load Desktop Environment -->
-    <script src="js/renderer.js"></script>
+<!-- XTerm.js for image support -->
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+
+<!-- Widget Integration - Load AFTER widgets but BEFORE renderer -->
+<script src="js/WidgetIntegration.js"></script>
+
+<!-- Load Desktop Environment LAST -->
+<script src="js/renderer.js"></script>
 </body>
 
 </html>
