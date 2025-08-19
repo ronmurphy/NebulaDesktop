@@ -48,6 +48,7 @@
  * ============================================================================= */
 
 /* Bridge enhanced themes to window manager variables */
+.nebula-window,
 .window-wrapper,
 .window,
 .window-content,
@@ -72,6 +73,32 @@
     --window-close-active: var(--window-close-active, #dc2626);
 }
 
+/* Window Titlebar Gradient Support */
+.window-titlebar,
+.nebula-window .window-titlebar {
+    background: var(--nebula-surface-elevated, #ffffff) !important;
+    /* Support for gradient titlebars with start and end colors */
+    background: linear-gradient(
+        90deg,
+        var(--titlebar-start-color, var(--nebula-surface-elevated, #ffffff)),
+        var(--titlebar-end-color, var(--nebula-surface-elevated, #ffffff))
+    ) !important;
+    border-bottom: 1px solid var(--nebula-border, #e2e8f0) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+}
+
+/* Titlebar-only mode special styling */
+.nebula-window.titlebar-only .window-titlebar {
+    background: rgba(0, 0, 0, 0.85) !important;
+    /* Override with theme-aware gradient for titlebar-only mode */
+    background: linear-gradient(
+        90deg,
+        var(--titlebar-start-color, rgba(0, 0, 0, 0.85)),
+        var(--titlebar-end-color, rgba(0, 0, 0, 0.85))
+    ) !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
 /* =============================================================================
  * TASKBAR & LAUNCHER INTEGRATION
  * Ensures taskbar elements use enhanced themes
@@ -91,79 +118,261 @@
 }
 
 /* =============================================================================
- * COMPONENT BRIDGE STYLES
- * Ensures all components respect enhanced theme colors
+ * SPECIFIC APP BRIDGE STYLES
+ * Ensures all apps and components respect enhanced theme colors
  * ============================================================================= */
 
-/* File Manager Bridge */
-.filemanager-container,
-.filemanager-sidebar,
-.filemanager-content {
+/* Browser App Bridge */
+.browser-container,
+.browser-window,
+.browser-nav,
+.browser-toolbar,
+.browser-sidebar,
+.tab-list,
+.browser-tab,
+.new-tab-btn,
+.browser-content,
+.url-bar,
+.nav-button {
     background: var(--nebula-surface, #ffffff) !important;
     color: var(--nebula-text-primary, #1a202c) !important;
     border-color: var(--nebula-border, #e2e8f0) !important;
 }
 
-/* Browser Bridge */
-.browser-container,
-.browser-nav,
-.browser-toolbar {
-    background: var(--nebula-surface, #ffffff) !important;
-    color: var(--nebula-text-primary, #1a202c) !important;
-    border-color: var(--nebula-border, #e2e8f0) !important;
+.browser-tab.active {
+    border-left-color: var(--nebula-primary, #667eea) !important;
+}
+
+.new-tab-btn:hover {
+    color: var(--nebula-secondary, #764ba2) !important;
 }
 
 /* Terminal Bridge */
 .terminal-container,
 .xterm,
-.xterm-viewport {
+.xterm-viewport,
+.xterm-screen,
+.xterm-decoration-container {
     background: var(--nebula-bg-primary, #ffffff) !important;
     color: var(--nebula-text-primary, #1a202c) !important;
+}
+
+/* File Manager Bridge */
+.filemanager-container,
+.filemanager-sidebar,
+.filemanager-content,
+.file-area,
+.sidebar-section,
+.sidebar-item,
+.file-item {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+.sidebar-item.active,
+.file-item.selected {
+    background: var(--nebula-surface-active, #f1f5f9) !important;
+    color: var(--nebula-primary, #667eea) !important;
 }
 
 /* Settings Bridge */
 .settings-container,
 .settings-panel,
-.settings-section {
+.settings-section,
+.theme-selector,
+.theme-options {
     background: var(--nebula-surface, #ffffff) !important;
     color: var(--nebula-text-primary, #1a202c) !important;
     border-color: var(--nebula-border, #e2e8f0) !important;
 }
 
-/* Assistant Bridge */
+/* Assistant Apps Bridge */
 .assistant-container,
 .chat-container,
-.message-container {
+.message-container,
+.code-assistant-container,
+.code-chat-side,
+.code-toolbar,
+.art-assistant-container {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+/* NebulaApp Templates Bridge */
+.myapp-container,
+.myapp-toolbar,
+.myapp-content,
+.myapp-status,
+.pwa-container,
+.pwa-webview-container,
+.context-menu {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+/* Image Viewer Bridge */
+.image-viewer-container,
+.image-viewer-toolbar,
+.image-viewer-content {
+    background: var(--nebula-bg-primary, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+/* Media Player Bridge */
+.media-player-container,
+.media-controls,
+.media-timeline {
     background: var(--nebula-surface, #ffffff) !important;
     color: var(--nebula-text-primary, #1a202c) !important;
     border-color: var(--nebula-border, #e2e8f0) !important;
 }
 
 /* =============================================================================
- * INPUT & BUTTON BRIDGE STYLES
- * Ensures form elements use enhanced theme colors
+ * WINDOW CONTROLS & BUTTONS BRIDGE
+ * Ensures window controls inherit proper theme colors
  * ============================================================================= */
 
-input, textarea, select, button {
-    background: var(--nebula-surface, #ffffff) !important;
+.window-controls,
+.window-btn,
+.window-button,
+.close,
+.minimize,
+.maximize,
+.pill {
+    background: var(--window-control-bg, var(--nebula-surface-hover, #f1f5f9)) !important;
     color: var(--nebula-text-primary, #1a202c) !important;
     border-color: var(--nebula-border, #e2e8f0) !important;
 }
 
-input:focus, textarea:focus, select:focus {
-    border-color: var(--nebula-primary, #667eea) !important;
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2) !important;
+.window-btn:hover,
+.window-button:hover {
+    background: var(--window-control-hover, var(--nebula-surface-active, #e2e8f0)) !important;
 }
 
-button:hover {
-    background: var(--nebula-surface-hover, #f8fafc) !important;
-    border-color: var(--nebula-border-hover, #cbd5e1) !important;
+.window-btn.close:hover,
+.window-button.close:hover,
+.close:hover {
+    background: var(--window-close-hover, #ef4444) !important;
+    color: white !important;
+}
+
+.window-btn:active,
+.window-button:active {
+    background: var(--window-control-active, var(--nebula-border-hover, #cbd5e1)) !important;
+}
+
+/* Tab Bar Elements */
+.window-tabbar,
+.tab-item,
+.tab-content {
+    background: var(--nebula-bg-secondary, #f8fafc) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+}
+
+.tab-item.active {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-primary, #667eea) !important;
 }
 
 /* =============================================================================
- * ENHANCED THEME SPECIFIC OVERRIDES
- * Theme-specific adjustments for enhanced themes
+ * TITLEBAR GRADIENT THEME MAPPINGS
+ * Maps enhanced themes to titlebar start/end colors for gradient effects
  * ============================================================================= */
+
+/* Light Theme Gradient */
+[data-theme="light"] {
+    --titlebar-start-color: #ffffff;
+    --titlebar-end-color: #f8fafc;
+}
+
+/* Dark Theme Gradient */
+[data-theme="dark"] {
+    --titlebar-start-color: #1e293b;
+    --titlebar-end-color: #334155;
+}
+
+/* Nebula-Slate Theme Gradient */
+[data-theme="nebula-slate"] {
+    --titlebar-start-color: #64748b;
+    --titlebar-end-color: #475569;
+}
+
+/* Ocean Theme Gradient */
+[data-theme="nebula-ocean"] {
+    --titlebar-start-color: #1a3a52;
+    --titlebar-end-color: #2d5a7a;
+}
+
+/* Forest Theme Gradient */
+[data-theme="nebula-forest"] {
+    --titlebar-start-color: #1a3d1a;
+    --titlebar-end-color: #2d5a2d;
+}
+
+/* Sunset Theme Gradient */
+[data-theme="nebula-sunset"] {
+    --titlebar-start-color: #4a2f1a;
+    --titlebar-end-color: #6b4226;
+}
+
+/* Midnight Theme Gradient */
+[data-theme="nebula-midnight"] {
+    --titlebar-start-color: #2d1a4a;
+    --titlebar-end-color: #42266b;
+}
+
+/* Rose Theme Gradient */
+[data-theme="nebula-rose"] {
+    --titlebar-start-color: #4a1a2d;
+    --titlebar-end-color: #6b2642;
+}
+
+/* Cyber Theme Gradient */
+[data-theme="nebula-cyber"] {
+    --titlebar-start-color: #0a0a0a;
+    --titlebar-end-color: #1a1a1a;
+}
+
+/* Glass Theme Gradient */
+[data-theme="nebula-glass"] {
+    --titlebar-start-color: rgba(30, 41, 59, 0.80);
+    --titlebar-end-color: rgba(51, 65, 85, 0.85);
+}
+
+/* Windows 11 Theme Gradient */
+[data-theme="windows-11"] {
+    --titlebar-start-color: #f3f3f3;
+    --titlebar-end-color: #e1e1e1;
+}
+
+/* macOS Theme Gradient */
+[data-theme="macos"] {
+    --titlebar-start-color: #f5f5f7;
+    --titlebar-end-color: #e5e5e7;
+}
+
+/* Volcano Theme Gradient */
+[data-theme="nebula-volcano"] {
+    --titlebar-start-color: #2d1a1a;
+    --titlebar-end-color: #4a2a2a;
+}
+
+/* Arctic Theme Gradient */
+[data-theme="nebula-arctic"] {
+    --titlebar-start-color: #16213e;
+    --titlebar-end-color: #1e3a5f;
+}
+
+/* Retro Theme Gradient */
+[data-theme="nebula-retro"] {
+    --titlebar-start-color: #1a0933;
+    --titlebar-end-color: #2d1b69;
+}
 
 /* Ocean Theme Window Adjustments */
 [data-theme="nebula-ocean"] .window,
