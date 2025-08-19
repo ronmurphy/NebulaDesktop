@@ -1,0 +1,302 @@
+/* NebulaDesktop Theme Bridge
+ * Bridges the enhanced theme system with legacy window/component styling
+ * Ensures all themes work consistently across windows and components
+ */
+
+/* =============================================================================
+ * ENHANCED THEME TO LEGACY MAPPING
+ * Maps new enhanced themes to work with existing window manager styles
+ * ============================================================================= */
+
+/* Core Legacy Variables - Applied to all themes */
+:root {
+    /* Ensure core Nebula variables exist for legacy components */
+    --nebula-primary: #667eea;
+    --nebula-secondary: #764ba2;
+    --nebula-accent: #4f46e5;
+    --nebula-success: #10b981;
+    --nebula-warning: #f59e0b;
+    --nebula-danger: #ef4444;
+    
+    /* Legacy animation variables */
+    --nebula-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --nebula-transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Legacy radius variables */
+    --nebula-radius-sm: 6px;
+    --nebula-radius: 8px;
+    --nebula-radius-md: 8px;
+    --nebula-radius-lg: 12px;
+    --nebula-radius-xl: 16px;
+    
+    /* Legacy shadow variables */
+    --nebula-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+    --nebula-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.25);
+    --nebula-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.35);
+    
+    /* Legacy spacing */
+    --nebula-space-xs: 4px;
+    --nebula-space-sm: 8px;
+    --nebula-space-md: 16px;
+    --nebula-space-lg: 24px;
+    --nebula-space-xl: 32px;
+}
+
+/* =============================================================================
+ * WINDOW MANAGER THEME INTEGRATION
+ * Ensures windows inherit the current theme properly
+ * ============================================================================= */
+
+/* Bridge enhanced themes to window manager variables */
+.window-wrapper,
+.window,
+.window-content,
+.window-header,
+.window-titlebar,
+.window-body {
+    /* Core background colors */
+    --window-bg: var(--nebula-surface, #ffffff);
+    --window-content-bg: var(--nebula-bg-primary, #ffffff);
+    --window-header-bg: var(--nebula-surface-elevated, #ffffff);
+    --window-border-color: var(--nebula-border, #e2e8f0);
+    
+    /* Text colors */
+    --window-text-color: var(--nebula-text-primary, #1a202c);
+    --window-text-secondary: var(--nebula-text-secondary, #64748b);
+    
+    /* Control colors */
+    --window-control-bg: var(--window-control-bg, #f1f5f9);
+    --window-control-hover: var(--window-control-hover, #e2e8f0);
+    --window-control-active: var(--window-control-active, #cbd5e1);
+    --window-close-hover: var(--window-close-hover, #ef4444);
+    --window-close-active: var(--window-close-active, #dc2626);
+}
+
+/* =============================================================================
+ * TASKBAR & LAUNCHER INTEGRATION
+ * Ensures taskbar elements use enhanced themes
+ * ============================================================================= */
+
+.taskbar,
+.launcher,
+.launcher-bg {
+    background: var(--taskbar-bg, rgba(255, 255, 255, 0.95)) !important;
+    border-color: var(--taskbar-border, rgba(0, 0, 0, 0.1)) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+}
+
+.launcher-content {
+    background: var(--launcher-bg, rgba(255, 255, 255, 0.98)) !important;
+    border-color: var(--launcher-border, rgba(0, 0, 0, 0.1)) !important;
+}
+
+/* =============================================================================
+ * COMPONENT BRIDGE STYLES
+ * Ensures all components respect enhanced theme colors
+ * ============================================================================= */
+
+/* File Manager Bridge */
+.filemanager-container,
+.filemanager-sidebar,
+.filemanager-content {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+/* Browser Bridge */
+.browser-container,
+.browser-nav,
+.browser-toolbar {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+/* Terminal Bridge */
+.terminal-container,
+.xterm,
+.xterm-viewport {
+    background: var(--nebula-bg-primary, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+}
+
+/* Settings Bridge */
+.settings-container,
+.settings-panel,
+.settings-section {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+/* Assistant Bridge */
+.assistant-container,
+.chat-container,
+.message-container {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+/* =============================================================================
+ * INPUT & BUTTON BRIDGE STYLES
+ * Ensures form elements use enhanced theme colors
+ * ============================================================================= */
+
+input, textarea, select, button {
+    background: var(--nebula-surface, #ffffff) !important;
+    color: var(--nebula-text-primary, #1a202c) !important;
+    border-color: var(--nebula-border, #e2e8f0) !important;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--nebula-primary, #667eea) !important;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2) !important;
+}
+
+button:hover {
+    background: var(--nebula-surface-hover, #f8fafc) !important;
+    border-color: var(--nebula-border-hover, #cbd5e1) !important;
+}
+
+/* =============================================================================
+ * ENHANCED THEME SPECIFIC OVERRIDES
+ * Theme-specific adjustments for enhanced themes
+ * ============================================================================= */
+
+/* Ocean Theme Window Adjustments */
+[data-theme="nebula-ocean"] .window,
+[data-theme="nebula-ocean"] .window-wrapper {
+    --window-primary-accent: #4a9eff;
+    border-color: var(--nebula-border) !important;
+}
+
+/* Forest Theme Window Adjustments */
+[data-theme="nebula-forest"] .window,
+[data-theme="nebula-forest"] .window-wrapper {
+    --window-primary-accent: #4ade80;
+    border-color: var(--nebula-border) !important;
+}
+
+/* Sunset Theme Window Adjustments */
+[data-theme="nebula-sunset"] .window,
+[data-theme="nebula-sunset"] .window-wrapper {
+    --window-primary-accent: #f97316;
+    border-color: var(--nebula-border) !important;
+}
+
+/* Midnight Theme Window Adjustments */
+[data-theme="nebula-midnight"] .window,
+[data-theme="nebula-midnight"] .window-wrapper {
+    --window-primary-accent: #8b5cf6;
+    border-color: var(--nebula-border) !important;
+}
+
+/* Rose Theme Window Adjustments */
+[data-theme="nebula-rose"] .window,
+[data-theme="nebula-rose"] .window-wrapper {
+    --window-primary-accent: #f43f5e;
+    border-color: var(--nebula-border) !important;
+}
+
+/* Cyber Theme Window Adjustments */
+[data-theme="nebula-cyber"] .window,
+[data-theme="nebula-cyber"] .window-wrapper {
+    --window-primary-accent: #00ffff;
+    border-color: var(--nebula-border) !important;
+}
+
+/* Glass Theme Window Adjustments */
+[data-theme="nebula-glass"] .window,
+[data-theme="nebula-glass"] .window-wrapper {
+    background: var(--nebula-surface) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-color: var(--nebula-border) !important;
+}
+
+/* Windows 11 Theme Adjustments */
+[data-theme="windows-11"] .window,
+[data-theme="windows-11"] .window-wrapper {
+    --window-primary-accent: #0078d4;
+    border-radius: 8px !important;
+    border-color: var(--nebula-border) !important;
+}
+
+/* macOS Theme Adjustments */
+[data-theme="macos"] .window,
+[data-theme="macos"] .window-wrapper {
+    --window-primary-accent: #007aff;
+    border-radius: 12px !important;
+    border-color: var(--nebula-border) !important;
+}
+
+/* =============================================================================
+ * FALLBACK & COMPATIBILITY
+ * Ensures backwards compatibility with older components
+ * ============================================================================= */
+
+/* Fallback for components that use old class-based theming */
+.light-theme,
+.dark-theme,
+.nebula-slate-theme {
+    background: var(--nebula-bg-primary) !important;
+    color: var(--nebula-text-primary) !important;
+}
+
+/* Ensure scrollbars match theme */
+::-webkit-scrollbar {
+    background: var(--nebula-bg-secondary) !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--nebula-border) !important;
+    border-radius: var(--nebula-radius-sm) !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--nebula-border-hover) !important;
+}
+
+/* =============================================================================
+ * DEBUGGING HELPERS
+ * Helpful classes for debugging theme issues
+ * ============================================================================= */
+
+/* Add to any element to see current theme variables */
+.debug-theme::before {
+    content: "Theme: " attr(data-theme) " | BG: " var(--nebula-bg-primary) " | Text: " var(--nebula-text-primary);
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: rgba(255, 0, 0, 0.8);
+    color: white;
+    padding: 2px 4px;
+    font-size: 10px;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* Force theme inheritance */
+.force-theme-inheritance * {
+    background: inherit !important;
+    color: inherit !important;
+    border-color: var(--nebula-border) !important;
+}
+
+/* =============================================================================
+ * IMPORTANT NOTES
+ * 
+ * 1. Load this CSS AFTER nebula-extended-themes.css
+ * 2. This bridge ensures ALL components use enhanced theme colors
+ * 3. Uses !important sparingly but necessarily for stubborn legacy styles
+ * 4. All enhanced themes now properly affect windows and all components
+ * 5. Maintains backwards compatibility with original theme system
+ * 
+ * Load order should be:
+ * 1. style.css
+ * 2. nebula-theme.css  
+ * 3. nebula-extended-themes.css
+ * 4. nebula-theme-bridge.css (this file)
+ * ============================================================================= */
