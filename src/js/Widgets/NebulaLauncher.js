@@ -827,3 +827,164 @@ if (!registerLauncherWidget()) {
         setTimeout(registerLauncherWidget, 100);
     }
 }
+
+// Minimal fix for NebulaLauncher.js - Only fix the broken parts
+// Add this at the end of your existing NebulaLauncher.js file to override the problematic methods
+
+// Fix the setupEventListeners method
+NebulaLauncher.prototype.setupEventListeners = function(element) {
+    console.log('🚀 Setting up launcher event listeners');
+    
+    // Handle widget controls and launcher button
+    element.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent event bubbling
+        
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        console.log('🚀 Launcher action clicked:', action);
+        
+        if (action === 'close') {
+            this.handleClose();
+        } else if (action === 'settings') {
+            this.toggleSettingsMenu();
+        } else if (action === 'launch') {
+            console.log('🚀 Launch button clicked, showing launcher...');
+            this.showLauncher();
+        } else if (action && action.startsWith('view-')) {
+            const newMode = action.replace('view-', '');
+            this.setViewMode(newMode);
+        } else if (action === 'widget-config') {
+            this.openWidgetConfig();
+            this.hideSettingsMenu();
+        }
+    });
+
+    // Close settings menu when clicking outside (but not for launcher overlay)
+    document.addEventListener('click', (e) => {
+        if (this.element && !this.element.contains(e.target) && 
+            this.settingsMenuVisible && !e.target.closest('.launcher-overlay')) {
+            this.hideSettingsMenu();
+        }
+    });
+};
+
+// Fix the showLauncher method to match your existing structure
+NebulaLauncher.prototype.showLauncher = function() {
+    if (this.launcherVisible) {
+        console.log('🚀 Launcher already visible, hiding first');
+        this.hideLauncher();
+        return;
+    }
+
+    console.log('🚀 Showing launcher overlay');
+    this.launcherVisible = true;
+    this.filteredApps = [...this.apps];
+    this.searchQuery = '';
+
+    // Remove any existing overlay first
+    const existingOverlay = document.querySelector('.launcher-overlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+
+    // Create the overlay with your existing structure
+    const overlay = document.createElement('div');
+    overlay.className = 'launcher-overlay';
+    overlay.innerHTML = `
+        <div class="launcher-modal">
+            <div class="launcher-header">
+                <div class="launcher-search">
+                    <input type="text" 
+                           class="search-input" 
+                           placeholder="Type to search apps..."
+                           id="launcher-search-${this.id}">
+                </div>
+                <div class="launcher-close">
+                    <button class="close-btn" data-action="close-launcher">×</button>
+                </div>
+            </div>
+            <div class="launcher-content ${this.viewMode}">
+                ${this.renderApps()}
+            </div>
+        </div>
+    `;
+
+    // Add to document
+    document.body.appendChild(overlay);
+    console.log('🚀 Launcher overlay added to DOM');
+
+    // Focus search input after a brief delay
+    setTimeout(() => {
+        const searchInput = overlay.querySelector('.search-input');
+        if (searchInput) {
+            searchInput.focus();
+            console.log('🚀 Search input focused');
+        }
+    }, 100);
+
+    // Setup search functionality
+    const searchInput = overlay.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            console.log('🚀 Search input:', e.target.value);
+            this.handleSearch(e.target.value);
+        });
+    }
+
+    // Setup close button
+    const closeBtn = overlay.querySelector('[data-action="close-launcher"]');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            console.log('🚀 Close button clicked');
+            this.hideLauncher();
+        });
+    }
+
+    // Setup app launches
+    overlay.addEventListener('click', (e) => {
+        const appItem = e.target.closest('.app-item');
+        if (appItem) {
+            const appId = appItem.dataset.appId;
+            console.log('🚀 App item clicked:', appId);
+            this.launchApp(appId);
+        }
+    });
+
+    // Close on escape
+    const escapeHandler = (e) => {
+        if (e.key === 'Escape') {
+            console.log('🚀 Escape pressed, closing launcher');
+            this.hideLauncher();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    };
+    document.addEventListener('keydown', escapeHandler);
+
+    // Close when clicking outside modal
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            console.log('🚀 Clicked outside modal, closing launcher');
+            this.hideLauncher();
+        }
+    });
+};
+
+// Ensure hideLauncher works properly
+NebulaLauncher.prototype.hideLauncher = function() {
+    const overlay = document.querySelector('.launcher-overlay');
+    if (overlay) {
+        overlay.remove();
+        console.log('🚀 Launcher overlay removed');
+    }
+    this.launcherVisible = false;
+};
+
+// Add some debugging to handleClose
+NebulaLauncher.prototype.handleClose = function() {
+    console.log('🚀 Launcher widget closing');
+    this.hideLauncher(); // Close launcher if open
+    if (window.widgetSystem) {
+        window.widgetSystem.removeWidget(this.id);
+    }
+};
+
+console.log('🔧 NebulaLauncher fixes applied!');
