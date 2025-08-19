@@ -1,4 +1,4 @@
-// NebulaLauncher.js - Fixed Registration and Widget Creation
+// NebulaLauncher.js - Launcher Widget
 class NebulaLauncher extends NebulaWidget {
     constructor(config = {}) {
         super(config);
@@ -127,7 +127,7 @@ class NebulaLauncher extends NebulaWidget {
                 this.toggleSettingsMenu();
             } else if (action === 'launch') {
                 this.showLauncher();
-            } else if (action && action.startsWith('view-')) {
+            } else if (action && action.startsWith('view-')) {  // Fixed: check action exists first
                 const newMode = action.replace('view-', '');
                 this.setViewMode(newMode);
             } else if (action === 'widget-config') {
@@ -159,7 +159,7 @@ class NebulaLauncher extends NebulaWidget {
     }
 
     getAvailableApps() {
-        // Try to get apps from existing launcher or use defaults
+        // Reuse existing app data from renderer.js
         const defaultApps = [
             { id: 'browser', name: 'Browser', icon: '🌐', category: 'internet', tags: ['web', 'internet', 'browser'] },
             { id: 'filemanager', name: 'Files', icon: '📁', category: 'system', tags: ['files', 'folder', 'manager'] },
@@ -171,61 +171,65 @@ class NebulaLauncher extends NebulaWidget {
             { id: 'assistant', name: 'AI Assistant', icon: '🤖', category: 'productivity', tags: ['ai', 'assistant', 'help'] }
         ];
 
-        // Try to get from global apps if available
-        if (window.nebulaApps && Array.isArray(window.nebulaApps)) {
-            return window.nebulaApps;
+        // Try to get apps from existing launcher if available
+        if (window.nebulaDesktop && window.nebulaDesktop.getAvailableApps) {
+            return window.nebulaDesktop.getAvailableApps();
         }
 
         return defaultApps;
     }
 
     showLauncher() {
+        if (this.launcherVisible) return;
+
         console.log('🚀 Showing launcher overlay');
-        this.hideSettingsMenu();
-        
-        // Create launcher overlay
+        this.launcherVisible = true;
+        this.filteredApps = [...this.apps];
+        this.searchQuery = '';
+
         const overlay = document.createElement('div');
         overlay.className = 'launcher-overlay';
         overlay.innerHTML = `
             <div class="launcher-modal">
                 <div class="launcher-header">
-                    <h2>Applications</h2>
-                    <button class="close-launcher" data-action="close-launcher">×</button>
+                    <div class="launcher-search">
+                        <input type="text" 
+                               class="search-input" 
+                               placeholder="Type to search apps..."
+                               id="launcher-search-${this.id}">
+                    </div>
+                    <div class="launcher-close">
+                        <button class="close-btn" data-action="close-launcher">×</button>
+                    </div>
                 </div>
-                <div class="search-container">
-                    <input type="text" class="search-input" placeholder="Search applications..." 
-                           autocomplete="off" spellcheck="false">
-                </div>
-                <div class="launcher-content ${this.viewMode}" id="launcher-content-${this.id}">
+                <div class="launcher-content ${this.viewMode}">
                     ${this.renderApps()}
                 </div>
             </div>
         `;
 
         document.body.appendChild(overlay);
-        this.launcherVisible = true;
 
         // Focus search input
         const searchInput = overlay.querySelector('.search-input');
-        searchInput.focus();
+        setTimeout(() => searchInput.focus(), 100);
 
-        // Set up search functionality
+        // Setup search functionality
         searchInput.addEventListener('input', (e) => {
-            this.searchQuery = e.target.value.toLowerCase();
-            this.updateLauncherContent();
+            this.handleSearch(e.target.value);
         });
 
-        // Set up app launch handling
+        // Setup close button
+        overlay.querySelector('[data-action="close-launcher"]').addEventListener('click', () => {
+            this.hideLauncher();
+        });
+
+        // Setup app launches
         overlay.addEventListener('click', (e) => {
             const appItem = e.target.closest('.app-item');
             if (appItem) {
                 const appId = appItem.dataset.appId;
                 this.launchApp(appId);
-                this.hideLauncher();
-            }
-            
-            if (e.target.closest('[data-action="close-launcher"]')) {
-                this.hideLauncher();
             }
         });
     }
@@ -236,82 +240,134 @@ class NebulaLauncher extends NebulaWidget {
             overlay.remove();
         }
         this.launcherVisible = false;
+        console.log('🚀 Launcher overlay hidden');
     }
 
-    renderApps() {
-        const filteredApps = this.searchQuery 
-            ? this.apps.filter(app => 
-                app.name.toLowerCase().includes(this.searchQuery) ||
-                app.tags?.some(tag => tag.includes(this.searchQuery))
-              )
-            : this.apps;
-
-        if (filteredApps.length === 0) {
-            return '<div class="no-apps">No applications found</div>';
+    handleSearch(query) {
+        this.searchQuery = query.toLowerCase();
+        
+        if (!query) {
+            this.filteredApps = [...this.apps];
+        } else {
+            this.filteredApps = this.apps.filter(app => {
+                return app.name.toLowerCase().includes(this.searchQuery) ||
+                       app.category.toLowerCase().includes(this.searchQuery) ||
+                       (app.tags && app.tags.some(tag => tag.toLowerCase().includes(this.searchQuery)));
+            });
         }
 
-        return filteredApps.map(app => `
-            <div class="app-item ${this.viewMode}" data-app-id="${app.id}">
-                <div class="app-icon">${app.icon}</div>
-                <div class="app-name">${app.name}</div>
-            </div>
-        `).join('');
-    }
-
-    updateLauncherContent() {
-        const content = document.getElementById(`launcher-content-${this.id}`);
+        // Update app display
+        const content = document.querySelector('.launcher-content');
         if (content) {
             content.innerHTML = this.renderApps();
         }
     }
 
+    renderApps() {
+        if (this.filteredApps.length === 0) {
+            return '<div class="no-apps">No apps found</div>';
+        }
+
+        return this.filteredApps.map(app => `
+            <div class="app-item ${this.viewMode}" data-app-id="${app.id}">
+                <div class="app-icon">${app.icon}</div>
+                <div class="app-name">${app.name}</div>
+                ${this.viewMode === 'list' ? `<div class="app-category">${app.category}</div>` : ''}
+            </div>
+        `).join('');
+    }
+
     launchApp(appId) {
-        console.log('🚀 Launching app:', appId);
+        console.log(`🚀 Launching app: ${appId}`);
         
-        // Try to launch via window manager
-        if (window.windowManager && window.windowManager.openApp) {
-            window.windowManager.openApp(appId);
-        } else if (window.openApp) {
-            window.openApp(appId);
+        // Use existing launcher logic from renderer.js
+        if (window.nebulaDesktop && window.nebulaDesktop.launchApp) {
+            window.nebulaDesktop.launchApp(appId);
         } else {
-            console.warn('No app launcher function found for:', appId);
+            // Fallback launch logic
+            this.fallbackLaunchApp(appId);
         }
+
+        this.hideLauncher();
     }
 
-    toggleSettingsMenu() {
-        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
-        if (menu) {
-            this.settingsMenuVisible = !this.settingsMenuVisible;
-            menu.style.display = this.settingsMenuVisible ? 'block' : 'none';
-        }
-    }
+    fallbackLaunchApp(appId) {
+        // Basic fallback for launching apps
+        const appMap = {
+            'browser': () => window.windowManager?.createWindow({ title: 'Browser', icon: '🌐' }),
+            'filemanager': () => window.windowManager?.createWindow({ title: 'Files', icon: '📁' }),
+            'terminal': () => window.windowManager?.createWindow({ title: 'Terminal', icon: '💻' }),
+            'calculator': () => window.windowManager?.createWindow({ title: 'Calculator', icon: '🧮' }),
+            'settings': () => window.windowManager?.createWindow({ title: 'Settings', icon: '⚙️' }),
+            'code-assistant': () => window.windowManager?.createWindow({ title: 'Code Assistant', icon: '🛠️' }),
+            'art-assistant': () => window.windowManager?.createWindow({ title: 'Art Assistant', icon: '🎨' }),
+            'assistant': () => window.windowManager?.createWindow({ title: 'AI Assistant', icon: '🤖' })
+        };
 
-    hideSettingsMenu() {
-        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
-        if (menu) {
-            menu.style.display = 'none';
-            this.settingsMenuVisible = false;
+        if (appMap[appId]) {
+            appMap[appId]();
+        } else {
+            console.warn(`No launcher for app: ${appId}`);
         }
     }
 
     setViewMode(mode) {
-        this.viewMode = mode;
-        this.hideSettingsMenu();
+        if (mode === this.viewMode) return;
         
-        // Update UI to reflect new mode
-        const content = document.getElementById(`launcher-content-${this.id}`);
+        this.viewMode = mode;
+        this.updateSettingsMenu();
+        
+        // Update launcher if visible
+        const content = document.querySelector('.launcher-content');
         if (content) {
-            content.className = `launcher-content ${this.viewMode}`;
-            this.updateLauncherContent();
+            content.className = `launcher-content ${mode}`;
+            content.innerHTML = this.renderApps();
         }
+        
+        console.log(`🚀 View mode changed to: ${mode}`);
+    }
 
-        // Update settings menu checks
-        const menuItems = this.element.querySelectorAll('[data-action^="view-"]');
-        menuItems.forEach(item => {
-            const check = item.querySelector('.menu-check');
-            if (check) {
-                const actionMode = item.dataset.action.replace('view-', '');
-                check.textContent = actionMode === this.viewMode ? '✓' : '';
+    handleClose() {
+        if (window.widgetSystem) {
+            window.widgetSystem.removeWidget(this.id);
+        }
+    }
+
+    toggleSettingsMenu() {
+        if (this.settingsMenuVisible) {
+            this.hideSettingsMenu();
+        } else {
+            this.showSettingsMenu();
+        }
+    }
+
+    showSettingsMenu() {
+        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
+        if (!menu) return;
+
+        menu.style.display = 'block';
+        this.settingsMenuVisible = true;
+        console.log('📋 Launcher settings menu opened');
+    }
+
+    hideSettingsMenu() {
+        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
+        if (!menu) return;
+
+        menu.style.display = 'none';
+        this.settingsMenuVisible = false;
+        console.log('📋 Launcher settings menu closed');
+    }
+
+    updateSettingsMenu() {
+        // Update checkmarks for view mode
+        const checks = this.element.querySelectorAll('.menu-check');
+        checks.forEach(check => {
+            const item = check.closest('[data-action]');
+            if (item) {
+                const action = item.dataset.action;
+                const mode = action.replace('view-', '');
+                check.textContent = this.viewMode === mode ? '✓' : '';
             }
         });
     }
@@ -394,39 +450,19 @@ const launcherWidgetStyles = `
 
 .launcher-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+    box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
 }
 
-.minimal-controls {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    display: none;
-    gap: 2px;
-    z-index: 10;
+.launcher-button:active {
+    transform: translateY(0);
 }
 
-.nebula-launcher-widget.minimal:hover .minimal-controls {
-    display: flex;
+.launcher-icon {
+    font-size: 16px;
 }
 
-.minimal-control-btn {
-    background: rgba(102, 126, 234, 0.1);
-    border: none;
-    color: var(--nebula-primary, #667eea);
-    width: 20px;
-    height: 20px;
-    border-radius: 3px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    transition: all 0.2s ease;
-}
-
-.minimal-control-btn:hover {
-    background: rgba(102, 126, 234, 0.2);
+.launcher-text {
+    flex: 1;
 }
 
 /* Launcher Overlay */
@@ -436,61 +472,47 @@ const launcherWidgetStyles = `
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2000;
+    z-index: 10000;
+    animation: overlayFadeIn 0.3s ease;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .launcher-modal {
     background: var(--nebula-surface, #ffffff);
     border: 1px solid var(--nebula-border, #e2e8f0);
-    border-radius: var(--nebula-radius-xl, 16px);
-    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.3);
-    width: 80vw;
+    border-radius: var(--nebula-radius-lg, 12px);
+    box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.25));
+    width: 90vw;
     max-width: 800px;
     max-height: 80vh;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 .launcher-header {
-    padding: 20px;
-    border-bottom: 1px solid var(--nebula-border, #e2e8f0);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-}
-
-.launcher-header h2 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--nebula-text-primary, #1a202c);
-}
-
-.close-launcher {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: var(--nebula-text-secondary, #64748b);
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-}
-
-.close-launcher:hover {
-    background: var(--nebula-surface-hover, #f1f5f9);
-    color: var(--nebula-text-primary, #1a202c);
-}
-
-.search-container {
-    padding: 20px;
+    padding: 16px;
     border-bottom: 1px solid var(--nebula-border, #e2e8f0);
+    gap: 12px;
+}
+
+.launcher-search {
+    flex: 1;
 }
 
 .search-input {
@@ -498,11 +520,11 @@ const launcherWidgetStyles = `
     padding: 12px 16px;
     border: 1px solid var(--nebula-border, #e2e8f0);
     border-radius: var(--nebula-radius-md, 8px);
-    background: var(--nebula-bg-primary, #ffffff);
+    background: var(--nebula-bg-secondary, #f8fafc);
     color: var(--nebula-text-primary, #1a202c);
     font-size: 16px;
     outline: none;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
 }
 
 .search-input:focus {
@@ -510,34 +532,38 @@ const launcherWidgetStyles = `
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.launcher-content {
-    padding: 20px;
-    overflow-y: auto;
-    flex: 1;
+.close-btn {
+    background: var(--nebula-danger, #ef4444);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
 }
 
+.close-btn:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+}
+
+.launcher-content {
+    padding: 16px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Grid View */
 .launcher-content.grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 16px;
-}
-
-.launcher-content.list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.launcher-content.tile {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 12px;
-}
-
-.app-item {
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-radius: var(--nebula-radius-md, 8px);
 }
 
 .app-item.grid {
@@ -545,12 +571,15 @@ const launcherWidgetStyles = `
     flex-direction: column;
     align-items: center;
     padding: 16px;
+    border-radius: var(--nebula-radius-md, 8px);
+    cursor: pointer;
+    transition: all 0.3s ease;
     text-align: center;
 }
 
 .app-item.grid:hover {
     background: var(--nebula-surface-hover, #f1f5f9);
-    transform: translateY(-4px);
+    transform: translateY(-2px);
 }
 
 .app-item.grid .app-icon {
@@ -564,11 +593,22 @@ const launcherWidgetStyles = `
     color: var(--nebula-text-primary, #1a202c);
 }
 
-.app-item.list {
+/* List View */
+.launcher-content.list {
     display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.app-item.list {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
     align-items: center;
     padding: 12px 16px;
-    gap: 16px;
+    border-radius: var(--nebula-radius-md, 8px);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    gap: 12px;
 }
 
 .app-item.list:hover {
@@ -583,6 +623,19 @@ const launcherWidgetStyles = `
     font-size: 16px;
     font-weight: 500;
     color: var(--nebula-text-primary, #1a202c);
+}
+
+.app-item.list .app-category {
+    font-size: 12px;
+    color: var(--nebula-text-secondary, #64748b);
+    text-transform: capitalize;
+}
+
+/* Tile View */
+.launcher-content.tile {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
 }
 
 .app-item.tile {
@@ -619,112 +672,11 @@ const launcherWidgetStyles = `
     font-size: 16px;
 }
 
-/* Settings menu styles */
-.settings-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: var(--nebula-surface, #ffffff);
-    border: 1px solid var(--nebula-border, #e2e8f0);
-    border-radius: var(--nebula-radius-md, 8px);
-    box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
-    min-width: 180px;
-    z-index: 1000;
-    overflow: hidden;
-}
-
-.settings-menu.minimal {
-    top: auto;
-    bottom: 100%;
-    margin-bottom: 4px;
-}
-
-.settings-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    font-size: 13px;
-    color: var(--nebula-text-primary, #1a202c);
-}
-
-.settings-menu-item:hover {
-    background: var(--nebula-surface-hover, #f1f5f9);
-}
-
-.menu-icon {
-    font-size: 14px;
-    width: 16px;
-    text-align: center;
-}
-
-.menu-text {
-    flex: 1;
-}
-
-.menu-check {
-    font-size: 12px;
-    color: var(--nebula-success, #10b981);
-    font-weight: 600;
-}
-
-.menu-arrow {
-    font-size: 12px;
-    color: var(--nebula-text-secondary, #64748b);
-}
-
+/* Settings menu separator */
 .settings-menu-separator {
     height: 1px;
     background: var(--nebula-border, #e2e8f0);
     margin: 4px 0;
-}
-
-/* Widget header styles */
-.widget-header {
-    background: var(--nebula-primary, #667eea);
-    color: white;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: move;
-    border-radius: var(--nebula-radius-lg, 12px) var(--nebula-radius-lg, 12px) 0 0;
-}
-
-.widget-icon {
-    font-size: 16px;
-}
-
-.widget-title {
-    flex: 1;
-}
-
-.widget-controls {
-    display: flex;
-    gap: 4px;
-}
-
-.widget-control-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    transition: background-color 0.2s ease;
-}
-
-.widget-control-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
 }
 
 /* Dark theme support */
@@ -743,16 +695,6 @@ const launcherWidgetStyles = `
     background: var(--nebula-bg-secondary, #1e293b);
     color: var(--nebula-text-primary, #e2e8f0);
     border-color: var(--nebula-border, #4a5568);
-}
-
-[data-theme="dark"] .settings-menu {
-    background: var(--nebula-surface, #2d3748);
-    border-color: var(--nebula-border, #4a5568);
-    color: var(--nebula-text-primary, #e2e8f0);
-}
-
-[data-theme="dark"] .settings-menu-item:hover {
-    background: var(--nebula-surface-hover, #4a5568);
 }
 
 /* Responsive design */
@@ -774,22 +716,37 @@ const launcherWidgetStyles = `
 </style>
 `;
 
-// Inject styles only once
+// Inject styles
 if (!document.getElementById('nebula-launcher-styles')) {
     document.head.insertAdjacentHTML('beforeend', launcherWidgetStyles);
+}
+
+// Register the launcher widget with the widget system
+if (window.NebulaWidgetSystem && window.widgetSystem) {
+    window.widgetSystem.registerWidget('launcher', {
+        name: 'App Launcher',
+        description: 'Centered app launcher with search and multiple view modes',
+        category: 'system',
+        icon: '🚀',
+        widgetClass: NebulaLauncher,
+        defaultConfig: {
+            viewMode: 'grid',
+            showTitlebar: true,
+            x: 50,
+            y: 50
+        },
+        author: 'NebulaDesktop',
+        version: '1.0.0'
+    });
+    
+    console.log('✅ Launcher widget registered successfully');
 }
 
 // Make the class globally available
 window.NebulaLauncher = NebulaLauncher;
 
-// FIXED: Single, reliable registration function
+// Better registration timing - wait for DOM and widget system
 function registerLauncherWidget() {
-    // Check if already registered
-    if (window.widgetSystem && window.widgetSystem.getRegisteredWidgets().find(w => w.id === 'launcher')) {
-        console.log('🚀 Launcher widget already registered, skipping...');
-        return true;
-    }
-
     if (window.NebulaWidgetSystem && window.widgetSystem) {
         try {
             window.widgetSystem.registerWidget('launcher', {
@@ -817,13 +774,14 @@ function registerLauncherWidget() {
     return false;
 }
 
-// Register immediately if possible, otherwise wait
+// Try multiple registration attempts
 if (!registerLauncherWidget()) {
-    // Wait for DOM and try again
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', registerLauncherWidget);
-    } else {
-        // Try with a short delay
-        setTimeout(registerLauncherWidget, 100);
-    }
+    // Try again after DOM is ready
+    document.addEventListener('DOMContentLoaded', registerLauncherWidget);
+    
+    // Try again after a delay
+    setTimeout(registerLauncherWidget, 1000);
+    
+    // Try again when widget integration loads
+    setTimeout(registerLauncherWidget, 2000);
 }

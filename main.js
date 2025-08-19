@@ -1,374 +1,156 @@
-const { app, BrowserWindow, ipcMain, session, screen, dialog } = require('electron');
+// main.js - Fixed with proper fullscreen support
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
-
-// Enable hot reload in development
-if (process.argv.includes('--dev')) {
-    require('electron-reload')(__dirname, {
-        electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
-        hardResetMethod: 'exit'
-    });
-}
 
 class NebulaDesktop {
     constructor() {
         this.mainWindow = null;
-        this.childWindows = new Map();
-        this.isFullscreen = !process.argv.includes('--dev');
-    }
+        this.isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
+        
+        // Initialize when app is ready
+        app.whenReady().then(() => {
+            this.createWindow();
+        });
 
-    createMainWindow() {
-        const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-
-        this.mainWindow = new BrowserWindow({
-            width: this.isFullscreen ? width : 1400,
-            height: this.isFullscreen ? height : 900,
-            fullscreen: this.isFullscreen,
-            frame: !this.isFullscreen,
-            kiosk: this.isFullscreen && !process.argv.includes('--dev'),
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true,
-                preload: path.join(__dirname, 'src', 'preload.js'),
-                webviewTag: true  // Enable webview for web apps
+        // Quit when all windows are closed
+        app.on('window-all-closed', () => {
+            if (process.platform !== 'darwin') {
+                app.quit();
             }
         });
 
+        app.on('activate', () => {
+            if (BrowserWindow.getAllWindows().length === 0) {
+                this.createWindow();
+            }
+        });
+
+        // Set up IPC handlers
+        this.setupIpcHandlers();
+    }
+
+    createWindow() {
+        // Create the browser window
+        this.mainWindow = new BrowserWindow({
+            width: 1200,
+            height: 800,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                preload: 'preload.js', // Fixed path resolution
+                webSecurity: false,
+                allowRunningInsecureContent: true
+            },
+            frame: false,
+            titleBarStyle: 'hidden',
+            show: false,
+            // Add fullscreen support
+            fullscreen: true,  // Start in fullscreen
+            simpleFullscreen: false, // Use proper fullscreen on macOS
+            kiosk: false  // Don't use kiosk mode, still allow dev tools
+        });
+
+        // Load the app
         this.mainWindow.loadFile('src/index.html');
 
-        if (process.argv.includes('--dev')) {
-            this.mainWindow.webContents.openDevTools();
-        }
-    }
-
-    setupIPC() {
-        // System operations
-        ipcMain.handle('system:shutdown', () => {
-            const { exec } = require('child_process');
-            exec('systemctl poweroff');
-        });
-
-        ipcMain.handle('system:reboot', () => {
-            const { exec } = require('child_process');
-            exec('systemctl reboot');
-        });
-
-        ipcMain.handle('system:logout', () => {
-            app.quit();
-        });
-
-        // Window management
-        ipcMain.handle('window:create', (event, options) => {
-            return this.createAppWindow(options);
-        });
-
-        ipcMain.on('window:close', (event, id) => {
-            const window = this.childWindows.get(id);
-            if (window) {
-                window.close();
-                this.childWindows.delete(id);
+        // Show when ready
+        this.mainWindow.once('ready-to-show', () => {
+            // Force fullscreen regardless of dev mode
+            this.mainWindow.setFullScreen(true);
+            this.mainWindow.show();
+            
+            // Only show dev tools in dev mode
+            if (this.isDev) {
+                this.mainWindow.webContents.openDevTools();
+                console.log('🔧 Development mode: DevTools opened');
             }
+            
+            console.log('🚀 NebulaDesktop window ready - Fullscreen:', this.mainWindow.isFullScreen());
         });
 
-        ipcMain.on('window:minimize', (event, id) => {
-            const window = this.childWindows.get(id);
-            if (window) {
-                window.minimize();
-            }
+        // Handle window closed
+        this.mainWindow.on('closed', () => {
+            this.mainWindow = null;
         });
 
-        ipcMain.on('window:maximize', (event, id) => {
-            const window = this.childWindows.get(id);
-            if (window) {
-                if (window.isMaximized()) {
-                    window.restore();
-                } else {
-                    window.maximize();
+        // Handle fullscreen changes
+        this.mainWindow.on('enter-full-screen', () => {
+            console.log('📺 Entered fullscreen mode');
+        });
+
+        this.mainWindow.on('leave-full-screen', () => {
+            console.log('📺 Left fullscreen mode');
+            // Force back to fullscreen if needed
+            setTimeout(() => {
+                if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                    this.mainWindow.setFullScreen(true);
                 }
-            }
-        });
-
-        // File system operations
-        ipcMain.handle('fs:readdir', async (event, dirPath) => {
-            try {
-                const fs = require('fs').promises;
-                return await fs.readdir(dirPath);
-            } catch (error) {
-                throw error;
-            }
-        });
-
-        // FIXED: Smart file reading - binary for images, text for others
-        ipcMain.handle('fs:readfile', async (event, filePath, encoding = null) => {
-            try {
-                const fs = require('fs').promises;
-
-                // Detect if this is likely a binary file based on extension
-                const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.tiff', '.svg'];
-                const videoExtensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.ogv', '.m4v'];
-                const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
-                const binaryExtensions = [...imageExtensions, ...videoExtensions, ...audioExtensions, '.exe', '.bin', '.dll', '.so'];
-
-                const ext = path.extname(filePath).toLowerCase();
-                const isBinaryFile = binaryExtensions.includes(ext);
-
-                if (encoding === null) {
-                    // Auto-detect encoding based on file type
-                    encoding = isBinaryFile ? null : 'utf8';
-                }
-
-                console.log(`Reading file: ${filePath}, binary: ${isBinaryFile}, encoding: ${encoding}`);
-
-                const data = await fs.readFile(filePath, encoding);
-
-                // For binary files, convert Buffer to Uint8Array for better browser compatibility
-                if (isBinaryFile && Buffer.isBuffer(data)) {
-                    return new Uint8Array(data);
-                }
-
-                return data;
-            } catch (error) {
-                console.error(`Error reading file ${filePath}:`, error);
-                throw error;
-            }
-        });
-
-        ipcMain.handle('fs:writefile', async (event, filePath, data) => {
-            try {
-                const fs = require('fs').promises;
-                await fs.writeFile(filePath, data, 'utf8');
-                return true;
-            } catch (error) {
-                throw error;
-            }
-        });
-
-        ipcMain.handle('fs:homedir', () => {
-            const os = require('os');
-            return os.homedir();
-        });
-
-        // Enhanced file system operations for terminal
-        ipcMain.handle('fs:stat', async (event, filePath) => {
-            try {
-                const fs = require('fs').promises;
-                const stats = await fs.stat(filePath);
-                return {
-                    isDirectory: stats.isDirectory(),
-                    isFile: stats.isFile(),
-                    size: stats.size,
-                    mtime: stats.mtime,
-                    mode: stats.mode,
-                    uid: stats.uid,
-                    gid: stats.gid
-                };
-            } catch (error) {
-                throw error;
-            }
-        });
-
-        ipcMain.handle('fs:exists', async (event, filePath) => {
-            try {
-                const fs = require('fs').promises;
-                await fs.access(filePath);
-                return true;
-            } catch (error) {
-                return false;
-            }
-        });
-
-        ipcMain.handle('fs:mkdir', async (event, dirPath, options = {}) => {
-            try {
-                const fs = require('fs').promises;
-                await fs.mkdir(dirPath, options);
-                return true;
-            } catch (error) {
-                throw error;
-            }
-        });
-
-        ipcMain.handle('fs:rmdir', async (event, dirPath) => {
-            try {
-                const fs = require('fs').promises;
-                await fs.rmdir(dirPath, { recursive: true });
-                return true;
-            } catch (error) {
-                throw error;
-            }
-        });
-
-        ipcMain.handle('fs:unlink', async (event, filePath) => {
-            try {
-                const fs = require('fs').promises;
-                await fs.unlink(filePath);
-                return true;
-            } catch (error) {
-                throw error;
-            }
-        });
-
-        // Terminal operations
-        ipcMain.handle('terminal:exec', async (event, command, args = [], options = {}) => {
-            try {
-                const { spawn } = require('child_process');
-                const os = require('os');
-
-                return new Promise((resolve, reject) => {
-                    // Determine the shell and command
-                    let shell, shellArgs;
-
-                    if (os.platform() === 'win32') {
-                        shell = 'cmd.exe';
-                        shellArgs = ['/c', command, ...args];
-                    } else {
-                        shell = '/bin/sh';
-                        shellArgs = ['-c', `${command} ${args.join(' ')}`];
-                    }
-
-                    const proc = spawn(shell, shellArgs, {
-                        cwd: options.cwd || os.homedir(),
-                        env: { ...process.env, ...options.env },
-                        stdio: ['pipe', 'pipe', 'pipe'],
-                        timeout: options.timeout || 30000
-                    });
-
-                    let stdout = '';
-                    let stderr = '';
-
-                    proc.stdout.on('data', (data) => {
-                        stdout += data.toString();
-                    });
-
-                    proc.stderr.on('data', (data) => {
-                        stderr += data.toString();
-                    });
-
-                    proc.on('close', (code) => {
-                        resolve({
-                            stdout: stdout.trim(),
-                            stderr: stderr.trim(),
-                            exitCode: code
-                        });
-                    });
-
-                    proc.on('error', (error) => {
-                        reject(error);
-                    });
-
-                    // Handle timeout
-                    setTimeout(() => {
-                        if (!proc.killed) {
-                            proc.kill();
-                            reject(new Error('Command timed out'));
-                        }
-                    }, options.timeout || 30000);
-                });
-            } catch (error) {
-                throw error;
-            }
-        });
-
-        // System info
-        ipcMain.handle('system:info', () => {
-            const os = require('os');
-            return {
-                platform: os.platform(),
-                arch: os.arch(),
-                version: os.version(),
-                release: os.release(),
-                hostname: os.hostname(),
-                uptime: os.uptime(),
-                totalMemory: os.totalmem(),
-                freeMemory: os.freemem(),
-                cpuCount: os.cpus().length
-            };
-        });
-
-        // Native file dialogs
-        ipcMain.handle('dialog:openFile', async (event, options = {}) => {
-            try {
-                const result = await dialog.showOpenDialog(this.mainWindow, {
-                    properties: ['openFile'],
-                    filters: [
-                        { name: 'Code Files', extensions: ['js', 'ts', 'py', 'html', 'css', 'json', 'md', 'txt'] },
-                        { name: 'JavaScript', extensions: ['js'] },
-                        { name: 'All Files', extensions: ['*'] }
-                    ],
-                    ...options
-                });
-                return result;
-            } catch (error) {
-                throw error;
-            }
-        });
-
-        ipcMain.handle('dialog:saveFile', async (event, options = {}) => {
-            try {
-                const result = await dialog.showSaveDialog(this.mainWindow, {
-                    filters: [
-                        { name: 'JavaScript', extensions: ['js'] },
-                        { name: 'TypeScript', extensions: ['ts'] },
-                        { name: 'Python', extensions: ['py'] },
-                        { name: 'HTML', extensions: ['html'] },
-                        { name: 'CSS', extensions: ['css'] },
-                        { name: 'JSON', extensions: ['json'] },
-                        { name: 'Markdown', extensions: ['md'] },
-                        { name: 'All Files', extensions: ['*'] }
-                    ],
-                    ...options
-                });
-                return result;
-            } catch (error) {
-                throw error;
-            }
+            }, 100);
         });
     }
 
-    createAppWindow(options) {
-        const windowId = Date.now().toString();
-
-        const window = new BrowserWindow({
-            width: options.width || 800,
-            height: options.height || 600,
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true,
-                preload: path.join(__dirname, 'src', 'preload.js')
-            },
-            parent: this.mainWindow,
-            modal: false,
-            show: false
+    setupIpcHandlers() {
+        // Widget system support
+        ipcMain.handle('widget-scan-directory', async (event, dirPath) => {
+            const fs = require('fs');
+            try {
+                const normalizedPath = path.resolve(dirPath);
+                
+                if (!fs.existsSync(normalizedPath)) {
+                    return { success: false, error: 'Directory does not exist' };
+                }
+                
+                const files = fs.readdirSync(normalizedPath)
+                    .filter(file => file.endsWith('.js'))
+                    .map(file => ({
+                        name: file,
+                        path: path.join(normalizedPath, file),
+                        relativePath: path.relative(__dirname, path.join(normalizedPath, file))
+                    }));
+                
+                return { success: true, files };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
         });
 
-        this.childWindows.set(windowId, window);
-
-        window.once('ready-to-show', () => {
-            window.show();
+        // Dialog support for folder browsing
+        ipcMain.handle('dialog-show-open', async (event, options) => {
+            if (!this.mainWindow) return { canceled: true };
+            
+            const result = await dialog.showOpenDialog(this.mainWindow, {
+                properties: ['openDirectory'],
+                ...options
+            });
+            
+            return result;
         });
 
-        window.on('closed', () => {
-            this.childWindows.delete(windowId);
+        // Add fullscreen toggle support
+        ipcMain.handle('window-toggle-fullscreen', async () => {
+            if (this.mainWindow) {
+                const isFullScreen = this.mainWindow.isFullScreen();
+                this.mainWindow.setFullScreen(!isFullScreen);
+                return !isFullScreen;
+            }
+            return false;
         });
 
-        return windowId;
+        // Add window state queries
+        ipcMain.handle('window-is-fullscreen', async () => {
+            return this.mainWindow ? this.mainWindow.isFullScreen() : false;
+        });
+
+        // Add dev mode check
+        ipcMain.handle('app-is-dev', async () => {
+            return this.isDev;
+        });
+
+        console.log('🔧 IPC handlers set up');
     }
 }
 
-// Create desktop instance
-const desktop = new NebulaDesktop();
+// Create the application
+new NebulaDesktop();
 
-app.whenReady().then(() => {
-    desktop.createMainWindow();
-    desktop.setupIPC();
-});
-
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
-
-app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-        desktop.createMainWindow();
-    }
-});
+console.log('🚀 NebulaDesktop main process started');
