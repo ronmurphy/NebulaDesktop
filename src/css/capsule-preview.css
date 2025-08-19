@@ -1,0 +1,536 @@
+/* Capsule Preview System Styles */
+/* Add this to your window-manager.css or create a new capsule-preview.css */
+
+/* ===== WINDOW CAPSULE ENHANCED STYLES ===== */
+
+/* Capsule Mode - Hide content, show preview */
+.nebula-window.titlebar-only .window-content {
+    display: none !important;
+}
+
+.nebula-window.titlebar-only {
+    /* Ensure capsules are always on top */
+    z-index: 99999 !important;
+    
+    /* Smooth transitions */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Enhanced shadow for floating effect */
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.2),
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    
+    /* Subtle border radius */
+    border-radius: 12px;
+    
+    /* Prevent content overflow */
+    overflow: visible; /* Changed to allow glow dot to show outside */
+}
+
+/* Capsule glow indicator dot - positioned outside the capsule */
+.nebula-window.titlebar-only::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(45deg, #00e676, #1de9b6);
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 
+        0 2px 8px rgba(0, 230, 118, 0.4),
+        0 0 16px rgba(0, 230, 118, 0.2);
+    animation: capsule-pulse 2s ease-in-out infinite;
+    z-index: 10;
+}
+
+@keyframes capsule-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+}
+
+/* ===== CAPSULE PREVIEW AREA ===== */
+
+.capsule-preview {
+    width: 100%;
+    background: var(--nebula-surface, #ffffff);
+    border-top: 1px solid var(--nebula-border, #e2e8f0);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.preview-image-container {
+    position: relative;
+    width: 100%;
+    height: 80px;
+    overflow: hidden;
+    background: linear-gradient(135deg, 
+        var(--nebula-bg-secondary, #f8fafc), 
+        var(--nebula-bg-primary, #ffffff));
+}
+
+.preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top left;
+    transition: all 0.3s ease;
+    border: none;
+    display: block;
+}
+
+/* Preview hover effects */
+.capsule-preview:hover .preview-image {
+    transform: scale(1.02);
+    filter: brightness(1.1);
+}
+
+.preview-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 0.1) 50%,
+        rgba(0, 0, 0, 0.3) 100%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 8px;
+}
+
+.capsule-preview:hover .preview-overlay,
+.capsule-preview.preview-hover .preview-overlay {
+    opacity: 1;
+}
+
+/* ===== PREVIEW CONTROLS ===== */
+
+.preview-controls {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+}
+
+.capsule-preview:hover .preview-controls,
+.capsule-preview.preview-hover .preview-controls {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.preview-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--nebula-text-primary, #1a202c);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.preview-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.preview-btn .material-symbols-outlined {
+    font-size: 16px;
+    font-variation-settings:
+        'FILL' 0,
+        'wght' 500,
+        'GRAD' 0,
+        'opsz' 16;
+}
+
+.refresh-btn:hover {
+    color: var(--nebula-primary, #667eea);
+}
+
+.restore-btn:hover {
+    color: var(--nebula-success, #10b981);
+}
+
+/* ===== PREVIEW INFO BAR ===== */
+
+.preview-info {
+    height: 20px;
+    background: var(--nebula-surface-secondary, #f1f5f9);
+    border-top: 1px solid var(--nebula-border-light, #f1f5f9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    font-size: 10px;
+    color: var(--nebula-text-secondary, #64748b);
+}
+
+.preview-timestamp {
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+/* ===== CAPSULE STATES ===== */
+
+/* Loading state */
+.capsule-preview.loading .preview-image {
+    opacity: 0.5;
+    filter: blur(2px);
+}
+
+.capsule-preview.loading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--nebula-primary, #667eea);
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 10;
+}
+
+/* Error state */
+.capsule-preview.error {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+}
+
+.capsule-preview.error .preview-image {
+    opacity: 0.3;
+    filter: grayscale(100%);
+}
+
+/* Fresh state (recently updated) */
+.capsule-preview.fresh .preview-info {
+    background: linear-gradient(90deg, 
+        var(--nebula-success, #10b981), 
+        var(--nebula-surface-secondary, #f1f5f9) 20%);
+    color: white;
+}
+
+/* ===== DARK THEME SUPPORT ===== */
+
+[data-theme="dark"] .capsule-preview {
+    background: var(--nebula-surface, #1e293b);
+    border-top-color: var(--nebula-border, #334155);
+}
+
+[data-theme="dark"] .preview-image-container {
+    background: linear-gradient(135deg, 
+        var(--nebula-bg-secondary, #1e293b), 
+        var(--nebula-bg-primary, #0f172a));
+}
+
+[data-theme="dark"] .preview-info {
+    background: var(--nebula-surface-secondary, #334155);
+    border-top-color: var(--nebula-border, #475569);
+    color: var(--nebula-text-secondary, #cbd5e1);
+}
+
+[data-theme="dark"] .preview-btn {
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--nebula-text-primary, #f8fafc);
+}
+
+[data-theme="dark"] .preview-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+/* ===== CAPSULE SIZING VARIANTS ===== */
+
+/* Compact capsule */
+.nebula-window.titlebar-only.compact .capsule-preview {
+    height: 60px;
+}
+
+.nebula-window.titlebar-only.compact .preview-image-container {
+    height: 40px;
+}
+
+.nebula-window.titlebar-only.compact .preview-info {
+    height: 20px;
+    font-size: 9px;
+}
+
+/* Large capsule */
+.nebula-window.titlebar-only.large .capsule-preview {
+    height: 120px;
+}
+
+.nebula-window.titlebar-only.large .preview-image-container {
+    height: 100px;
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes capsule-enter {
+    0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(-10px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes preview-refresh {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Apply enter animation */
+.nebula-window.titlebar-only .capsule-preview {
+    animation: capsule-enter 0.3s ease-out;
+}
+
+/* Apply refresh animation when updating */
+.capsule-preview.refreshing .preview-image {
+    animation: preview-refresh 0.6s ease-in-out;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+@media (max-width: 768px) {
+    .capsule-preview {
+        height: 70px;
+    }
+    
+    .preview-image-container {
+        height: 60px;
+    }
+    
+    .preview-controls {
+        gap: 2px;
+    }
+    
+    .preview-btn {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .preview-btn .material-symbols-outlined {
+        font-size: 14px;
+    }
+    
+    .preview-info {
+        height: 18px;
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 480px) {
+    .nebula-window.titlebar-only {
+        min-width: 120px;
+    }
+    
+    .capsule-preview {
+        height: 50px;
+    }
+    
+    .preview-image-container {
+        height: 35px;
+    }
+    
+    .preview-info {
+        height: 15px;
+        font-size: 8px;
+    }
+    
+    .preview-controls {
+        display: none; /* Hide controls on very small screens */
+    }
+}
+
+/* ===== ACCESSIBILITY ===== */
+
+.preview-btn:focus {
+    outline: 2px solid var(--nebula-primary, #667eea);
+    outline-offset: 2px;
+}
+
+.capsule-preview:focus-within .preview-overlay {
+    opacity: 1;
+}
+
+.capsule-preview:focus-within .preview-controls {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ===== SPECIAL EFFECTS ===== */
+
+/* Glowing effect for active capsules */
+.nebula-window.titlebar-only.active {
+    box-shadow: 
+        0 8px 32px rgba(102, 126, 234, 0.3),
+        0 2px 8px rgba(102, 126, 234, 0.2),
+        0 0 0 1px rgba(102, 126, 234, 0.3);
+}
+
+/* Pulse effect for fresh screenshots */
+.capsule-preview.fresh {
+    animation: fresh-pulse 2s ease-out;
+}
+
+@keyframes fresh-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+/* Shake effect for errors */
+.capsule-preview.error {
+    animation: error-shake 0.5s ease-in-out;
+}
+
+@keyframes error-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* ===== SCREENSHOT NOTIFICATION STYLES ===== */
+
+.screenshot-notification {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notification-content .material-symbols-outlined {
+    font-size: 18px;
+    font-variation-settings:
+        'FILL' 1,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 18;
+}
+
+/* ===== PERFORMANCE OPTIMIZATIONS ===== */
+
+/* Use GPU acceleration for smooth animations */
+.capsule-preview,
+.preview-image,
+.preview-overlay,
+.preview-controls,
+.nebula-window.titlebar-only {
+    will-change: transform, opacity;
+    transform: translateZ(0); /* Force hardware acceleration */
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    .capsule-preview,
+    .preview-image,
+    .preview-overlay,
+    .preview-controls,
+    .nebula-window.titlebar-only {
+        transition: none;
+        animation: none;
+    }
+    
+    .capsule-preview:hover .preview-image {
+        transform: none;
+    }
+    
+    .preview-btn:hover {
+        transform: none;
+    }
+}
+
+/* ===== INTEGRATION WITH EXISTING WINDOW STYLES ===== */
+
+/* Ensure capsules work with existing window themes */
+.nebula-window.titlebar-only .window-titlebar {
+    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid var(--nebula-border, #e2e8f0);
+}
+
+/* Hide resize handles for capsules */
+.nebula-window.titlebar-only .resize-handle {
+    display: none !important;
+}
+
+/* Ensure proper z-index stacking */
+.nebula-window.titlebar-only {
+    position: absolute;
+    z-index: 99999;
+}
+
+/* Make sure capsules don't interfere with window manager drag */
+.nebula-window.titlebar-only.dragging {
+    pointer-events: none;
+}
+
+.nebula-window.titlebar-only.dragging .window-titlebar {
+    pointer-events: auto;
+}
+
+/* ===== FINAL POLISH ===== */
+
+/* Smooth color transitions for theme changes */
+.capsule-preview,
+.capsule-preview *,
+.nebula-window.titlebar-only,
+.preview-btn,
+.screenshot-notification {
+    transition: 
+        background-color 0.3s ease,
+        border-color 0.3s ease,
+        color 0.3s ease;
+}
+
+/* Ensure capsule previews work with all themes */
+.capsule-preview {
+    color: var(--nebula-text-primary);
+    background: var(--nebula-surface);
+}

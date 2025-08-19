@@ -45,14 +45,13 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/nebula-theme.css">
     <link rel="stylesheet" href="css/nebula-extended-themes.css">
-
     <link rel="stylesheet" href="css/window-manager.css">
     <link rel="stylesheet" href="css/vertical-browser.css">
     <link rel="stylesheet" href="css/assistant.css">
     <link rel="stylesheet" href="css/NebulaApp-PWA.css">
     <link rel="stylesheet" href="css/window-titlebar-mode-styles.css">
     <link rel="stylesheet" href="css/nebula-material-icons.css">
-
+    <link rel="stylesheet" href="css/capsule-preview.css">
     <link rel="stylesheet" href="css/nebula-theme-bridge.css">
 
     <!-- XTerm.js for terminal emulation -->
@@ -70,21 +69,25 @@
     -->
 
     <!-- Load WindowManager FIRST -->
+    <!-- Screenshot Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+
 
     <script src="js/WindowManager.js"></script>
     <script src="js/nebula-theme-manager.js"></script>
 
     <!-- Widget System - Load BEFORE apps and renderer -->
     <script src="js/NebulaWidgetSystem.js"></script>
-     <script src="js/Widgets/NebulaLauncher.js"></script>
+    <script src="js/Widgets/NebulaLauncher.js"></script>
     <script src="js/Widgets/NebulaClock.js"></script>
-   
+
 
 
     <!-- Load WM Apps First -->
     <script src="apps/browser.js"></script>
     <script src="apps/filemanager.js"></script>
-        <script src="apps/NebulaTerminal.js"></script>
+    <script src="apps/NebulaTerminal.js"></script>
     <script src="apps/image-viewer.js"></script>
     <script src="apps/media-player.js"></script>
 
@@ -107,7 +110,7 @@
 
     <!-- Load Desktop Environment LAST -->
     <script src="js/renderer.js"></script>
-        <script src="js/taskbar-theme.js"></script>
+    <script src="js/taskbar-theme.js"></script>
 
 </body>
 
