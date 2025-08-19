@@ -1,5 +1,5 @@
-// Improved Widget Menu System - Inline Mode Buttons & Widget Move Mode
-console.log('🚀 Starting Improved Widget Integration...');
+// Simplified WidgetIntegration.js - Desktop Right-Click Only (Widgets Self-Manage)
+console.log('🚀 Starting Simplified Widget Integration...');
 
 // Force clock widget registration if missing
 function ensureClockWidgetRegistered() {
@@ -34,7 +34,7 @@ function ensureClockWidgetRegistered() {
                     y: 100
                 },
                 author: 'NebulaDesktop',
-                version: '1.0.0'
+                version: '2.0.0'
             });
             console.log('✅ Clock widget registered successfully');
             return true;
@@ -62,187 +62,27 @@ function waitForWidgetSystem() {
     });
 }
 
-// Widget Move Mode Manager
-class WidgetMoveManager {
-    constructor() {
-        this.moveMode = false;
-        this.movingWidget = null;
-        this.originalCursor = null;
-        this.mouseMoveHandler = null;
-        this.clickHandler = null;
-    }
-
-    startMoveMode(widgetElement, widgetId) {
-        if (this.moveMode) {
-            this.stopMoveMode();
-            return;
-        }
-
-        console.log('🔄 Starting move mode for widget:', widgetId);
-        
-        this.moveMode = true;
-        this.movingWidget = { element: widgetElement, id: widgetId };
-        this.originalCursor = document.body.style.cursor;
-        
-        // Change cursor and add visual feedback
-        document.body.style.cursor = 'move';
-        widgetElement.style.opacity = '0.8';
-        widgetElement.style.transform = 'scale(1.02)';
-        widgetElement.style.zIndex = '1999';
-        
-        // Add move overlay
-        this.createMoveOverlay();
-        
-        // Set up mouse handlers
-        this.mouseMoveHandler = (e) => this.handleMouseMove(e);
-        this.clickHandler = (e) => this.handleClick(e);
-        
-        document.addEventListener('mousemove', this.mouseMoveHandler);
-        document.addEventListener('click', this.clickHandler);
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') this.stopMoveMode();
-        });
-        
-        // Prevent all clicks on the moving widget
-        widgetElement.style.pointerEvents = 'none';
-    }
-
-    createMoveOverlay() {
-        const overlay = document.createElement('div');
-        overlay.id = 'widget-move-overlay';
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(102, 126, 234, 0.1);
-            z-index: 1998;
-            pointer-events: none;
-            backdrop-filter: blur(2px);
-        `;
-        
-        const instructions = document.createElement('div');
-        instructions.style.cssText = `
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--nebula-surface, #ffffff);
-            border: 1px solid var(--nebula-border, #e2e8f0);
-            border-radius: var(--nebula-radius-md, 8px);
-            padding: 12px 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px;
-            color: var(--nebula-text-primary, #1a202c);
-            box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
-            text-align: center;
-        `;
-        instructions.innerHTML = `
-            <div style="font-weight: 600; margin-bottom: 4px;">🔄 Widget Move Mode</div>
-            <div style="font-size: 12px; color: var(--nebula-text-secondary, #64748b);">
-                Click anywhere to place widget • Press Escape to cancel
-            </div>
-        `;
-        
-        overlay.appendChild(instructions);
-        document.body.appendChild(overlay);
-    }
-
-    handleMouseMove(e) {
-        if (!this.movingWidget) return;
-        
-        const widget = this.movingWidget.element;
-        const rect = widget.getBoundingClientRect();
-        
-        // Update widget position to follow mouse
-        widget.style.left = (e.clientX - rect.width / 2) + 'px';
-        widget.style.top = (e.clientY - rect.height / 2) + 'px';
-    }
-
-    handleClick(e) {
-        if (!this.movingWidget) return;
-        
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const widget = this.movingWidget.element;
-        const newX = e.clientX - widget.offsetWidth / 2;
-        const newY = e.clientY - widget.offsetHeight / 2;
-        
-        // Update widget position in the system
-        if (window.widgetSystem) {
-            const activeWidgets = window.widgetSystem.getActiveWidgets();
-            const widgetData = activeWidgets.find(w => w.id === this.movingWidget.id);
-            if (widgetData) {
-                widgetData.x = newX;
-                widgetData.y = newY;
-            }
-        }
-        
-        console.log(`📍 Widget ${this.movingWidget.id} moved to (${newX}, ${newY})`);
-        this.stopMoveMode();
-    }
-
-    stopMoveMode() {
-        if (!this.moveMode) return;
-        
-        console.log('🔄 Stopping move mode');
-        
-        this.moveMode = false;
-        
-        // Restore cursor
-        document.body.style.cursor = this.originalCursor || '';
-        
-        // Restore widget appearance
-        if (this.movingWidget) {
-            const widget = this.movingWidget.element;
-            widget.style.opacity = '';
-            widget.style.transform = '';
-            widget.style.zIndex = '';
-            widget.style.pointerEvents = '';
-        }
-        
-        // Remove overlay
-        const overlay = document.getElementById('widget-move-overlay');
-        if (overlay) overlay.remove();
-        
-        // Remove event listeners
-        if (this.mouseMoveHandler) {
-            document.removeEventListener('mousemove', this.mouseMoveHandler);
-            this.mouseMoveHandler = null;
-        }
-        if (this.clickHandler) {
-            document.removeEventListener('click', this.clickHandler);
-            this.clickHandler = null;
-        }
-        
-        this.movingWidget = null;
-    }
-}
-
-// Improved Widget Integration
-class ImprovedWidgetIntegration {
+// Simplified Widget Integration - Only Desktop Context Menu
+class SimplifiedWidgetIntegration {
     constructor() {
         this.contextMenu = null;
         this.currentX = 0;
         this.currentY = 0;
         this.devPanel = null;
-        this.moveManager = new WidgetMoveManager();
         
         this.init();
     }
 
     async init() {
         await waitForWidgetSystem();
-        console.log('🧩 Improved Widget Integration initializing...');
+        console.log('🧩 Simplified Widget Integration initializing...');
         
         this.setupDesktopRightClick();
-        this.setupWidgetRightClick();
         this.createDevPanel();
         this.setupConsoleCommands();
         
-        console.log('✅ Improved Widget System Integration complete!');
+        console.log('✅ Simplified Widget System Integration complete!');
+        console.log('📋 Widgets now self-manage with right-click context menus');
     }
 
     setupDesktopRightClick() {
@@ -258,84 +98,13 @@ class ImprovedWidgetIntegration {
         });
     }
 
-    setupWidgetRightClick() {
-        // Set up right-click handlers for widgets (for move mode)
-        document.addEventListener('contextmenu', (e) => {
-            const widgetWrapper = e.target.closest('.nebula-widget-wrapper');
-            if (widgetWrapper) {
-                e.preventDefault();
-                e.stopPropagation();
-                this.showWidgetContextMenu(e, widgetWrapper);
-            }
-        });
-    }
-
-    showWidgetContextMenu(e, widgetWrapper) {
-        const widgetId = widgetWrapper.dataset.widgetId || widgetWrapper.id;
-        
-        this.hideContextMenu();
-        
-        this.contextMenu = document.createElement('div');
-        this.contextMenu.className = 'widget-context-menu';
-        this.contextMenu.style.cssText = `
-            position: fixed;
-            left: ${e.clientX}px;
-            top: ${e.clientY}px;
-            background: var(--nebula-surface, #ffffff);
-            border: 1px solid var(--nebula-border, #e2e8f0);
-            border-radius: var(--nebula-radius-md, 8px);
-            box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
-            padding: 8px 0;
-            min-width: 180px;
-            z-index: 10000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px;
-            color: var(--nebula-text-primary, #1a202c);
-            backdrop-filter: blur(10px);
-            animation: contextMenuFadeIn 0.2s ease;
-        `;
-
-        this.contextMenu.innerHTML = `
-            <div class="context-menu-item" data-action="move-widget" data-widget-id="${widgetId}">
-                <span class="menu-icon">🔄</span>
-                <span class="menu-text">Move Widget</span>
-            </div>
-            <div class="context-menu-separator"></div>
-            <div class="context-menu-item" data-action="remove-widget" data-widget-id="${widgetId}">
-                <span class="menu-icon">🗑️</span>
-                <span class="menu-text">Remove Widget</span>
-            </div>
-        `;
-
-        this.contextMenu.addEventListener('click', (e) => {
-            const item = e.target.closest('.context-menu-item');
-            if (!item) return;
-            
-            const action = item.dataset.action;
-            const targetWidgetId = item.dataset.widgetId;
-            
-            if (action === 'move-widget') {
-                this.moveManager.startMoveMode(widgetWrapper, targetWidgetId);
-            } else if (action === 'remove-widget') {
-                if (confirm('Remove this widget?')) {
-                    window.widgetSystem.removeWidget(targetWidgetId);
-                }
-            }
-            
-            this.hideContextMenu();
-        });
-
-        document.body.appendChild(this.contextMenu);
-        this.positionContextMenu(e.clientX, e.clientY);
-    }
-
     handleDesktopRightClick = (e) => {
         // Only handle right-clicks on the desktop itself
         if (e.target.closest('.nebula-widget-wrapper') || 
             e.target.closest('.window') || 
             e.target.closest('.taskbar') ||
             e.target.closest('.launcher')) {
-            return;
+            return; // Let widgets handle their own context menus
         }
 
         e.preventDefault();
@@ -354,7 +123,7 @@ class ImprovedWidgetIntegration {
         const registeredWidgets = window.widgetSystem.getRegisteredWidgets();
         const activeWidgets = window.widgetSystem.getActiveWidgets();
         
-        console.log('📋 Creating context menu with', registeredWidgets.length, 'registered widgets');
+        console.log('📋 Creating desktop context menu with', registeredWidgets.length, 'registered widgets');
         
         this.contextMenu = document.createElement('div');
         this.contextMenu.className = 'desktop-context-menu';
@@ -367,7 +136,7 @@ class ImprovedWidgetIntegration {
             border-radius: var(--nebula-radius-md, 8px);
             box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
             padding: 8px 0;
-            min-width: 250px;
+            min-width: 280px;
             max-width: 350px;
             z-index: 10000;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -379,15 +148,17 @@ class ImprovedWidgetIntegration {
 
         let menuHTML = '';
         
+        // Header
+        menuHTML += `
+            <div class="context-menu-header">
+                <span class="menu-icon">🧩</span>
+                <span class="menu-title">Create Widgets</span>
+            </div>
+            <div class="context-menu-separator"></div>
+        `;
+        
         // Widgets section
         if (registeredWidgets.length > 0) {
-            menuHTML += `
-                <div class="submenu-header">
-                    <span class="submenu-title">🧩 Create Widgets</span>
-                </div>
-                <div class="context-menu-separator"></div>
-            `;
-            
             // Group widgets by category
             const categorizedWidgets = this.categorizeWidgets(registeredWidgets);
             
@@ -400,17 +171,22 @@ class ImprovedWidgetIntegration {
                 
                 categorizedWidgets[category].forEach(widget => {
                     menuHTML += `
-                        <div class="context-menu-item widget-menu-item" data-action="create-widget" data-widget-id="${widget.id}">
-                            <div class="widget-info">
+                        <div class="context-menu-item widget-menu-item">
+                            <div class="widget-info" data-action="create-widget" data-widget-id="${widget.id}">
                                 <span class="menu-icon">${widget.icon}</span>
                                 <div class="widget-details">
                                     <span class="menu-text">${widget.name}</span>
                                     <span class="menu-description">${widget.description}</span>
                                 </div>
                             </div>
-                            <button class="minimal-btn" data-action="create-widget-minimal" data-widget-id="${widget.id}" onclick="event.stopPropagation();">
-                                minimal
-                            </button>
+                            <div class="widget-mode-buttons">
+                                <button class="mode-btn titlebar-btn" data-action="create-titlebar" data-widget-id="${widget.id}" title="Create with titlebar">
+                                    🪟
+                                </button>
+                                <button class="mode-btn minimal-btn" data-action="create-minimal" data-widget-id="${widget.id}" title="Create minimal">
+                                    ◽
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
@@ -477,20 +253,14 @@ class ImprovedWidgetIntegration {
 
     setupContextMenuEvents() {
         this.contextMenu.addEventListener('click', (e) => {
-            const item = e.target.closest('.context-menu-item');
+            const target = e.target;
+            const item = target.closest('.context-menu-item');
             if (!item) return;
             
-            const action = item.dataset.action;
-            const widgetId = item.dataset.widgetId;
+            const action = target.dataset.action || item.dataset.action;
+            const widgetId = target.dataset.widgetId || item.dataset.widgetId;
             
-            console.log('📋 Context menu action:', action, widgetId);
-            
-            // Handle minimal button clicks
-            if (e.target.classList.contains('minimal-btn')) {
-                this.createWidgetAtPosition(widgetId, { showTitlebar: false });
-                this.hideContextMenu();
-                return;
-            }
+            console.log('📋 Desktop context menu action:', action, widgetId);
             
             this.handleContextMenuAction(action, widgetId);
             this.hideContextMenu();
@@ -502,7 +272,10 @@ class ImprovedWidgetIntegration {
             case 'create-widget':
                 this.createWidgetAtPosition(widgetId, { showTitlebar: true });
                 break;
-            case 'create-widget-minimal':
+            case 'create-titlebar':
+                this.createWidgetAtPosition(widgetId, { showTitlebar: true });
+                break;
+            case 'create-minimal':
                 this.createWidgetAtPosition(widgetId, { showTitlebar: false });
                 break;
             case 'list-widgets':
@@ -521,7 +294,7 @@ class ImprovedWidgetIntegration {
                 location.reload();
                 break;
             default:
-                console.log('Unknown action:', action);
+                console.log('Unknown desktop action:', action);
         }
     }
 
@@ -562,7 +335,7 @@ class ImprovedWidgetIntegration {
         // Force re-registration if clock is missing
         ensureClockWidgetRegistered();
         
-        alert(`Widget Debug:\n\nRegistered: ${registered.length}\nActive: ${active.length}\n\nCheck console for details.`);
+        alert(`Widget Debug:\n\nRegistered: ${registered.length}\nActive: ${active.length}\n\nWidgets self-manage with right-click!\nCheck console for details.`);
     }
 
     listActiveWidgets() {
@@ -575,7 +348,7 @@ class ImprovedWidgetIntegration {
         }
         
         const list = activeWidgets.map(w => `• ${w.type} (ID: ${w.id}) at (${w.x}, ${w.y})`).join('\n');
-        alert(`Active Widgets (${activeWidgets.length}):\n\n${list}`);
+        alert(`Active Widgets (${activeWidgets.length}):\n\n${list}\n\nTip: Right-click any widget to move/remove it!`);
     }
 
     clearAllWidgets() {
@@ -595,17 +368,16 @@ class ImprovedWidgetIntegration {
     }
 
     positionContextMenu(x, y) {
-        const menu = this.contextMenu;
-        const rect = menu.getBoundingClientRect();
+        const rect = this.contextMenu.getBoundingClientRect();
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
         
         if (x + rect.width > windowWidth) {
-            menu.style.left = (windowWidth - rect.width - 10) + 'px';
+            this.contextMenu.style.left = (windowWidth - rect.width - 10) + 'px';
         }
         
         if (y + rect.height > windowHeight) {
-            menu.style.top = (windowHeight - rect.height - 10) + 'px';
+            this.contextMenu.style.top = (windowHeight - rect.height - 10) + 'px';
         }
     }
 
@@ -635,7 +407,7 @@ class ImprovedWidgetIntegration {
             font-family: monospace;
             font-size: 12px;
             z-index: 9999;
-            max-width: 300px;
+            max-width: 320px;
             box-shadow: var(--nebula-shadow-md, 0 4px 16px rgba(0, 0, 0, 0.1));
             display: none;
         `;
@@ -652,7 +424,7 @@ class ImprovedWidgetIntegration {
         
         this.devPanel.innerHTML = `
             <div style="font-weight: bold; margin-bottom: 8px; color: var(--nebula-primary, #667eea); display: flex; align-items: center; gap: 8px;">
-                🧩 Widget System Dev
+                🧩 Self-Managing Widgets
                 <button onclick="window.debugWidgetSystem()" style="padding: 2px 6px; font-size: 10px; background: var(--nebula-danger, #ef4444); color: white; border: none; border-radius: 3px; cursor: pointer;">
                     Debug
                 </button>
@@ -675,9 +447,10 @@ class ImprovedWidgetIntegration {
                 `).join('')}
             </div>
             <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--nebula-border, #e2e8f0); font-size: 9px; color: var(--nebula-text-secondary, #64748b); line-height: 1.3;">
-                Right-click desktop: Create widgets<br>
-                Right-click widget: Move/remove<br>
-                Left btn: Titlebar • Right btn: Minimal
+                <strong>Self-Managing Widgets:</strong><br>
+                • Right-click desktop: Create widgets<br>
+                • Right-click widget: Move/remove/settings<br>
+                • Widgets manage their own context menus!
             </div>
         `;
     }
@@ -740,35 +513,44 @@ class ImprovedWidgetIntegration {
             this.debugWidgetSystem();
         };
 
-        window.startWidgetMoveMode = (widgetId) => {
-            const widgetWrapper = document.querySelector(`[data-widget-id="${widgetId}"]`);
-            if (widgetWrapper) {
-                this.moveManager.startMoveMode(widgetWrapper, widgetId);
-            }
-        };
-
-        console.log('📋 Improved console commands:');
+        console.log('📋 Simplified console commands:');
         console.log('• createTestClock(x, y, minimal) - Create clock widget');
         console.log('• createTestLauncher(x, y, minimal) - Create launcher widget');
         console.log('• listWidgets() - List all widgets');
         console.log('• clearAllWidgets() - Remove all widgets');
         console.log('• debugWidgetSystem() - Debug widget system');
-        console.log('• startWidgetMoveMode(widgetId) - Start move mode for widget');
-        console.log('• Right-click desktop: Create widgets with inline minimal buttons');
-        console.log('• Right-click widget: Move/remove widget');
+        console.log('• Right-click desktop: Create widgets');
+        console.log('• Right-click widgets: Self-managed context menus!');
     }
 }
 
-// Enhanced CSS styles for improved system
-const improvedContextMenuStyles = `
-<style id="improved-widget-context-menu-styles">
+// Simplified CSS styles for desktop context menu only
+const simplifiedContextMenuStyles = `
+<style id="simplified-widget-context-menu-styles">
 @keyframes contextMenuFadeIn {
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
 }
 
-.desktop-context-menu, .widget-context-menu {
+.desktop-context-menu {
     user-select: none;
+}
+
+.context-menu-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--nebula-surface-secondary, #f8fafc);
+    border-bottom: 1px solid var(--nebula-border, #e2e8f0);
+    margin: -8px 0 0 0;
+    border-radius: var(--nebula-radius-md, 8px) var(--nebula-radius-md, 8px) 0 0;
+}
+
+.menu-title {
+    font-weight: 600;
+    color: var(--nebula-text-primary, #1a202c);
+    font-size: 14px;
 }
 
 .context-menu-item {
@@ -799,6 +581,7 @@ const improvedContextMenuStyles = `
     gap: 12px;
     flex: 1;
     min-width: 0;
+    cursor: pointer;
 }
 
 .widget-details {
@@ -824,23 +607,43 @@ const improvedContextMenuStyles = `
     white-space: nowrap;
 }
 
-.minimal-btn {
-    background: var(--nebula-secondary, #764ba2);
+.widget-mode-buttons {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.mode-btn {
+    background: var(--nebula-primary, #667eea);
     color: white;
     border: none;
-    padding: 4px 8px;
+    padding: 6px 8px;
     border-radius: 4px;
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
-    flex-shrink: 0;
-    text-transform: lowercase;
+    min-width: 32px;
+    text-align: center;
+}
+
+.mode-btn:hover {
+    transform: scale(1.05);
+}
+
+.titlebar-btn {
+    background: var(--nebula-primary, #667eea);
+}
+
+.titlebar-btn:hover {
+    background: var(--nebula-primary-hover, #5a67d8);
+}
+
+.minimal-btn {
+    background: var(--nebula-secondary, #764ba2);
 }
 
 .minimal-btn:hover {
     background: var(--nebula-secondary-hover, #5a2d91);
-    transform: scale(1.05);
 }
 
 .context-menu-separator {
@@ -856,20 +659,6 @@ const improvedContextMenuStyles = `
     flex-shrink: 0;
 }
 
-.submenu-header {
-    padding: 8px 16px;
-    background: var(--nebula-surface-secondary, #f8fafc);
-    border-bottom: 1px solid var(--nebula-border, #e2e8f0);
-    margin: -8px -0 8px 0;
-    border-radius: var(--nebula-radius-md, 8px) var(--nebula-radius-md, 8px) 0 0;
-}
-
-.submenu-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--nebula-text-primary, #1a202c);
-}
-
 .submenu-category-header {
     padding: 6px 16px 4px 16px;
     font-size: 11px;
@@ -881,37 +670,31 @@ const improvedContextMenuStyles = `
 }
 
 /* Dark theme support */
-[data-theme="dark"] .desktop-context-menu,
-[data-theme="dark"] .widget-context-menu {
+[data-theme="dark"] .desktop-context-menu {
     background: var(--nebula-surface, #2d3748);
     border-color: var(--nebula-border, #4a5568);
     color: var(--nebula-text-primary, #e2e8f0);
+}
+
+[data-theme="dark"] .context-menu-header {
+    background: var(--nebula-surface-secondary, #1e293b);
+    border-color: var(--nebula-border, #4a5568);
 }
 
 [data-theme="dark"] .context-menu-item:hover {
     background: var(--nebula-surface-hover, #4a5568);
 }
 
-[data-theme="dark"] .submenu-header {
-    background: var(--nebula-surface-secondary, #1e293b);
-    border-color: var(--nebula-border, #4a5568);
-}
-
 [data-theme="dark"] .submenu-category-header {
     background: var(--nebula-bg-secondary, #1e293b);
 }
 
+[data-theme="dark"] .mode-btn {
+    background: var(--nebula-primary, #667eea);
+}
+
 [data-theme="dark"] .minimal-btn {
     background: var(--nebula-secondary, #764ba2);
-}
-
-[data-theme="dark"] .minimal-btn:hover {
-    background: var(--nebula-secondary-hover, #5a2d91);
-}
-
-/* Move mode overlay styles */
-#widget-move-overlay {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Responsive design */
@@ -928,24 +711,24 @@ const improvedContextMenuStyles = `
     .menu-description {
         display: none;
     }
-}
-
-/* Animation for move mode */
-.widget-moving {
-    transition: none !important;
-    opacity: 0.8;
-    transform: scale(1.02);
-    z-index: 1999 !important;
+    
+    .mode-btn {
+        padding: 4px 6px;
+        font-size: 11px;
+        min-width: 28px;
+    }
 }
 </style>
 `;
 
-// Inject improved styles
-if (!document.getElementById('improved-widget-context-menu-styles')) {
-    document.head.insertAdjacentHTML('beforeend', improvedContextMenuStyles);
+// Inject simplified styles
+if (!document.getElementById('simplified-widget-context-menu-styles')) {
+    document.head.insertAdjacentHTML('beforeend', simplifiedContextMenuStyles);
 }
 
-// Initialize the improved widget integration
-const improvedWidgetIntegration = new ImprovedWidgetIntegration();
+// Initialize the simplified widget integration
+const simplifiedWidgetIntegration = new SimplifiedWidgetIntegration();
 
-console.log('✅ Improved Widget Integration loaded!');
+console.log('✅ Simplified Widget Integration loaded!');
+console.log('🎯 Widgets now self-manage with right-click context menus');
+console.log('📋 Desktop right-click creates widgets with mode buttons');

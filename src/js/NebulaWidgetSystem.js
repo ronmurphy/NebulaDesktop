@@ -1,3 +1,521 @@
+// Enhanced NebulaWidget Base Class - Self-Managing Context Menus
+// Add this to the beginning of your NebulaWidgetSystem.js file or create a separate file
+
+// Enhanced Base Widget Class with Built-in Context Menu
+// class NebulaWidget {
+//     constructor(config = {}) {
+//         this.id = config.id || this.generateId();
+//         this.x = config.x || 100;
+//         this.y = config.y || 100;
+//         this.showTitlebar = config.showTitlebar !== false; // Default true
+//         this.element = null;
+//         this.contextMenu = null;
+//         this.moveMode = false;
+//         this.originalCursor = null;
+//         this.mouseMoveHandler = null;
+//         this.clickHandler = null;
+//         this.moveOverlay = null;
+//     }
+
+//     generateId() {
+//         return 'widget-' + Math.random().toString(36).substr(2, 9);
+//     }
+
+//     // Abstract methods that child widgets must implement
+//     render() {
+//         throw new Error('render() method must be implemented by child class');
+//     }
+
+//     getTitle() {
+//         throw new Error('getTitle() method must be implemented by child class');
+//     }
+
+//     getIcon() {
+//         throw new Error('getIcon() method must be implemented by child class');
+//     }
+
+//     cleanup() {
+//         // Default cleanup - can be overridden
+//         this.hideContextMenu();
+//         this.stopMoveMode();
+//     }
+
+//     // Initialize the widget (called after render)
+//     init() {
+//         // Override in child classes if needed
+//     }
+
+//     // Setup right-click context menu
+//     setupWidgetContextMenu() {
+//         if (!this.element) return;
+
+//         // Remove any existing listeners
+//         this.element.removeEventListener('contextmenu', this.handleWidgetRightClick);
+        
+//         // Add right-click listener
+//         this.element.addEventListener('contextmenu', (e) => this.handleWidgetRightClick(e));
+        
+//         // Close context menu when clicking elsewhere
+//         document.addEventListener('click', (e) => {
+//             if (this.contextMenu && !this.contextMenu.contains(e.target)) {
+//                 this.hideContextMenu();
+//             }
+//         });
+        
+//         // Close on escape
+//         document.addEventListener('keydown', (e) => {
+//             if (e.key === 'Escape') {
+//                 this.hideContextMenu();
+//                 this.stopMoveMode();
+//             }
+//         });
+//     }
+
+//     handleWidgetRightClick = (e) => {
+//         e.preventDefault();
+//         e.stopPropagation();
+        
+//         console.log(`🖱️ Right-click on ${this.getTitle()} widget`);
+//         this.showWidgetContextMenu(e.clientX, e.clientY);
+//     }
+
+//     showWidgetContextMenu(x, y) {
+//         this.hideContextMenu();
+        
+//         this.contextMenu = document.createElement('div');
+//         this.contextMenu.className = 'widget-context-menu';
+//         this.contextMenu.style.cssText = `
+//             position: fixed;
+//             left: ${x}px;
+//             top: ${y}px;
+//             background: var(--nebula-surface, #ffffff);
+//             border: 1px solid var(--nebula-border, #e2e8f0);
+//             border-radius: var(--nebula-radius-md, 8px);
+//             box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
+//             padding: 8px 0;
+//             min-width: 200px;
+//             z-index: 10000;
+//             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+//             font-size: 14px;
+//             color: var(--nebula-text-primary, #1a202c);
+//             backdrop-filter: blur(10px);
+//             animation: contextMenuFadeIn 0.2s ease;
+//         `;
+
+//         // Build context menu
+//         let menuHTML = `
+//             <div class="context-menu-header">
+//                 <span class="menu-icon">${this.getIcon()}</span>
+//                 <span class="menu-title">${this.getTitle()}</span>
+//             </div>
+//             <div class="context-menu-separator"></div>
+//         `;
+
+//         // Mode toggle
+//         const currentMode = this.showTitlebar ? 'Titlebar' : 'Minimal';
+//         const switchMode = this.showTitlebar ? 'Minimal' : 'Titlebar';
+        
+//         menuHTML += `
+//             <div class="context-menu-item" data-action="toggle-mode">
+//                 <span class="menu-icon">${this.showTitlebar ? '◽' : '🪟'}</span>
+//                 <span class="menu-text">Switch to ${switchMode} Mode</span>
+//                 <span class="menu-status">(Currently: ${currentMode})</span>
+//             </div>
+//             <div class="context-menu-separator"></div>
+//             <div class="context-menu-item" data-action="move-widget">
+//                 <span class="menu-icon">🔄</span>
+//                 <span class="menu-text">Move Widget</span>
+//             </div>
+//             <div class="context-menu-separator"></div>
+//         `;
+
+//         // Add widget-specific menu items
+//         const customItems = this.getCustomContextMenuItems();
+//         if (customItems && customItems.length > 0) {
+//             customItems.forEach(item => {
+//                 menuHTML += `
+//                     <div class="context-menu-item" data-action="${item.action}">
+//                         <span class="menu-icon">${item.icon}</span>
+//                         <span class="menu-text">${item.text}</span>
+//                     </div>
+//                 `;
+//             });
+//             menuHTML += `<div class="context-menu-separator"></div>`;
+//         }
+
+//         // Remove widget
+//         menuHTML += `
+//             <div class="context-menu-item danger" data-action="remove-widget">
+//                 <span class="menu-icon">🗑️</span>
+//                 <span class="menu-text">Remove Widget</span>
+//             </div>
+//         `;
+
+//         this.contextMenu.innerHTML = menuHTML;
+//         this.setupContextMenuEvents();
+//         this.positionContextMenu(x, y);
+        
+//         document.body.appendChild(this.contextMenu);
+//     }
+
+//     // Override this in child classes to add custom menu items
+//     getCustomContextMenuItems() {
+//         return [];
+//     }
+
+//     setupContextMenuEvents() {
+//         this.contextMenu.addEventListener('click', (e) => {
+//             const item = e.target.closest('.context-menu-item');
+//             if (!item) return;
+            
+//             const action = item.dataset.action;
+//             console.log(`📋 Widget context action: ${action}`);
+            
+//             this.handleContextMenuAction(action);
+//             this.hideContextMenu();
+//         });
+//     }
+
+//     handleContextMenuAction(action) {
+//         switch (action) {
+//             case 'toggle-mode':
+//                 this.toggleMode();
+//                 break;
+//             case 'move-widget':
+//                 this.startMoveMode();
+//                 break;
+//             case 'remove-widget':
+//                 this.removeWidget();
+//                 break;
+//             default:
+//                 // Handle custom actions in child classes
+//                 this.handleCustomContextAction(action);
+//         }
+//     }
+
+//     // Override this in child classes to handle custom actions
+//     handleCustomContextAction(action) {
+//         console.log(`Custom action not handled: ${action}`);
+//     }
+
+//     toggleMode() {
+//         console.log(`🔄 Toggling mode for ${this.getTitle()} widget`);
+        
+//         // Store current position
+//         const rect = this.element.getBoundingClientRect();
+//         this.x = rect.left;
+//         this.y = rect.top;
+        
+//         // Toggle the mode
+//         this.showTitlebar = !this.showTitlebar;
+        
+//         // Re-render the widget
+//         const newElement = this.render();
+        
+//         // Replace the old element
+//         this.element.parentNode.replaceChild(newElement, this.element);
+//         this.element = newElement;
+        
+//         // Restore position
+//         this.element.style.left = this.x + 'px';
+//         this.element.style.top = this.y + 'px';
+        
+//         // Re-setup event handlers
+//         this.setupWidgetContextMenu();
+//         this.setupEventListeners();
+        
+//         // Re-initialize if needed
+//         this.init();
+        
+//         console.log(`✅ Mode toggled to: ${this.showTitlebar ? 'Titlebar' : 'Minimal'}`);
+//     }
+
+//     startMoveMode() {
+//         if (this.moveMode) return;
+        
+//         console.log(`🔄 Starting move mode for ${this.getTitle()} widget`);
+        
+//         this.moveMode = true;
+//         this.originalCursor = document.body.style.cursor;
+        
+//         // Visual feedback
+//         document.body.style.cursor = 'move';
+//         this.element.style.opacity = '0.8';
+//         this.element.style.transform = 'scale(1.02)';
+//         this.element.style.zIndex = '1999';
+//         this.element.style.pointerEvents = 'none';
+        
+//         // Create move overlay
+//         this.createMoveOverlay();
+        
+//         // Set up handlers
+//         this.mouseMoveHandler = (e) => this.handleMoveMouseMove(e);
+//         this.clickHandler = (e) => this.handleMoveClick(e);
+        
+//         document.addEventListener('mousemove', this.mouseMoveHandler);
+//         document.addEventListener('click', this.clickHandler);
+//     }
+
+//     createMoveOverlay() {
+//         this.moveOverlay = document.createElement('div');
+//         this.moveOverlay.style.cssText = `
+//             position: fixed;
+//             top: 0;
+//             left: 0;
+//             width: 100vw;
+//             height: 100vh;
+//             background: rgba(102, 126, 234, 0.1);
+//             z-index: 1998;
+//             pointer-events: none;
+//             backdrop-filter: blur(2px);
+//         `;
+        
+//         const instructions = document.createElement('div');
+//         instructions.style.cssText = `
+//             position: absolute;
+//             top: 20px;
+//             left: 50%;
+//             transform: translateX(-50%);
+//             background: var(--nebula-surface, #ffffff);
+//             border: 1px solid var(--nebula-border, #e2e8f0);
+//             border-radius: var(--nebula-radius-md, 8px);
+//             padding: 12px 20px;
+//             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+//             font-size: 14px;
+//             color: var(--nebula-text-primary, #1a202c);
+//             box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
+//             text-align: center;
+//         `;
+//         instructions.innerHTML = `
+//             <div style="font-weight: 600; margin-bottom: 4px;">🔄 Moving ${this.getTitle()}</div>
+//             <div style="font-size: 12px; color: var(--nebula-text-secondary, #64748b);">
+//                 Click anywhere to place • Press Escape to cancel
+//             </div>
+//         `;
+        
+//         this.moveOverlay.appendChild(instructions);
+//         document.body.appendChild(this.moveOverlay);
+//     }
+
+//     handleMoveMouseMove(e) {
+//         if (!this.element) return;
+        
+//         const rect = this.element.getBoundingClientRect();
+//         this.element.style.left = (e.clientX - rect.width / 2) + 'px';
+//         this.element.style.top = (e.clientY - rect.height / 2) + 'px';
+//     }
+
+//     handleMoveClick(e) {
+//         e.preventDefault();
+//         e.stopPropagation();
+        
+//         const newX = e.clientX - this.element.offsetWidth / 2;
+//         const newY = e.clientY - this.element.offsetHeight / 2;
+        
+//         // Update position
+//         this.x = newX;
+//         this.y = newY;
+        
+//         // Update in widget system if available
+//         if (window.widgetSystem) {
+//             const activeWidgets = window.widgetSystem.getActiveWidgets();
+//             const widgetData = activeWidgets.find(w => w.id === this.id);
+//             if (widgetData) {
+//                 widgetData.x = newX;
+//                 widgetData.y = newY;
+//             }
+//         }
+        
+//         console.log(`📍 ${this.getTitle()} moved to (${newX}, ${newY})`);
+//         this.stopMoveMode();
+//     }
+
+//     stopMoveMode() {
+//         if (!this.moveMode) return;
+        
+//         console.log(`🔄 Stopping move mode for ${this.getTitle()}`);
+        
+//         this.moveMode = false;
+        
+//         // Restore cursor and element
+//         document.body.style.cursor = this.originalCursor || '';
+//         this.element.style.opacity = '';
+//         this.element.style.transform = '';
+//         this.element.style.zIndex = '';
+//         this.element.style.pointerEvents = '';
+        
+//         // Remove overlay
+//         if (this.moveOverlay) {
+//             this.moveOverlay.remove();
+//             this.moveOverlay = null;
+//         }
+        
+//         // Remove handlers
+//         if (this.mouseMoveHandler) {
+//             document.removeEventListener('mousemove', this.mouseMoveHandler);
+//             this.mouseMoveHandler = null;
+//         }
+//         if (this.clickHandler) {
+//             document.removeEventListener('click', this.clickHandler);
+//             this.clickHandler = null;
+//         }
+//     }
+
+//     removeWidget() {
+//         const widgetName = this.getTitle();
+        
+//         if (confirm(`Remove ${widgetName} widget?`)) {
+//             console.log(`🗑️ Removing ${widgetName} widget`);
+            
+//             // Clean up
+//             this.cleanup();
+            
+//             // Remove from widget system
+//             if (window.widgetSystem) {
+//                 window.widgetSystem.removeWidget(this.id);
+//             }
+            
+//             // Remove from DOM
+//             if (this.element && this.element.parentNode) {
+//                 this.element.parentNode.removeChild(this.element);
+//             }
+//         }
+//     }
+
+//     positionContextMenu(x, y) {
+//         const rect = this.contextMenu.getBoundingClientRect();
+//         const windowWidth = window.innerWidth;
+//         const windowHeight = window.innerHeight;
+        
+//         if (x + rect.width > windowWidth) {
+//             this.contextMenu.style.left = (windowWidth - rect.width - 10) + 'px';
+//         }
+        
+//         if (y + rect.height > windowHeight) {
+//             this.contextMenu.style.top = (windowHeight - rect.height - 10) + 'px';
+//         }
+//     }
+
+//     hideContextMenu() {
+//         if (this.contextMenu) {
+//             this.contextMenu.remove();
+//             this.contextMenu = null;
+//         }
+//     }
+
+//     // Method that child classes should call in their setupEventListeners
+//     setupEventListeners() {
+//         // Override in child classes
+//         // Make sure to call this.setupWidgetContextMenu() in child implementation
+//     }
+// }
+
+// Enhanced Widget Context Menu Styles
+const widgetContextMenuStyles = `
+<style id="widget-context-menu-styles">
+@keyframes contextMenuFadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.widget-context-menu {
+    user-select: none;
+}
+
+.context-menu-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--nebula-surface-secondary, #f8fafc);
+    border-bottom: 1px solid var(--nebula-border, #e2e8f0);
+    margin: -8px 0 0 0;
+    border-radius: var(--nebula-radius-md, 8px) var(--nebula-radius-md, 8px) 0 0;
+}
+
+.menu-title {
+    font-weight: 600;
+    color: var(--nebula-text-primary, #1a202c);
+    font-size: 14px;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.context-menu-item:hover {
+    background: var(--nebula-surface-hover, #f1f5f9);
+}
+
+.context-menu-item.danger:hover {
+    background: var(--nebula-danger-hover, #fee2e2);
+    color: var(--nebula-danger, #ef4444);
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: var(--nebula-border, #e2e8f0);
+    margin: 4px 0;
+}
+
+.menu-icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.menu-text {
+    flex: 1;
+    font-weight: 500;
+    color: var(--nebula-text-primary, #1a202c);
+    font-size: 14px;
+}
+
+.menu-status {
+    font-size: 12px;
+    color: var(--nebula-text-secondary, #64748b);
+    font-weight: normal;
+}
+
+/* Dark theme support */
+[data-theme="dark"] .widget-context-menu {
+    background: var(--nebula-surface, #2d3748);
+    border-color: var(--nebula-border, #4a5568);
+    color: var(--nebula-text-primary, #e2e8f0);
+}
+
+[data-theme="dark"] .context-menu-header {
+    background: var(--nebula-surface-secondary, #1e293b);
+    border-color: var(--nebula-border, #4a5568);
+}
+
+[data-theme="dark"] .context-menu-item:hover {
+    background: var(--nebula-surface-hover, #4a5568);
+}
+
+[data-theme="dark"] .context-menu-item.danger:hover {
+    background: var(--nebula-danger-hover, #991b1b);
+    color: var(--nebula-danger, #f87171);
+}
+</style>
+`;
+
+// Inject styles
+if (!document.getElementById('widget-context-menu-styles')) {
+    document.head.insertAdjacentHTML('beforeend', widgetContextMenuStyles);
+}
+
+console.log('✅ Enhanced NebulaWidget base class loaded with self-managing context menus!');
+
+
+
 // NebulaWidgetSystem.js - Widget Registration and Integration System
 class NebulaWidgetSystem {
     constructor() {
@@ -354,57 +872,465 @@ class NebulaWidgetSystem {
 }
 
 // Base Widget Class - All widgets should extend this
+// class NebulaWidget {
+//     constructor(config = {}) {
+//         this.id = config.id;
+//         this.type = config.type;
+//         this.config = config;
+//         this.element = null;
+        
+//         this.init();
+//     }
+
+//     /**
+//      * Initialize the widget - override in subclasses
+//      */
+//     init() {
+//         // Override in subclasses
+//     }
+
+//     /**
+//      * Render the widget content - MUST be implemented by subclasses
+//      * @returns {HTMLElement} The widget's DOM element
+//      */
+//     render() {
+//         throw new Error('render() method must be implemented by widget subclasses');
+//     }
+
+//     /**
+//      * Update the widget - override as needed
+//      */
+//     update() {
+//         // Override in subclasses for periodic updates
+//     }
+
+//     /**
+//      * Cleanup when widget is removed - override as needed
+//      */
+//     cleanup() {
+//         // Override in subclasses
+//     }
+
+//     /**
+//      * Get widget title for display
+//      */
+//     getTitle() {
+//         return this.config.name || 'Widget';
+//     }
+
+//     /**
+//      * Get widget icon
+//      */
+//     getIcon() {
+//         return this.config.icon || '🧩';
+//     }
+// }
+
 class NebulaWidget {
     constructor(config = {}) {
-        this.id = config.id;
-        this.type = config.type;
-        this.config = config;
+        this.id = config.id || this.generateId();
+        this.x = config.x || 100;
+        this.y = config.y || 100;
+        this.showTitlebar = config.showTitlebar !== false; // Default true
         this.element = null;
-        
-        this.init();
+        this.contextMenu = null;
+        this.moveMode = false;
+        this.originalCursor = null;
+        this.mouseMoveHandler = null;
+        this.clickHandler = null;
+        this.moveOverlay = null;
     }
 
-    /**
-     * Initialize the widget - override in subclasses
-     */
-    init() {
-        // Override in subclasses
+    generateId() {
+        return 'widget-' + Math.random().toString(36).substr(2, 9);
     }
 
-    /**
-     * Render the widget content - MUST be implemented by subclasses
-     * @returns {HTMLElement} The widget's DOM element
-     */
+    // Abstract methods that child widgets must implement
     render() {
-        throw new Error('render() method must be implemented by widget subclasses');
+        throw new Error('render() method must be implemented by child class');
     }
 
-    /**
-     * Update the widget - override as needed
-     */
-    update() {
-        // Override in subclasses for periodic updates
-    }
-
-    /**
-     * Cleanup when widget is removed - override as needed
-     */
-    cleanup() {
-        // Override in subclasses
-    }
-
-    /**
-     * Get widget title for display
-     */
     getTitle() {
-        return this.config.name || 'Widget';
+        throw new Error('getTitle() method must be implemented by child class');
     }
 
-    /**
-     * Get widget icon
-     */
     getIcon() {
-        return this.config.icon || '🧩';
+        throw new Error('getIcon() method must be implemented by child class');
+    }
+
+    cleanup() {
+        // Default cleanup - can be overridden
+        this.hideContextMenu();
+        this.stopMoveMode();
+    }
+
+    // Initialize the widget (called after render)
+    init() {
+        // Override in child classes if needed
+    }
+
+    // Setup right-click context menu
+    setupWidgetContextMenu() {
+        if (!this.element) return;
+
+        // Remove any existing listeners
+        this.element.removeEventListener('contextmenu', this.handleWidgetRightClick);
+        
+        // Add right-click listener
+        this.element.addEventListener('contextmenu', (e) => this.handleWidgetRightClick(e));
+        
+        // Close context menu when clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (this.contextMenu && !this.contextMenu.contains(e.target)) {
+                this.hideContextMenu();
+            }
+        });
+        
+        // Close on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hideContextMenu();
+                this.stopMoveMode();
+            }
+        });
+    }
+
+    handleWidgetRightClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log(`🖱️ Right-click on ${this.getTitle()} widget`);
+        this.showWidgetContextMenu(e.clientX, e.clientY);
+    }
+
+    showWidgetContextMenu(x, y) {
+        this.hideContextMenu();
+        
+        this.contextMenu = document.createElement('div');
+        this.contextMenu.className = 'widget-context-menu';
+        this.contextMenu.style.cssText = `
+            position: fixed;
+            left: ${x}px;
+            top: ${y}px;
+            background: var(--nebula-surface, #ffffff);
+            border: 1px solid var(--nebula-border, #e2e8f0);
+            border-radius: var(--nebula-radius-md, 8px);
+            box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
+            padding: 8px 0;
+            min-width: 200px;
+            z-index: 10000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            color: var(--nebula-text-primary, #1a202c);
+            backdrop-filter: blur(10px);
+            animation: contextMenuFadeIn 0.2s ease;
+        `;
+
+        // Build context menu
+        let menuHTML = `
+            <div class="context-menu-header">
+                <span class="menu-icon">${this.getIcon()}</span>
+                <span class="menu-title">${this.getTitle()}</span>
+            </div>
+            <div class="context-menu-separator"></div>
+        `;
+
+        // Mode toggle
+        const currentMode = this.showTitlebar ? 'Titlebar' : 'Minimal';
+        const switchMode = this.showTitlebar ? 'Minimal' : 'Titlebar';
+        
+        menuHTML += `
+            <div class="context-menu-item" data-action="toggle-mode">
+                <span class="menu-icon">${this.showTitlebar ? '◽' : '🪟'}</span>
+                <span class="menu-text">Switch to ${switchMode} Mode</span>
+                <span class="menu-status">(Currently: ${currentMode})</span>
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="move-widget">
+                <span class="menu-icon">🔄</span>
+                <span class="menu-text">Move Widget</span>
+            </div>
+            <div class="context-menu-separator"></div>
+        `;
+
+        // Add widget-specific menu items
+        const customItems = this.getCustomContextMenuItems();
+        if (customItems && customItems.length > 0) {
+            customItems.forEach(item => {
+                menuHTML += `
+                    <div class="context-menu-item" data-action="${item.action}">
+                        <span class="menu-icon">${item.icon}</span>
+                        <span class="menu-text">${item.text}</span>
+                    </div>
+                `;
+            });
+            menuHTML += `<div class="context-menu-separator"></div>`;
+        }
+
+        // Remove widget
+        menuHTML += `
+            <div class="context-menu-item danger" data-action="remove-widget">
+                <span class="menu-icon">🗑️</span>
+                <span class="menu-text">Remove Widget</span>
+            </div>
+        `;
+
+        this.contextMenu.innerHTML = menuHTML;
+        this.setupContextMenuEvents();
+        this.positionContextMenu(x, y);
+        
+        document.body.appendChild(this.contextMenu);
+    }
+
+    // Override this in child classes to add custom menu items
+    getCustomContextMenuItems() {
+        return [];
+    }
+
+    setupContextMenuEvents() {
+        this.contextMenu.addEventListener('click', (e) => {
+            const item = e.target.closest('.context-menu-item');
+            if (!item) return;
+            
+            const action = item.dataset.action;
+            console.log(`📋 Widget context action: ${action}`);
+            
+            this.handleContextMenuAction(action);
+            this.hideContextMenu();
+        });
+    }
+
+    handleContextMenuAction(action) {
+        switch (action) {
+            case 'toggle-mode':
+                this.toggleMode();
+                break;
+            case 'move-widget':
+                this.startMoveMode();
+                break;
+            case 'remove-widget':
+                this.removeWidget();
+                break;
+            default:
+                // Handle custom actions in child classes
+                this.handleCustomContextAction(action);
+        }
+    }
+
+    // Override this in child classes to handle custom actions
+    handleCustomContextAction(action) {
+        console.log(`Custom action not handled: ${action}`);
+    }
+
+    toggleMode() {
+        console.log(`🔄 Toggling mode for ${this.getTitle()} widget`);
+        
+        // Store current position
+        const rect = this.element.getBoundingClientRect();
+        this.x = rect.left;
+        this.y = rect.top;
+        
+        // Toggle the mode
+        this.showTitlebar = !this.showTitlebar;
+        
+        // Re-render the widget
+        const newElement = this.render();
+        
+        // Replace the old element
+        this.element.parentNode.replaceChild(newElement, this.element);
+        this.element = newElement;
+        
+        // Restore position
+        this.element.style.left = this.x + 'px';
+        this.element.style.top = this.y + 'px';
+        
+        // Re-setup event handlers
+        this.setupWidgetContextMenu();
+        this.setupEventListeners();
+        
+        // Re-initialize if needed
+        this.init();
+        
+        console.log(`✅ Mode toggled to: ${this.showTitlebar ? 'Titlebar' : 'Minimal'}`);
+    }
+
+    startMoveMode() {
+        if (this.moveMode) return;
+        
+        console.log(`🔄 Starting move mode for ${this.getTitle()} widget`);
+        
+        this.moveMode = true;
+        this.originalCursor = document.body.style.cursor;
+        
+        // Visual feedback
+        document.body.style.cursor = 'move';
+        this.element.style.opacity = '0.8';
+        this.element.style.transform = 'scale(1.02)';
+        this.element.style.zIndex = '1999';
+        this.element.style.pointerEvents = 'none';
+        
+        // Create move overlay
+        this.createMoveOverlay();
+        
+        // Set up handlers
+        this.mouseMoveHandler = (e) => this.handleMoveMouseMove(e);
+        this.clickHandler = (e) => this.handleMoveClick(e);
+        
+        document.addEventListener('mousemove', this.mouseMoveHandler);
+        document.addEventListener('click', this.clickHandler);
+    }
+
+    createMoveOverlay() {
+        this.moveOverlay = document.createElement('div');
+        this.moveOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(102, 126, 234, 0.1);
+            z-index: 1998;
+            pointer-events: none;
+            backdrop-filter: blur(2px);
+        `;
+        
+        const instructions = document.createElement('div');
+        instructions.style.cssText = `
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--nebula-surface, #ffffff);
+            border: 1px solid var(--nebula-border, #e2e8f0);
+            border-radius: var(--nebula-radius-md, 8px);
+            padding: 12px 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            color: var(--nebula-text-primary, #1a202c);
+            box-shadow: var(--nebula-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.15));
+            text-align: center;
+        `;
+        instructions.innerHTML = `
+            <div style="font-weight: 600; margin-bottom: 4px;">🔄 Moving ${this.getTitle()}</div>
+            <div style="font-size: 12px; color: var(--nebula-text-secondary, #64748b);">
+                Click anywhere to place • Press Escape to cancel
+            </div>
+        `;
+        
+        this.moveOverlay.appendChild(instructions);
+        document.body.appendChild(this.moveOverlay);
+    }
+
+    handleMoveMouseMove(e) {
+        if (!this.element) return;
+        
+        const rect = this.element.getBoundingClientRect();
+        this.element.style.left = (e.clientX - rect.width / 2) + 'px';
+        this.element.style.top = (e.clientY - rect.height / 2) + 'px';
+    }
+
+    handleMoveClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const newX = e.clientX - this.element.offsetWidth / 2;
+        const newY = e.clientY - this.element.offsetHeight / 2;
+        
+        // Update position
+        this.x = newX;
+        this.y = newY;
+        
+        // Update in widget system if available
+        if (window.widgetSystem) {
+            const activeWidgets = window.widgetSystem.getActiveWidgets();
+            const widgetData = activeWidgets.find(w => w.id === this.id);
+            if (widgetData) {
+                widgetData.x = newX;
+                widgetData.y = newY;
+            }
+        }
+        
+        console.log(`📍 ${this.getTitle()} moved to (${newX}, ${newY})`);
+        this.stopMoveMode();
+    }
+
+    stopMoveMode() {
+        if (!this.moveMode) return;
+        
+        console.log(`🔄 Stopping move mode for ${this.getTitle()}`);
+        
+        this.moveMode = false;
+        
+        // Restore cursor and element
+        document.body.style.cursor = this.originalCursor || '';
+        this.element.style.opacity = '';
+        this.element.style.transform = '';
+        this.element.style.zIndex = '';
+        this.element.style.pointerEvents = '';
+        
+        // Remove overlay
+        if (this.moveOverlay) {
+            this.moveOverlay.remove();
+            this.moveOverlay = null;
+        }
+        
+        // Remove handlers
+        if (this.mouseMoveHandler) {
+            document.removeEventListener('mousemove', this.mouseMoveHandler);
+            this.mouseMoveHandler = null;
+        }
+        if (this.clickHandler) {
+            document.removeEventListener('click', this.clickHandler);
+            this.clickHandler = null;
+        }
+    }
+
+    removeWidget() {
+        const widgetName = this.getTitle();
+        
+        if (confirm(`Remove ${widgetName} widget?`)) {
+            console.log(`🗑️ Removing ${widgetName} widget`);
+            
+            // Clean up
+            this.cleanup();
+            
+            // Remove from widget system
+            if (window.widgetSystem) {
+                window.widgetSystem.removeWidget(this.id);
+            }
+            
+            // Remove from DOM
+            if (this.element && this.element.parentNode) {
+                this.element.parentNode.removeChild(this.element);
+            }
+        }
+    }
+
+    positionContextMenu(x, y) {
+        const rect = this.contextMenu.getBoundingClientRect();
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        if (x + rect.width > windowWidth) {
+            this.contextMenu.style.left = (windowWidth - rect.width - 10) + 'px';
+        }
+        
+        if (y + rect.height > windowHeight) {
+            this.contextMenu.style.top = (windowHeight - rect.height - 10) + 'px';
+        }
+    }
+
+    hideContextMenu() {
+        if (this.contextMenu) {
+            this.contextMenu.remove();
+            this.contextMenu = null;
+        }
+    }
+
+    // Method that child classes should call in their setupEventListeners
+    setupEventListeners() {
+        // Override in child classes
+        // Make sure to call this.setupWidgetContextMenu() in child implementation
     }
 }
 

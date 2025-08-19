@@ -1,4 +1,4 @@
-// NebulaClock.js - Clean Clock Widget (Complete Rewrite)
+// Enhanced NebulaClock.js - Self-Managing Widget with Context Menu
 class NebulaClock extends NebulaWidget {
     constructor(config = {}) {
         super(config);
@@ -6,32 +6,29 @@ class NebulaClock extends NebulaWidget {
         this.timeFormat = config.format || '24h'; // '12h' or '24h'
         this.showSeconds = config.showSeconds !== false; // Default true
         this.showDate = config.showDate !== false; // Default true
-        this.showTitlebar = config.showTitlebar !== false; // Default true
         this.settingsMenuVisible = false;
     }
 
     init() {
-        console.log('🕐 Initializing NebulaClock widget');
+        console.log('🕒 Initializing NebulaClock widget');
         this.startUpdating();
+        this.setupWidgetContextMenu(); // Enable right-click context menu
     }
 
     render() {
-        console.log('🕐 Rendering NebulaClock widget');
+        console.log('🕒 Rendering NebulaClock widget');
         
-        // Create the main clock container
         const clockWidget = document.createElement('div');
         clockWidget.className = this.showTitlebar ? 
             'nebula-clock-widget' : 
             'nebula-clock-widget minimal';
         
-        // Store reference for updates
         this.element = clockWidget;
 
-        // Create clock structure - conditional titlebar
         if (this.showTitlebar) {
             clockWidget.innerHTML = `
                 <div class="widget-header">
-                    <span class="widget-icon">🕐</span>
+                    <span class="widget-icon">🕒</span>
                     <span class="widget-title">Clock</span>
                     <div class="widget-controls">
                         <button class="widget-control-btn" data-action="settings" title="Settings">⚙️</button>
@@ -44,18 +41,20 @@ class NebulaClock extends NebulaWidget {
                 </div>
                 <div class="settings-menu" id="settings-menu-${this.id}" style="display: none;">
                     <div class="settings-menu-item" data-action="toggle-format">
-                        <span class="menu-icon">🕐</span>
+                        <span class="menu-icon">🕒</span>
                         <span class="menu-text">${this.timeFormat === '24h' ? 'Switch to 12h' : 'Switch to 24h'}</span>
                     </div>
-                    <div class="settings-menu-item" data-action="widget-config">
-                        <span class="menu-icon">🎨</span>
-                        <span class="menu-text">Widget Appearance</span>
-                        <span class="menu-arrow">→</span>
+                    <div class="settings-menu-item" data-action="toggle-seconds">
+                        <span class="menu-icon">⏱️</span>
+                        <span class="menu-text">${this.showSeconds ? 'Hide Seconds' : 'Show Seconds'}</span>
+                    </div>
+                    <div class="settings-menu-item" data-action="toggle-date">
+                        <span class="menu-icon">📅</span>
+                        <span class="menu-text">${this.showDate ? 'Hide Date' : 'Show Date'}</span>
                     </div>
                 </div>
             `;
         } else {
-            // Minimal widget - clock display with hover controls
             clockWidget.innerHTML = `
                 <div class="clock-display minimal">
                     <div class="minimal-controls">
@@ -67,25 +66,25 @@ class NebulaClock extends NebulaWidget {
                 </div>
                 <div class="settings-menu minimal" id="settings-menu-${this.id}" style="display: none;">
                     <div class="settings-menu-item" data-action="toggle-format">
-                        <span class="menu-icon">🕐</span>
+                        <span class="menu-icon">🕒</span>
                         <span class="menu-text">${this.timeFormat === '24h' ? 'Switch to 12h' : 'Switch to 24h'}</span>
                     </div>
-                    <div class="settings-menu-item" data-action="widget-config">
-                        <span class="menu-icon">🎨</span>
-                        <span class="menu-text">Widget Appearance</span>
-                        <span class="menu-arrow">→</span>
+                    <div class="settings-menu-item" data-action="toggle-seconds">
+                        <span class="menu-icon">⏱️</span>
+                        <span class="menu-text">${this.showSeconds ? 'Hide Seconds' : 'Show Seconds'}</span>
+                    </div>
+                    <div class="settings-menu-item" data-action="toggle-date">
+                        <span class="menu-icon">📅</span>
+                        <span class="menu-text">${this.showDate ? 'Hide Date' : 'Show Date'}</span>
                     </div>
                 </div>
             `;
         }
 
-        // Add event listeners
-        this.setupEventListeners(clockWidget);
-
-        // Initial time update
+        this.setupEventListeners();
         this.updateTime();
         
-        console.log('🕐 Clock widget rendered successfully', {
+        console.log('🕒 Clock widget rendered successfully', {
             id: this.id,
             titlebar: this.showTitlebar,
             element: clockWidget
@@ -94,41 +93,79 @@ class NebulaClock extends NebulaWidget {
         return clockWidget;
     }
 
-    setupEventListeners(element) {
-        // Handle control buttons and menu
-        element.addEventListener('click', (e) => {
+    setupEventListeners() {
+        // Set up widget-specific event listeners
+        this.element.addEventListener('click', (e) => {
             const action = e.target.closest('[data-action]')?.dataset.action;
             
             if (action === 'close') {
-                this.handleClose();
+                this.removeWidget();
             } else if (action === 'settings') {
                 this.toggleSettingsMenu();
             } else if (action === 'toggle-format') {
                 this.toggleTimeFormat();
-                this.updateSettingsMenu();
-                this.hideSettingsMenu();
-            } else if (action === 'widget-config') {
-                this.openWidgetConfig();
-                this.hideSettingsMenu();
-            }
-        });
-        
-        // Double-click for quick format toggle
-        element.addEventListener('dblclick', (e) => {
-            if (!e.target.closest('.widget-controls') && 
-                !e.target.closest('.minimal-controls') && 
-                !e.target.closest('.settings-menu')) {
-                this.toggleTimeFormat();
+            } else if (action === 'toggle-seconds') {
+                this.toggleSeconds();
+            } else if (action === 'toggle-date') {
+                this.toggleDate();
             }
         });
 
         // Close settings menu when clicking outside
         document.addEventListener('click', (e) => {
-            // Check if click is outside this widget element
             if (this.element && !this.element.contains(e.target) && this.settingsMenuVisible) {
                 this.hideSettingsMenu();
             }
         });
+
+        // Set up right-click context menu
+        this.setupWidgetContextMenu();
+    }
+
+    // Custom context menu items for clock widget
+    getCustomContextMenuItems() {
+        return [
+            {
+                action: 'settings',
+                icon: '⚙️',
+                text: 'Clock Settings'
+            },
+            {
+                action: 'toggle-format-context',
+                icon: '🕒',
+                text: `Switch to ${this.timeFormat === '24h' ? '12h' : '24h'} Format`
+            },
+            {
+                action: 'toggle-seconds-context',
+                icon: '⏱️',
+                text: `${this.showSeconds ? 'Hide' : 'Show'} Seconds`
+            },
+            {
+                action: 'toggle-date-context',
+                icon: '📅',
+                text: `${this.showDate ? 'Hide' : 'Show'} Date`
+            }
+        ];
+    }
+
+    // Handle custom context menu actions
+    handleCustomContextAction(action) {
+        switch (action) {
+            case 'settings':
+                this.toggleSettingsMenu();
+                break;
+            case 'toggle-format-context':
+                this.toggleTimeFormat();
+                break;
+            case 'toggle-seconds-context':
+                this.toggleSeconds();
+                break;
+            case 'toggle-date-context':
+                this.toggleDate();
+                break;
+            default:
+                console.log(`Unknown clock action: ${action}`);
+        }
     }
 
     startUpdating() {
@@ -139,102 +176,111 @@ class NebulaClock extends NebulaWidget {
     }
 
     updateTime() {
-        if (!this.element) return;
-
         const now = new Date();
         
-        const timeElement = this.element.querySelector(`#time-${this.id}`);
-        if (timeElement) {
-            timeElement.textContent = this.formatTime(now);
-        }
-
-        if (this.showDate) {
-            const dateElement = this.element.querySelector(`#date-${this.id}`);
-            if (dateElement) {
-                dateElement.textContent = this.formatDate(now);
-            }
-        }
-    }
-
-    formatTime(date) {
-        let hours = date.getHours();
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        const seconds = date.getSeconds().toString().padStart(2, '0');
-
+        // Format time
+        let timeString;
         if (this.timeFormat === '12h') {
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12;
-            const timeString = `${hours}:${minutes}`;
-            return this.showSeconds ? `${timeString}:${seconds} ${ampm}` : `${timeString} ${ampm}`;
+            timeString = now.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                second: this.showSeconds ? '2-digit' : undefined,
+                hour12: true
+            });
         } else {
-            const timeString = `${hours.toString().padStart(2, '0')}:${minutes}`;
-            return this.showSeconds ? `${timeString}:${seconds}` : timeString;
+            timeString = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: this.showSeconds ? '2-digit' : undefined,
+                hour12: false
+            });
         }
-    }
-
-    formatDate(date) {
-        const options = { 
-            weekday: 'short', 
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
-        };
-        return date.toLocaleDateString('en-US', options);
-    }
-
-    handleClose() {
-        if (window.widgetSystem) {
-            window.widgetSystem.removeWidget(this.id);
+        
+        // Format date
+        const dateString = now.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        // Update display
+        const timeElement = this.element?.querySelector(`#time-${this.id}`);
+        const dateElement = this.element?.querySelector(`#date-${this.id}`);
+        
+        if (timeElement) {
+            timeElement.textContent = timeString;
         }
-    }
-
-    toggleSettingsMenu() {
-        if (this.settingsMenuVisible) {
-            this.hideSettingsMenu();
-        } else {
-            this.showSettingsMenu();
+        
+        if (dateElement) {
+            dateElement.textContent = dateString;
         }
-    }
-
-    showSettingsMenu() {
-        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
-        if (!menu) return;
-
-        menu.style.display = 'block';
-        this.settingsMenuVisible = true;
-        console.log('📋 Settings menu opened');
-    }
-
-    hideSettingsMenu() {
-        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
-        if (!menu) return;
-
-        menu.style.display = 'none';
-        this.settingsMenuVisible = false;
-        console.log('📋 Settings menu closed');
     }
 
     toggleTimeFormat() {
         this.timeFormat = this.timeFormat === '24h' ? '12h' : '24h';
         this.updateTime();
-        console.log(`🕐 Clock format changed to: ${this.timeFormat}`);
+        this.updateSettingsMenu();
+        console.log(`🕒 Time format changed to: ${this.timeFormat}`);
     }
 
-    openWidgetConfig() {
-        console.log('🎨 Opening widget appearance config');
-        alert('Widget Appearance Config\n\n' +
-              '• Global widget styling\n' +
-              '• Theme selection (Nebula/Glass/Custom)\n' +
-              '• Color schemes\n' +
-              '• Transparency settings\n\n' +
-              '(This will be implemented in the global widget config panel)');
+    toggleSeconds() {
+        this.showSeconds = !this.showSeconds;
+        this.updateTime();
+        this.updateSettingsMenu();
+        console.log(`🕒 Seconds display: ${this.showSeconds ? 'ON' : 'OFF'}`);
+    }
+
+    toggleDate() {
+        this.showDate = !this.showDate;
+        
+        // Re-render to add/remove date display
+        const rect = this.element.getBoundingClientRect();
+        this.x = rect.left;
+        this.y = rect.top;
+        
+        const newElement = this.render();
+        this.element.parentNode.replaceChild(newElement, this.element);
+        this.element = newElement;
+        
+        this.element.style.left = this.x + 'px';
+        this.element.style.top = this.y + 'px';
+        
+        this.setupEventListeners();
+        this.init();
+        
+        console.log(`🕒 Date display: ${this.showDate ? 'ON' : 'OFF'}`);
+    }
+
+    toggleSettingsMenu() {
+        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
+        if (menu) {
+            this.settingsMenuVisible = !this.settingsMenuVisible;
+            menu.style.display = this.settingsMenuVisible ? 'block' : 'none';
+        }
+    }
+
+    hideSettingsMenu() {
+        const menu = this.element.querySelector(`#settings-menu-${this.id}`);
+        if (menu) {
+            menu.style.display = 'none';
+            this.settingsMenuVisible = false;
+        }
     }
 
     updateSettingsMenu() {
+        // Update settings menu text to reflect current state
         const formatItem = this.element.querySelector('[data-action="toggle-format"] .menu-text');
+        const secondsItem = this.element.querySelector('[data-action="toggle-seconds"] .menu-text');
+        const dateItem = this.element.querySelector('[data-action="toggle-date"] .menu-text');
+        
         if (formatItem) {
             formatItem.textContent = this.timeFormat === '24h' ? 'Switch to 12h' : 'Switch to 24h';
+        }
+        if (secondsItem) {
+            secondsItem.textContent = this.showSeconds ? 'Hide Seconds' : 'Show Seconds';
+        }
+        if (dateItem) {
+            dateItem.textContent = this.showDate ? 'Hide Date' : 'Show Date';
         }
     }
 
@@ -243,7 +289,8 @@ class NebulaClock extends NebulaWidget {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
         }
-        console.log('🕐 NebulaClock cleaned up');
+        super.cleanup(); // Call parent cleanup
+        console.log('🕒 NebulaClock cleaned up');
     }
 
     getTitle() {
@@ -251,13 +298,13 @@ class NebulaClock extends NebulaWidget {
     }
 
     getIcon() {
-        return '🕐';
+        return '🕒';
     }
 }
 
-// CSS Styles for the Clock Widget
-const clockWidgetStyles = `
-<style id="nebula-clock-styles">
+// CSS Styles for the Enhanced Clock Widget
+const enhancedClockWidgetStyles = `
+<style id="enhanced-nebula-clock-styles">
 .nebula-clock-widget {
     background: var(--nebula-surface, #ffffff);
     border: 1px solid var(--nebula-border, #e2e8f0);
@@ -444,11 +491,7 @@ const clockWidgetStyles = `
     flex: 1;
 }
 
-.menu-arrow {
-    font-size: 12px;
-    color: var(--nebula-text-secondary, #64748b);
-}
-
+/* Dark theme support */
 [data-theme="dark"] .nebula-clock-widget {
     background: var(--nebula-surface, #2d3748);
     border-color: var(--nebula-border, #4a5568);
@@ -481,32 +524,43 @@ const clockWidgetStyles = `
 </style>
 `;
 
-// Inject styles
-if (!document.getElementById('nebula-clock-styles')) {
-    document.head.insertAdjacentHTML('beforeend', clockWidgetStyles);
+// Inject enhanced styles
+if (!document.getElementById('enhanced-nebula-clock-styles')) {
+    document.head.insertAdjacentHTML('beforeend', enhancedClockWidgetStyles);
 }
 
-// Register the clock widget with the widget system
+// Register the enhanced clock widget with the widget system
 if (window.NebulaWidgetSystem && window.widgetSystem) {
+    // Check if already registered and remove first
+    const existing = window.widgetSystem.getRegisteredWidgets().find(w => w.id === 'clock');
+    if (existing) {
+        console.log('🔄 Updating existing clock widget registration');
+    }
+    
     window.widgetSystem.registerWidget('clock', {
         name: 'Digital Clock',
-        description: 'A simple digital clock widget with date display',
+        description: 'A digital clock widget with date display and self-managing context menu',
         category: 'system',
-        icon: '🕐',
+        icon: '🕒',
         widgetClass: NebulaClock,
         defaultConfig: {
             format: '24h',
             showSeconds: true,
             showDate: true,
+            showTitlebar: true,
             x: 100,
             y: 100
         },
         author: 'NebulaDesktop',
-        version: '1.0.0'
+        version: '2.0.0'
     });
     
-    console.log('✅ Clock widget registered successfully');
+    console.log('✅ Enhanced Clock widget registered successfully');
+} else {
+    console.warn('⚠️ Widget system not available for clock registration');
 }
 
-// Make the class globally available
+// Make the enhanced class globally available
 window.NebulaClock = NebulaClock;
+
+console.log('✅ Enhanced NebulaClock loaded with self-managing context menu!');
