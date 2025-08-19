@@ -5,16 +5,28 @@ class NebulaThemeManager {
     constructor() {
         this.currentTheme = localStorage.getItem('nebula-theme') || 'dark';
         this.themes = [
-            { id: 'light', name: 'Light', description: 'Clean light theme' },
-            { id: 'dark', name: 'Dark', description: 'Original dark theme' },
-            { id: 'nebula-slate', name: 'Nebula Slate', description: 'Balanced slate theme' },
-            { id: 'nebula-ocean', name: 'Ocean', description: 'Deep blue oceanic theme' },
-            { id: 'nebula-forest', name: 'Forest', description: 'Natural green theme' },
-            { id: 'nebula-sunset', name: 'Sunset', description: 'Warm orange sunset theme' },
-            { id: 'nebula-midnight', name: 'Midnight', description: 'Deep purple midnight theme' },
-            { id: 'nebula-rose', name: 'Rose', description: 'Elegant pink rose theme' },
-            { id: 'nebula-cyber', name: 'Cyber', description: 'Neon cyan cyberpunk theme' },
-            { id: 'nebula-minimal', name: 'Minimal', description: 'Clean minimal light theme' }
+            // Original Themes
+            { id: 'light', name: 'Light', description: 'Clean light theme', category: 'original' },
+            { id: 'dark', name: 'Dark', description: 'Original dark theme', category: 'original' },
+            { id: 'nebula-slate', name: 'Nebula Slate', description: 'Balanced slate theme', category: 'original' },
+            
+            // Cosmic Themes
+            { id: 'nebula-ocean', name: 'Ocean', description: 'Deep blue oceanic theme', category: 'cosmic' },
+            { id: 'nebula-forest', name: 'Forest', description: 'Natural green theme', category: 'cosmic' },
+            { id: 'nebula-sunset', name: 'Sunset', description: 'Warm orange sunset theme', category: 'cosmic' },
+            { id: 'nebula-midnight', name: 'Midnight', description: 'Deep purple midnight theme', category: 'cosmic' },
+            { id: 'nebula-rose', name: 'Rose', description: 'Elegant pink rose theme', category: 'cosmic' },
+            { id: 'nebula-cyber', name: 'Cyber', description: 'Neon cyan cyberpunk theme', category: 'cosmic' },
+            { id: 'nebula-aurora', name: 'Aurora', description: 'Northern lights inspired theme', category: 'cosmic' },
+            { id: 'nebula-volcano', name: 'Volcano', description: 'Fiery red and orange theme', category: 'cosmic' },
+            { id: 'nebula-arctic', name: 'Arctic', description: 'Cool ice blue theme', category: 'cosmic' },
+            { id: 'nebula-retro', name: 'Retro', description: '80s synthwave inspired theme', category: 'cosmic' },
+            
+            // Professional Themes
+            { id: 'nebula-minimal', name: 'Minimal', description: 'Clean minimal light theme', category: 'professional' },
+            { id: 'nebula-glass', name: 'Glass', description: 'Frosted glass with transparency', category: 'professional' },
+            { id: 'windows-11', name: 'Windows 11', description: 'Microsoft Fluent Design inspired', category: 'professional' },
+            { id: 'macos', name: 'macOS', description: 'Apple design language inspired', category: 'professional' }
         ];
         
         this.init();
@@ -91,13 +103,28 @@ class NebulaThemeManager {
                 this.cycleTheme();
             }
             
-            // Ctrl+Shift+1-9 for direct theme selection
+            // Ctrl+Shift+1-9 for direct theme selection (first 9 themes)
             if (e.ctrlKey && e.shiftKey && e.key >= '1' && e.key <= '9') {
                 e.preventDefault();
                 const index = parseInt(e.key) - 1;
                 if (this.themes[index]) {
                     this.applyTheme(this.themes[index].id);
                 }
+            }
+            
+            // Ctrl+Alt+1-8 for themes 10-17
+            if (e.ctrlKey && e.altKey && e.key >= '1' && e.key <= '8') {
+                e.preventDefault();
+                const index = parseInt(e.key) + 8; // Offset by 9 to get themes 10-17
+                if (this.themes[index]) {
+                    this.applyTheme(this.themes[index].id);
+                }
+            }
+            
+            // Ctrl+Shift+C to cycle through categories
+            if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                e.preventDefault();
+                this.cycleThemeCategory();
             }
         });
     }
@@ -106,6 +133,34 @@ class NebulaThemeManager {
         const currentIndex = this.themes.findIndex(t => t.id === this.currentTheme);
         const nextIndex = (currentIndex + 1) % this.themes.length;
         this.applyTheme(this.themes[nextIndex].id);
+    }
+    
+    cycleThemeCategory() {
+        const categories = ['original', 'cosmic', 'professional'];
+        const currentCategory = this.themes.find(t => t.id === this.currentTheme)?.category || 'original';
+        const currentCategoryIndex = categories.indexOf(currentCategory);
+        const nextCategoryIndex = (currentCategoryIndex + 1) % categories.length;
+        const nextCategory = categories[nextCategoryIndex];
+        
+        // Find first theme in next category
+        const nextTheme = this.themes.find(t => t.category === nextCategory);
+        if (nextTheme) {
+            this.applyTheme(nextTheme.id);
+        }
+    }
+    
+    getThemesByCategory(category) {
+        return this.themes.filter(t => t.category === category);
+    }
+    
+    getRandomTheme() {
+        const randomIndex = Math.floor(Math.random() * this.themes.length);
+        return this.themes[randomIndex];
+    }
+    
+    applyRandomTheme() {
+        const randomTheme = this.getRandomTheme();
+        this.applyTheme(randomTheme.id);
     }
     
     convertEmojisToMaterialIcons() {
@@ -322,6 +377,25 @@ window.cycleNebulaTheme = () => {
     }
 };
 
+window.cycleThemeCategory = () => {
+    if (window.nebulaThemeManager) {
+        window.nebulaThemeManager.cycleThemeCategory();
+    }
+};
+
+window.applyRandomTheme = () => {
+    if (window.nebulaThemeManager) {
+        window.nebulaThemeManager.applyRandomTheme();
+    }
+};
+
+window.getThemesByCategory = (category) => {
+    if (window.nebulaThemeManager) {
+        return window.nebulaThemeManager.getThemesByCategory(category);
+    }
+    return [];
+};
+
 window.createMaterialIcon = (iconName, options = {}) => {
     if (window.nebulaThemeManager) {
         return window.nebulaThemeManager.createMaterialIcon(iconName, options);
@@ -331,18 +405,28 @@ window.createMaterialIcon = (iconName, options = {}) => {
 
 // Console commands for testing
 console.log(`
-🎨 Nebula Theme Manager Loaded!
+🎨 Nebula Theme Manager Loaded! (17 Themes Available)
 
 Available commands:
 - setNebulaTheme('theme-name') - Switch to a specific theme
 - cycleNebulaTheme() - Cycle through all themes
+- cycleThemeCategory() - Cycle through theme categories (Original → Cosmic → Professional)
+- applyRandomTheme() - Apply a random theme
+- getThemesByCategory('category') - Get themes by category ('original', 'cosmic', 'professional')
 - createMaterialIcon('icon_name', options) - Create a Material Icon element
 
 Keyboard shortcuts:
-- Ctrl+Shift+T - Cycle themes
-- Ctrl+Shift+1-9 - Select theme by number
+- Ctrl+Shift+T - Cycle through all themes
+- Ctrl+Shift+C - Cycle through theme categories
+- Ctrl+Shift+1-9 - Select themes 1-9 directly
+- Ctrl+Alt+1-8 - Select themes 10-17 directly
 
-Available themes:
-${window.nebulaThemeManager ? window.nebulaThemeManager.getThemes().map((t, i) => `${i + 1}. ${t.name} (${t.id})`).join('\n') : 'Loading...'}
+Theme Categories:
+📋 Original (3): Light, Dark, Nebula Slate
+🌌 Cosmic (10): Ocean, Forest, Sunset, Midnight, Rose, Cyber, Aurora, Volcano, Arctic, Retro
+💼 Professional (4): Minimal, Glass, Windows 11, macOS
+
+All ${window.nebulaThemeManager ? window.nebulaThemeManager.getThemes().length : '17'} themes:
+${window.nebulaThemeManager ? window.nebulaThemeManager.getThemes().map((t, i) => `${i + 1}. ${t.name} (${t.id}) - ${t.category}`).join('\n') : 'Loading...'}
 `);
 
