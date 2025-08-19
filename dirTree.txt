@@ -1,0 +1,119 @@
+.
+├── assets
+│   ├── FiraCodeNerdFont-Regular.ttf
+│   ├── nebula-desktop-icon-64x64.png
+│   ├── nebula-desktop-logo.png
+│   ├── nebula-wallpaper-1.png
+│   └── nebula-wallpaper-2.png
+├── CustomApps
+│   └── DisneyPlusPWA.js
+├── dirTree.txt
+├── dist (dir ignored in this file)
+├── install.sh
+├── LICENSE
+├── main.js
+├── md-notes
+│   ├── CLAUDE_READ_FIRST.md
+│   ├── code-assistant-plans.md
+│   ├── MAGNETIC STRIP REVOLUTION.md
+│   ├── NebulaApp_PWA_Template_-_Simplified_Version.md
+│   ├── # NebulaDesktop Widget System Documentat.md
+│   ├── README-apps.md
+│   ├── TECHNICAL.md
+│   ├── test-terminal.md
+│   └── thoughts.md
+├── nebula.desktop
+├── nebula_desktop_status_report.md
+├── NebulaDesktop-v4.zip
+├── nebula-session
+├── nebula-wayland.desktop
+├── nebula-x.desktop
+├── node_modules (dir ignored to save space)
+├── npmDist.txt
+├── package.bak.json
+├── package.json
+├── package-lock.json
+├── preload.notInUse.js
+├── README.md
+├── src
+│   ├── apps
+│   │   ├── browser.js
+│   │   ├── filemanager.js
+│   │   ├── image-viewer.js
+│   │   ├── media-player.js
+│   │   ├── NebulaTerminal.js
+│   │   └── NebulaTerminal.original.js
+│   ├── assets
+│   │   ├── FiraCodeNerdFont-Regular.ttf
+│   │   ├── nebula-desktop-icon-64x64.png
+│   │   ├── nebula-desktop-logo.png
+│   │   ├── nebula-wallpaper-1.png
+│   │   └── nebula-wallpaper-2.png
+│   ├── backups
+│   │   ├── EnhancedFiles
+│   │   │   ├── Enhanced-adblocker.js
+│   │   │   ├── Enhanced-assistant.js
+│   │   │   ├── Enhanced-desktop-themes.css
+│   │   │   ├── Enhanced-launcher-designer.js
+│   │   │   ├── Enhanced-localfilebrowser.css
+│   │   │   ├── Enhanced-localfilebrowser.js
+│   │   │   ├── Enhanced-media-player.js
+│   │   │   ├── Enhanced-settings.js
+│   │   │   ├── EnhancedWindowManager.js
+│   │   │   ├── list.txt
+│   │   │   ├── snap-demo.html
+│   │   │   ├── titlebar-mode-demo.html
+│   │   │   ├── Titlebar-Only_Mode_Design_-_Unique_Window_Pinning_.md
+│   │   │   ├── window-icons.css
+│   │   │   ├── WindowManager_Enhanced.js
+│   │   │   ├── WindowManager_Enhanced_Snap.js
+│   │   │   ├── WindowManager_Enhanced_TitlebarMode.js
+│   │   │   ├── WindowManager_Enhanced_with_Snap_Functionality_-_I.md
+│   │   │   ├── WindowManager_Icon_Support_-_Integration_Guide.md
+│   │   │   ├── window-snap-styles.css
+│   │   │   └── window-titlebar-mode-styles.css
+│   │   ├── WidgetIntegration.js
+│   │   └── WindowManager.original.js
+│   ├── css
+│   │   ├── assistant.css
+│   │   ├── browser.css
+│   │   ├── code-assistant.css
+│   │   ├── filemanager.css
+│   │   ├── NebulaApp-PWA.css
+│   │   ├── nebula-extended-themes.css
+│   │   ├── nebula-material-icons.css
+│   │   ├── nebula-theme-bridge.css
+│   │   ├── nebula-theme.css
+│   │   ├── style.css
+│   │   ├── themes
+│   │   │   ├── macos-theme.css
+│   │   │   ├── themes.txt
+│   │   │   ├── ubuntu-theme.css
+│   │   │   ├── windows10-theme.css
+│   │   │   └── windows11-theme.css
+│   │   ├── vertical-browser.css
+│   │   ├── window-manager.css
+│   │   └── window-titlebar-mode-styles.css
+│   ├── index.html
+│   ├── js
+│   │   ├── art-assistant.js
+│   │   ├── assistant.js
+│   │   ├── code-assistant.js
+│   │   ├── NebulaSettings.js
+│   │   ├── nebula-theme-manager.js
+│   │   ├── NebulaWidgetSystem.js
+│   │   ├── renderer.js
+│   │   ├── taskbar-theme.js
+│   │   ├── WidgetIntegration.js
+│   │   ├── Widgets
+│   │   │   ├── NebulaClock.js
+│   │   │   ├── NebulaLauncher.js
+│   │   │   └── NebulaLauncher.old.js
+│   │   └── WindowManager.js
+│   ├── preload.js
+│   └── Templates
+│       ├── NebulaApp-PWA.js
+│       ├── NebulaApp-Single.js
+│       └── NebulaApp-Tabbed.js
+└── TODO.md
+
