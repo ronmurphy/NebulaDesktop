@@ -75,15 +75,18 @@
     <script src="js/nebula-theme-manager.js"></script>
 
     <!-- Widget System - Load BEFORE apps and renderer -->
-    <script src="js/NebulaWidgetSystem.js"></script>
+    <!-- <script src="js/NebulaWidgetSystem.js"></script>
      <script src="js/Widgets/NebulaLauncher.js"></script>
-    <script src="js/Widgets/NebulaClock.js"></script>
+    <script src="js/Widgets/NebulaClock.js"></script> -->
    
 
 
     <!-- Load WM Apps First -->
     <script src="apps/browser.js"></script>
     <script src="apps/filemanager.js"></script>
+        <script src="apps/NebulaTerminal.js"></script>
+    <script src="apps/image-viewer.js"></script>
+    <script src="apps/media-player.js"></script>
 
     <!-- Add these before renderer.js -->
     <script src="js/art-assistant.js"></script>
@@ -91,9 +94,7 @@
     <script src="js/assistant.js"></script>
 
     <script src="js/NebulaSettings.js"></script>
-    <script src="apps/NebulaTerminal.js"></script>
-    <script src="apps/image-viewer.js"></script>
-    <script src="apps/media-player.js"></script>
+
 
 
     <!-- XTerm.js for image support -->
@@ -102,7 +103,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 
     <!-- Widget Integration - Load AFTER widgets but BEFORE renderer -->
-    <script src="js/WidgetIntegration.js"></script>
+    <!-- <script src="js/WidgetIntegration.js"></script> -->
 
     <!-- Load Desktop Environment LAST -->
     <script src="js/renderer.js"></script>
