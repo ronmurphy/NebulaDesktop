@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, session, screen, dialog, desktopCapturer, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, session, screen, dialog, nativeImage } = require('electron');
+const { desktopCapturer } = require('electron');
 const path = require('path');
 
 // Enable hot reload in development
@@ -179,7 +180,7 @@ class NebulaDesktop {
         ipcMain.handle('fs:mkdir', async (event, dirPath, options = {}) => {
             try {
                 const fs = require('fs').promises;
-                await fs.mkdir(dirPath, { recursive: true, ...options });
+                await fs.mkdir(dirPath, options);
                 return true;
             } catch (error) {
                 throw error;
@@ -189,7 +190,7 @@ class NebulaDesktop {
         ipcMain.handle('fs:rmdir', async (event, dirPath) => {
             try {
                 const fs = require('fs').promises;
-                await fs.rmdir(dirPath);
+                await fs.rmdir(dirPath, { recursive: true });
                 return true;
             } catch (error) {
                 throw error;
@@ -210,12 +211,25 @@ class NebulaDesktop {
         ipcMain.handle('terminal:exec', async (event, command, args = [], options = {}) => {
             try {
                 const { spawn } = require('child_process');
+                const os = require('os');
 
                 return new Promise((resolve, reject) => {
-                    const proc = spawn(command, args, {
-                        cwd: options.cwd || process.cwd(),
+                    // Determine the shell and command
+                    let shell, shellArgs;
+
+                    if (os.platform() === 'win32') {
+                        shell = 'cmd.exe';
+                        shellArgs = ['/c', command, ...args];
+                    } else {
+                        shell = '/bin/sh';
+                        shellArgs = ['-c', `${command} ${args.join(' ')}`];
+                    }
+
+                    const proc = spawn(shell, shellArgs, {
+                        cwd: options.cwd || os.homedir(),
                         env: { ...process.env, ...options.env },
-                        shell: options.shell || false
+                        stdio: ['pipe', 'pipe', 'pipe'],
+                        timeout: options.timeout || 30000
                     });
 
                     let stdout = '';
@@ -292,7 +306,13 @@ class NebulaDesktop {
             try {
                 const result = await dialog.showSaveDialog(this.mainWindow, {
                     filters: [
-                        { name: 'Code Files', extensions: ['js', 'ts', 'py', 'html', 'css', 'json', 'md', 'txt'] },
+                        { name: 'JavaScript', extensions: ['js'] },
+                        { name: 'TypeScript', extensions: ['ts'] },
+                        { name: 'Python', extensions: ['py'] },
+                        { name: 'HTML', extensions: ['html'] },
+                        { name: 'CSS', extensions: ['css'] },
+                        { name: 'JSON', extensions: ['json'] },
+                        { name: 'Markdown', extensions: ['md'] },
                         { name: 'All Files', extensions: ['*'] }
                     ],
                     ...options
@@ -302,186 +322,54 @@ class NebulaDesktop {
                 throw error;
             }
         });
-
-        // 🔸 SCREENSHOT HANDLERS - NEW!
-        this.setupScreenshotHandlers();
-    }
-
-    // 🔸 Screenshot functionality - NEW!
-    setupScreenshotHandlers() {
-        
-        // Method 1: Capture entire screen using desktopCapturer (BEST)
-        ipcMain.handle('screenshot:capture-screen', async () => {
-            try {
-                console.log('📸 Capturing screen using Electron desktopCapturer...');
-                
-                // Get available sources (screens)
-                const sources = await desktopCapturer.getSources({
-                    types: ['screen'],
-                    thumbnailSize: {
-                        width: screen.getPrimaryDisplay().workAreaSize.width,
-                        height: screen.getPrimaryDisplay().workAreaSize.height
-                    }
-                });
-                
-                if (sources.length === 0) {
-                    throw new Error('No screen sources available');
-                }
-                
-                // Get the primary screen (you could also let user choose)
-                const primarySource = sources[0];
-                
-                // Convert to data URL
-                const dataURL = primarySource.thumbnail.toDataURL();
-                
-                console.log('✅ Screen captured successfully via Electron');
-                return dataURL;
-                
-            } catch (error) {
-                console.error('Electron screen capture failed:', error);
-                throw error;
-            }
-        });
-        
-        // Method 2: Capture specific window area
-        ipcMain.handle('screenshot:capture-area', async (event, bounds) => {
-            try {
-                console.log('📸 Capturing screen area...', bounds);
-                
-                const sources = await desktopCapturer.getSources({
-                    types: ['screen'],
-                    thumbnailSize: {
-                        width: bounds.width || 1920,
-                        height: bounds.height || 1080
-                    }
-                });
-                
-                if (sources.length === 0) {
-                    throw new Error('No screen sources available');
-                }
-                
-                const source = sources[0];
-                const image = source.thumbnail;
-                
-                // If specific bounds provided, crop the image
-                if (bounds.x !== undefined && bounds.y !== undefined) {
-                    const cropped = image.crop({
-                        x: bounds.x,
-                        y: bounds.y,
-                        width: bounds.width,
-                        height: bounds.height
-                    });
-                    return cropped.toDataURL();
-                }
-                
-                return image.toDataURL();
-                
-            } catch (error) {
-                console.error('Area capture failed:', error);
-                throw error;
-            }
-        });
-        
-        // Method 3: Get screen info for better capture decisions
-        ipcMain.handle('screenshot:get-screen-info', () => {
-            try {
-                const displays = screen.getAllDisplays();
-                const primary = screen.getPrimaryDisplay();
-                
-                return {
-                    displays: displays.map(display => ({
-                        id: display.id,
-                        bounds: display.bounds,
-                        workArea: display.workArea,
-                        scaleFactor: display.scaleFactor,
-                        isPrimary: display.id === primary.id
-                    })),
-                    primary: {
-                        id: primary.id,
-                        bounds: primary.bounds,
-                        workArea: primary.workArea,
-                        scaleFactor: primary.scaleFactor
-                    }
-                };
-            } catch (error) {
-                console.error('Get screen info failed:', error);
-                throw error;
-            }
-        });
-        
-        // Method 4: Save screenshot directly to file
-        ipcMain.handle('screenshot:save-to-file', async (event, dataURL, filename) => {
-            try {
-                const fs = require('fs').promises;
-                const os = require('os');
-                
-                // Remove data URL prefix
-                const base64Data = dataURL.replace(/^data:image\/png;base64,/, '');
-                
-                // Create screenshots directory if it doesn't exist
-                const screenshotsDir = path.join(os.homedir(), 'Pictures', 'NebulaDesktop-Screenshots');
-                await fs.mkdir(screenshotsDir, { recursive: true });
-                
-                // Generate filename if not provided
-                const finalFilename = filename || `nebula-desktop-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
-                const filePath = path.join(screenshotsDir, finalFilename);
-                
-                // Write file
-                await fs.writeFile(filePath, base64Data, 'base64');
-                
-                console.log('✅ Screenshot saved to:', filePath);
-                return filePath;
-                
-            } catch (error) {
-                console.error('Save screenshot failed:', error);
-                throw error;
-            }
-        });
     }
 
     createAppWindow(options) {
-        const id = `app-${Date.now()}`;
-        const childWindow = new BrowserWindow({
+        const windowId = Date.now().toString();
+
+        const window = new BrowserWindow({
             width: options.width || 800,
             height: options.height || 600,
-            parent: this.mainWindow,
-            modal: false,
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
                 preload: path.join(__dirname, 'src', 'preload.js')
-            }
+            },
+            parent: this.mainWindow,
+            modal: false,
+            show: false
         });
 
-        this.childWindows.set(id, childWindow);
+        this.childWindows.set(windowId, window);
 
-        childWindow.on('closed', () => {
-            this.childWindows.delete(id);
+        window.once('ready-to-show', () => {
+            window.show();
         });
 
-        return id;
-    }
-
-    init() {
-        app.whenReady().then(() => {
-            this.createMainWindow();
-            this.setupIPC();
-
-            app.on('activate', () => {
-                if (BrowserWindow.getAllWindows().length === 0) {
-                    this.createMainWindow();
-                }
-            });
+        window.on('closed', () => {
+            this.childWindows.delete(windowId);
         });
 
-        app.on('window-all-closed', () => {
-            if (process.platform !== 'darwin') {
-                app.quit();
-            }
-        });
+        return windowId;
     }
 }
 
-// Create and initialize NebulaDesktop
-const nebulaDesktop = new NebulaDesktop();
-nebulaDesktop.init();
+// Create desktop instance
+const desktop = new NebulaDesktop();
+
+app.whenReady().then(() => {
+    desktop.createMainWindow();
+    desktop.setupIPC();
+});
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
+});
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+        desktop.createMainWindow();
+    }
+});

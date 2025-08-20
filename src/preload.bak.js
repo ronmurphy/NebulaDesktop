@@ -1,8 +1,8 @@
-// NebulaDesktop Preload Script - Enhanced with Screenshot Support
+// Merging the best from both versions
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('nebula', {
-    // System APIs
+    // System APIs (from WME1's completeness)
     system: {
         platform: process.platform,
         shutdown: () => ipcRenderer.invoke('system:shutdown'),
@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('nebula', {
         logout: () => ipcRenderer.invoke('system:logout'),
     },
 
-    // Window Management
+    // Window Management (from EWM2's tab system + WME1's dragging)
     windows: {
         create: (options) => ipcRenderer.invoke('window:create', options),
         close: (id) => ipcRenderer.send('window:close', id),
@@ -32,7 +32,7 @@ contextBridge.exposeInMainWorld('nebula', {
         unlink: (path) => ipcRenderer.invoke('fs:unlink', path)
     },
 
-    // Browser features
+    // Browser features (from EWM2)
     browser: {
         createTab: (url) => ipcRenderer.invoke('browser:newtab', url),
         navigate: (tabId, url) => ipcRenderer.send('browser:navigate', tabId, url),
@@ -78,7 +78,6 @@ contextBridge.exposeInMainWorld('nebula', {
         }
     },
 
-    // Native file dialogs
     dialog: {
         openFile: (options) => ipcRenderer.invoke('dialog:openFile', options),
         saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options)
@@ -106,24 +105,9 @@ contextBridge.exposeInMainWorld('nebula', {
                 return { valid: false, error: error.message };
             }
         }
-    },
+    }, // <-- This closing brace was missing!
 
-    // 🔸 SCREENSHOT API - NEW!
-    screenshot: {
-        // Capture entire screen
-        captureScreen: () => ipcRenderer.invoke('screenshot:capture-screen'),
-        
-        // Capture specific area
-        captureArea: (bounds) => ipcRenderer.invoke('screenshot:capture-area', bounds),
-        
-        // Get screen information
-        getScreenInfo: () => ipcRenderer.invoke('screenshot:get-screen-info'),
-        
-        // Save screenshot to file
-        saveToFile: (dataURL, filename) => ipcRenderer.invoke('screenshot:save-to-file', dataURL, filename)
-    },
-
-    // Events
+    // Events (moved to top level)
     on: (channel, callback) => {
         const validChannels = [
             'window-created',

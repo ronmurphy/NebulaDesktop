@@ -256,6 +256,92 @@ forceIconConversion() {
                 this.closePowerMenu();
             }
         });
+
+        // capture hotkeys screencap
+        document.addEventListener('keydown', (e) => {
+    // 📸 Screenshot shortcut: Ctrl+PrintScreen (much safer!)
+    if (e.ctrlKey && e.key === 'PrintScreen') {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Call the enhanced screenshot function
+        if (window.windowManager) {
+            window.windowManager.captureDesktopScreenshot();
+        }
+        
+        console.log('📸 Desktop screenshot triggered via Ctrl+PrintScreen');
+        return;
+    }
+    
+    // Alternative: Just PrintScreen alone (if Ctrl+PrintScreen conflicts too)
+    if (e.key === 'PrintScreen' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Call the enhanced screenshot function
+        if (window.windowManager) {
+            window.windowManager.captureDesktopScreenshot();
+        }
+        
+        console.log('📸 Desktop screenshot triggered via PrintScreen');
+        return;
+    }
+    
+    // Theme toggle shortcut: Ctrl+Shift+T (moved from Ctrl+Shift+C)
+    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Call theme toggle if available
+        if (window.themeManager && window.themeManager.toggleTheme) {
+            window.themeManager.toggleTheme();
+        }
+        
+        console.log('🎨 Theme toggle triggered via Ctrl+Shift+T');
+        return;
+    }
+    
+    // Debug: Show all active windows screenshots (Ctrl+Shift+D)
+    if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (window.windowManager) {
+            window.windowManager.captureAllWindowScreenshots();
+        }
+        
+        console.log('🐛 Debug screenshot capture triggered');
+        return;
+    }
+    
+    // 🆕 Alternative shortcuts if the above don't work:
+    
+    // F12 for screenshot (like some games use)
+    if (e.key === 'F12' && e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (window.windowManager) {
+            window.windowManager.captureDesktopScreenshot();
+        }
+        
+        console.log('📸 Desktop screenshot triggered via Ctrl+F12');
+        return;
+    }
+    
+    // Ctrl+Alt+S (another safe option)
+    if (e.ctrlKey && e.altKey && e.key === 's') {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (window.windowManager) {
+            window.windowManager.captureDesktopScreenshot();
+        }
+        
+        console.log('📸 Desktop screenshot triggered via Ctrl+Alt+S');
+        return;
+    }
+});
     }
 
     setupLauncherSearch() {

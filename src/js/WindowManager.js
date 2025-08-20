@@ -1192,34 +1192,266 @@ stopAutoRefreshPreviews() {
     /**
      * Capture desktop screenshot
      */
-    async captureDesktopScreenshot() {
-        console.log('📸 Capturing desktop screenshot...');
+// Enhanced Desktop Screenshot System for NebulaDesktop
+// Add these methods to your WindowManager class
+
+/**
+ * Enhanced desktop screenshot using multiple methods
+ */
+async captureDesktopScreenshot() {
+    console.log('🔸 Capturing desktop screenshot...');
+    
+    try {
+        let screenshot = null;
         
-        try {
-            const desktop = document.getElementById('desktop') || document.body;
-            
-            if (window.html2canvas) {
-                const canvas = await window.html2canvas(desktop, {
-                    width: window.innerWidth,
-                    height: window.innerHeight,
-                    scale: 0.5,
-                    useCORS: true,
-                    allowTaint: false
-                });
-                
-                const screenshot = canvas.toDataURL('image/png', 0.8);
-                this.handleDesktopScreenshot(screenshot);
-                
-            } else {
-                console.warn('html2canvas not available');
-                this.showScreenshotError();
-            }
-            
-        } catch (error) {
-            console.error('Desktop screenshot failed:', error);
+        // Method 1: Try Electron's native screenshot (best quality)
+        screenshot = await this.captureElectronScreenshot();
+        
+        if (!screenshot) {
+            // Method 2: Enhanced html2canvas with better settings
+            screenshot = await this.captureEnhancedCanvasScreenshot();
+        }
+        
+        if (!screenshot) {
+            // Method 3: Browser screencapture API (requires permission)
+            screenshot = await this.captureBrowserScreenshot();
+        }
+        
+        if (screenshot) {
+            this.handleDesktopScreenshot(screenshot);
+        } else {
             this.showScreenshotError();
         }
+        
+    } catch (error) {
+        console.error('Desktop screenshot failed:', error);
+        this.showScreenshotError();
     }
+}
+
+/**
+ * Method 1: Use Electron's native screenshot capability (BEST)
+ */
+async captureElectronScreenshot() {
+    try {
+        // Check if we're in Electron environment
+        if (!window.nebula || !window.nebula.screenshot) {
+            console.log('Electron screenshot API not available');
+            return null;
+        }
+        
+        console.log('📸 Using Electron native screenshot...');
+        
+        // Call the main process to capture screen
+        const screenshot = await window.nebula.screenshot.captureScreen();
+        
+        console.log('✅ Electron screenshot captured successfully');
+        return screenshot;
+        
+    } catch (error) {
+        console.log('Electron screenshot failed:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Method 2: Enhanced html2canvas with better desktop capture settings
+ */
+async captureEnhancedCanvasScreenshot() {
+    try {
+        if (!window.html2canvas) {
+            console.log('html2canvas not available');
+            return null;
+        }
+        
+        console.log('📸 Using enhanced html2canvas...');
+        
+        // Target the entire viewport, not just desktop element
+        const targetElement = document.body;
+        
+        // Enhanced options for desktop capture
+        const canvas = await window.html2canvas(targetElement, {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            scale: 0.8, // Higher quality than before
+            useCORS: true,
+            allowTaint: true, // Allow cross-origin content
+            backgroundColor: null,
+            logging: false,
+            imageTimeout: 10000, // Longer timeout for complex content
+            removeContainer: true,
+            
+            // Enhanced rendering options
+            foreignObjectRendering: true,
+            svgRendering: true,
+            
+            // Handle problematic elements
+            ignoreElements: (element) => {
+                // Skip elements that cause issues
+                const tagName = element.tagName?.toLowerCase();
+                const className = element.className?.toString() || '';
+                
+                return (
+                    // Skip screenshot notifications and temporary elements
+                    className.includes('screenshot-notification') ||
+                    className.includes('tooltip') ||
+                    className.includes('context-menu') ||
+                    element.style.position === 'fixed' && element.style.zIndex > 9999
+                );
+            },
+            
+            // Pre-process the clone for better rendering
+            onclone: (clonedDoc, element) => {
+                // Fix background elements that might not render
+                const body = clonedDoc.body;
+                const desktop = clonedDoc.getElementById('desktop');
+                
+                if (desktop) {
+                    // Ensure desktop background is visible
+                    const computedStyle = window.getComputedStyle(document.getElementById('desktop'));
+                    desktop.style.background = computedStyle.background;
+                    desktop.style.backgroundImage = computedStyle.backgroundImage;
+                    desktop.style.backgroundSize = computedStyle.backgroundSize;
+                    desktop.style.backgroundPosition = computedStyle.backgroundPosition;
+                    desktop.style.backgroundRepeat = computedStyle.backgroundRepeat;
+                }
+                
+                // Fix taskbar styling
+                const taskbar = clonedDoc.querySelector('.taskbar');
+                if (taskbar) {
+                    const originalTaskbar = document.querySelector('.taskbar');
+                    if (originalTaskbar) {
+                        const taskbarStyle = window.getComputedStyle(originalTaskbar);
+                        taskbar.style.background = taskbarStyle.background;
+                        taskbar.style.backdropFilter = 'none'; // Remove blur for screenshot
+                    }
+                }
+                
+                // Remove any transforms that might cause issues
+                const allElements = clonedDoc.querySelectorAll('*');
+                allElements.forEach(el => {
+                    if (el.style.transform && el.style.transform.includes('translate')) {
+                        el.style.transform = 'none';
+                    }
+                });
+            }
+        });
+        
+        const dataURL = canvas.toDataURL('image/png', 0.9);
+        console.log('✅ Enhanced canvas screenshot captured');
+        return dataURL;
+        
+    } catch (error) {
+        console.log('Enhanced canvas screenshot failed:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Method 3: Browser screen capture API (requires user permission)
+ */
+async captureBrowserScreenshot() {
+    try {
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+            console.log('Browser screen capture not supported');
+            return null;
+        }
+        
+        console.log('📸 Requesting browser screen capture...');
+        
+        // Request screen capture
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+                mediaSource: 'screen',
+                width: { ideal: window.screen.width },
+                height: { ideal: window.screen.height }
+            },
+            audio: false
+        });
+        
+        // Create video element to capture frame
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.style.position = 'absolute';
+        video.style.top = '-9999px';
+        document.body.appendChild(video);
+        
+        return new Promise((resolve) => {
+            video.onloadedmetadata = () => {
+                video.play();
+                
+                // Wait a moment for video to load, then capture
+                setTimeout(() => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    ctx.drawImage(video, 0, 0);
+                    
+                    // Clean up
+                    stream.getTracks().forEach(track => track.stop());
+                    document.body.removeChild(video);
+                    
+                    const dataURL = canvas.toDataURL('image/png', 0.9);
+                    console.log('✅ Browser screen capture completed');
+                    resolve(dataURL);
+                }, 500);
+            };
+        });
+        
+    } catch (error) {
+        console.log('Browser screen capture failed:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Show error notification when screenshot fails
+ */
+showScreenshotError() {
+    const notification = document.createElement('div');
+    notification.className = 'screenshot-notification error';
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="material-symbols-outlined">error</span>
+            <span>Screenshot failed - trying alternative method...</span>
+        </div>
+    `;
+    
+    Object.assign(notification.style, {
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        background: 'var(--nebula-danger, #ef4444)',
+        color: 'white',
+        padding: '12px 20px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+        zIndex: '10000',
+        opacity: '0',
+        transform: 'translateY(-20px)',
+        transition: 'all 0.3s ease'
+    });
+    
+    document.body.appendChild(notification);
+    
+    requestAnimationFrame(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateY(0)';
+    });
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 4000);
+}
 
     /**
      * Handle desktop screenshot (save or display)
