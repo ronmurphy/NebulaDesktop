@@ -1941,7 +1941,7 @@ function createAmazingApp() {
     }
 
     /**
-     * Create API interface for LM Studio
+     * Create API interface for LM Studio with Chat
      */
     createAPIInterface() {
         const container = document.getElementById(`webviewContainer-${this.windowId}`);
@@ -1954,13 +1954,16 @@ function createAmazingApp() {
                 flex-direction: column;
                 background: var(--nebula-bg-primary);
                 font-family: var(--nebula-font-family);
+                overflow: hidden;
             ">
+                <!-- Header -->
                 <div style="
                     padding: 16px;
                     border-bottom: 1px solid var(--nebula-border);
                     background: var(--nebula-surface);
                     text-align: center;
                     position: relative;
+                    flex-shrink: 0;
                 ">
                     <button id="lmConfigBtn-${this.windowId}" style="
                         position: absolute;
@@ -1987,27 +1990,100 @@ function createAmazingApp() {
                     </div>
                 </div>
                 
-                <div style="
+                <!-- Chat Area -->
+                <div id="chatArea-${this.windowId}" style="
                     flex: 1;
-                    padding: 16px;
                     display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    text-align: center;
-                    color: var(--nebula-text-secondary);
+                    flex-direction: column;
+                    overflow: hidden;
+                    min-height: 0;
+                    height: 100%;
                 ">
-                    <div>
-                        <div style="font-size: 48px; margin-bottom: 16px;">🤖</div>
-                        <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Ready for AI Assistance</div>
-                        <div style="font-size: 14px; line-height: 1.4;">
-                            Use the AI action buttons above to get help with your code.<br>
-                            LM Studio will provide responses directly through the API.
+                    <!-- Messages Container -->
+                    <div id="messagesContainer-${this.windowId}" style="
+                        flex: 1;
+                        overflow-y: auto;
+                        overflow-x: hidden;
+                        padding: 16px;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 12px;
+                        min-height: 0;
+                        scrollbar-width: thin;
+                        scrollbar-color: var(--nebula-border) transparent;
+                    ">
+                        <!-- Welcome Message -->
+                        <div style="
+                            background: var(--nebula-surface);
+                            border: 1px solid var(--nebula-border);
+                            border-radius: var(--nebula-radius-md);
+                            padding: 16px;
+                            text-align: center;
+                        ">
+                            <div style="font-size: 32px; margin-bottom: 12px;">🤖</div>
+                            <div style="font-weight: 600; color: var(--nebula-text-primary); margin-bottom: 8px;">Welcome to LM Studio Chat!</div>
+                            <div style="color: var(--nebula-text-secondary); font-size: 14px;">
+                                Ask me anything about coding, get help with your projects, or just chat!<br>
+                                I can also help with the code in your editor using the action buttons above.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Input Area -->
+                    <div style="
+                        border-top: 1px solid var(--nebula-border);
+                        background: var(--nebula-surface);
+                        padding: 16px;
+                        flex-shrink: 0;
+                    ">
+                        <div style="display: flex; gap: 8px; align-items: flex-end;">
+                            <textarea id="chatInput-${this.windowId}" 
+                                placeholder="Type your message here... (Shift+Enter for new line, Enter to send)"
+                                style="
+                                    flex: 1;
+                                    min-height: 40px;
+                                    max-height: 120px;
+                                    padding: 10px;
+                                    border: 1px solid var(--nebula-border);
+                                    border-radius: var(--nebula-radius-sm);
+                                    background: var(--nebula-bg-primary);
+                                    color: var(--nebula-text-primary);
+                                    font-family: var(--nebula-font-family);
+                                    font-size: 14px;
+                                    resize: vertical;
+                                    outline: none;
+                                "
+                            ></textarea>
+                            <button id="sendBtn-${this.windowId}" style="
+                                background: var(--nebula-primary);
+                                border: 1px solid var(--nebula-primary);
+                                color: white;
+                                padding: 10px 16px;
+                                border-radius: var(--nebula-radius-sm);
+                                cursor: pointer;
+                                font-weight: 600;
+                                min-width: 70px;
+                                height: 40px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 6px;
+                            " disabled>
+                                <span>Send</span>
+                                <span style="font-size: 12px;">↵</span>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         `;
 
+        // Setup event listeners
+        this.setupChatEventListeners();
+        
+        // Fix chat container height
+        this.fixChatContainerHeight();
+        
         // Setup settings button
         document.getElementById(`lmConfigBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.showLMStudioConfig();
@@ -2015,7 +2091,239 @@ function createAmazingApp() {
 
         // Test LM Studio connection
         this.testLMStudioConnection();
-        console.log('Created LM Studio API interface');
+        console.log('Created LM Studio API interface with chat');
+    }
+
+    /**
+     * Fix chat container height to enable proper scrolling
+     */
+    fixChatContainerHeight() {
+        const container = document.getElementById(`webviewContainer-${this.windowId}`);
+        const chatArea = document.getElementById(`chatArea-${this.windowId}`);
+        const messagesContainer = document.getElementById(`messagesContainer-${this.windowId}`);
+        
+        if (!container || !chatArea || !messagesContainer) return;
+        
+        // Force a specific height calculation
+        setTimeout(() => {
+            const containerHeight = container.offsetHeight;
+            const headerHeight = 120; // Approximate header height
+            const inputHeight = 100;  // Approximate input area height
+            const availableHeight = containerHeight - headerHeight - inputHeight;
+            
+            messagesContainer.style.height = `${availableHeight}px`;
+            messagesContainer.style.maxHeight = `${availableHeight}px`;
+            
+            console.log(`Set messages container height to ${availableHeight}px`);
+        }, 100);
+        
+        // Add resize handler to recalculate on window resize
+        window.addEventListener('resize', () => {
+            setTimeout(() => this.fixChatContainerHeight(), 100);
+        });
+    }
+
+    /**
+     * Setup chat event listeners
+     */
+    setupChatEventListeners() {
+        const chatInput = document.getElementById(`chatInput-${this.windowId}`);
+        const sendBtn = document.getElementById(`sendBtn-${this.windowId}`);
+        
+        if (!chatInput || !sendBtn) return;
+
+        // Enable/disable send button based on input
+        chatInput.addEventListener('input', () => {
+            const hasText = chatInput.value.trim().length > 0;
+            sendBtn.disabled = !hasText;
+            sendBtn.style.opacity = hasText ? '1' : '0.5';
+        });
+
+        // Handle Enter key (send) and Shift+Enter (new line)
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendChatMessage();
+            }
+        });
+
+        // Send button click
+        sendBtn.addEventListener('click', () => {
+            this.sendChatMessage();
+        });
+    }
+
+    /**
+     * Send chat message to LM Studio
+     */
+    async sendChatMessage() {
+        const chatInput = document.getElementById(`chatInput-${this.windowId}`);
+        const sendBtn = document.getElementById(`sendBtn-${this.windowId}`);
+        
+        if (!chatInput || !sendBtn) return;
+        
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Clear input and disable send button
+        chatInput.value = '';
+        sendBtn.disabled = true;
+        sendBtn.style.opacity = '0.5';
+        
+        // Re-focus the input for better UX
+        chatInput.focus();
+
+        // Add user message to chat
+        this.addChatMessage(message, 'user');
+        
+        // Show typing indicator
+        const typingId = this.addTypingIndicator();
+        
+        try {
+            // Send to LM Studio
+            const response = await fetch(`${this.lmStudioConfig.baseUrl}/v1/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(30000),
+                body: JSON.stringify({
+                    model: this.lmStudioConfig.model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a helpful AI assistant specializing in coding and development. Provide clear, concise, and helpful responses.'
+                        },
+                        { role: 'user', content: message }
+                    ],
+                    temperature: this.lmStudioConfig.temperature,
+                    max_tokens: this.lmStudioConfig.maxTokens
+                })
+            });
+
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+            const result = await response.json();
+            const aiResponse = result.choices[0]?.message?.content || 'No response received';
+            
+            // Remove typing indicator and add AI response
+            this.removeTypingIndicator(typingId);
+            this.addChatMessage(aiResponse, 'assistant');
+            
+        } catch (error) {
+            console.error('❌ LM Studio chat error:', error);
+            this.removeTypingIndicator(typingId);
+            this.addChatMessage('❌ Sorry, I encountered an error. Please check your LM Studio connection.', 'error');
+        }
+    }
+
+    /**
+     * Add message to chat
+     */
+    addChatMessage(content, type = 'user') {
+        const container = document.getElementById(`messagesContainer-${this.windowId}`);
+        if (!container) return;
+
+        const messageDiv = document.createElement('div');
+        
+        if (type === 'user') {
+            messageDiv.style.cssText = `
+                align-self: flex-end;
+                max-width: 80%;
+                background: var(--nebula-primary);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 18px 18px 4px 18px;
+                font-size: 14px;
+                line-height: 1.4;
+                white-space: pre-wrap;
+            `;
+        } else if (type === 'assistant') {
+            messageDiv.style.cssText = `
+                align-self: flex-start;
+                max-width: 80%;
+                background: var(--nebula-surface);
+                border: 1px solid var(--nebula-border);
+                color: var(--nebula-text-primary);
+                padding: 12px 16px;
+                border-radius: 18px 18px 18px 4px;
+                font-size: 14px;
+                line-height: 1.4;
+                white-space: pre-wrap;
+            `;
+        } else if (type === 'error') {
+            messageDiv.style.cssText = `
+                align-self: center;
+                max-width: 80%;
+                background: rgba(239, 68, 68, 0.1);
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                color: #ef4444;
+                padding: 12px 16px;
+                border-radius: var(--nebula-radius-md);
+                font-size: 14px;
+                line-height: 1.4;
+                text-align: center;
+            `;
+        }
+
+        messageDiv.textContent = content;
+        container.appendChild(messageDiv);
+        
+        // Smooth scroll to bottom
+        setTimeout(() => {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: 'smooth'
+            });
+        }, 10);
+    }
+
+    /**
+     * Add typing indicator
+     */
+    addTypingIndicator() {
+        const container = document.getElementById(`messagesContainer-${this.windowId}`);
+        if (!container) return null;
+
+        const typingDiv = document.createElement('div');
+        const typingId = `typing-${Date.now()}`;
+        typingDiv.id = typingId;
+        
+        typingDiv.style.cssText = `
+            align-self: flex-start;
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text-secondary);
+            padding: 12px 16px;
+            border-radius: 18px 18px 18px 4px;
+            font-size: 14px;
+            font-style: italic;
+        `;
+        
+        typingDiv.innerHTML = `
+            <span>🤖 AI is thinking</span>
+            <span class="typing-dots">...</span>
+        `;
+        
+        container.appendChild(typingDiv);
+        
+        // Smooth scroll to bottom
+        setTimeout(() => {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: 'smooth'
+            });
+        }, 10);
+        
+        return typingId;
+    }
+
+    /**
+     * Remove typing indicator
+     */
+    removeTypingIndicator(typingId) {
+        if (typingId) {
+            const element = document.getElementById(typingId);
+            if (element) element.remove();
+        }
     }
 
     /**
