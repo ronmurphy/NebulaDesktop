@@ -3601,16 +3601,40 @@ setupDiffDialog(modal, dialog) {
     });
 
     // Apply merge
-    applyMergeBtn.addEventListener('click', () => {
-        if (diffEditor && this.monacoEditor) {
-            const mergedContent = diffEditor.getModifiedEditor().getValue();
-            this.monacoEditor.setValue(mergedContent);
-            this.hasUnsavedChanges = true;
-            this.updateWindowTitle();
-            this.writeOutput('Merged content applied to current file!', 'success');
-            this.closeDiffModal(modal, diffEditor);
+    // applyMergeBtn.addEventListener('click', () => {
+    //     if (diffEditor && this.monacoEditor) {
+    //         const mergedContent = diffEditor.getModifiedEditor().getValue();
+    //         this.monacoEditor.setValue(mergedContent);
+    //         this.hasUnsavedChanges = true;
+    //         this.updateWindowTitle();
+    //         this.writeOutput('Merged content applied to current file!', 'success');
+    //         this.closeDiffModal(modal, diffEditor);
+    //     }
+    // });
+
+    // Apply merge
+applyMergeBtn.addEventListener('click', () => {
+    if (diffEditor && this.monacoEditor) {
+        // Get the modified content (this is what David wants - the "patched" version)
+        const mergedContent = diffEditor.getModifiedEditor().getValue();
+        
+        // Apply to current editor
+        this.monacoEditor.setValue(mergedContent);
+        this.hasUnsavedChanges = true;
+        this.updateWindowTitle();
+        
+        // Mark the current tab as modified if using tabs
+        if (this.activeFileId) {
+            this.markTabAsModified(this.activeFileId, true);
         }
-    });
+        
+        this.writeOutput('Changes from diff file applied to current editor!', 'success');
+        this.closeDiffModal(modal, diffEditor);
+    } else {
+        console.error('Diff editor not available:', {diffEditor, monacoEditor: this.monacoEditor});
+        alert('Diff editor not properly initialized. Try selecting files again.');
+    }
+});
 
     // Close dialog
     closeDiffBtn.addEventListener('click', () => {
@@ -3624,15 +3648,25 @@ setupDiffDialog(modal, dialog) {
         }
     });
 
+    // const updateDiffView = () => {
+    //     if (sourceContent && modifiedContent) {
+    //         this.createMonacoDiffEditor(diffContainer, sourceContent, modifiedContent);
+    //         diffStatus.textContent = 'Diff loaded! Review changes and click "Apply Merge" when ready.';
+    //         diffStatus.style.color = 'var(--nebula-success)';
+    //         applyMergeBtn.disabled = false;
+    //         applyMergeBtn.style.opacity = '1';
+    //     }
+    // };
+
     const updateDiffView = () => {
-        if (sourceContent && modifiedContent) {
-            this.createMonacoDiffEditor(diffContainer, sourceContent, modifiedContent);
-            diffStatus.textContent = 'Diff loaded! Review changes and click "Apply Merge" when ready.';
-            diffStatus.style.color = 'var(--nebula-success)';
-            applyMergeBtn.disabled = false;
-            applyMergeBtn.style.opacity = '1';
-        }
-    };
+    if (sourceContent && modifiedContent) {
+        diffEditor = this.createMonacoDiffEditor(diffContainer, sourceContent, modifiedContent);
+        diffStatus.textContent = 'Diff loaded! Review changes and click "Apply Merge" when ready.';
+        diffStatus.style.color = 'var(--nebula-success)';
+        applyMergeBtn.disabled = false;
+        applyMergeBtn.style.opacity = '1';
+    }
+};
 
     this.updateDiffView = updateDiffView;
 }
