@@ -1,0 +1,330 @@
+--- code-assistant.js
++++ code-assistant.js
+@@ -55,6 +55,14 @@ class NebulaCodeAssistant {
+         this.nextFileId = 1;
+         this.symbolUpdateTimeout = null; // For debounced symbol updates
+ 
++        // NEW: Monaco model management
++        this.monacoModels = new Map(); // Track all Monaco models for proper disposal
++        this.errorCheckTimeout = null; // For debounced error checking
++        
++        // NEW: Plugin system
++        this.plugins = new Map();
++        this.pluginHooks = ['beforeSave', 'afterLoad', 'onError', 'beforeAIRequest'];
++
+         // NEW: Chat width management
+         this.assistantVisible = true;
+         // this.chatWidth = '400px'; // Default width
+@@ -278,6 +286,7 @@ class NebulaCodeAssistant {
+             this.setupEventListeners();
+             this.initializeMonaco();
+             this.createWebview();
++            this.setupErrorDetection(); // NEW: Add error detection
+             this.createNewTab(); // Initialize with first tab
+             this.updateWindowTitle(); // Set initial window title and status
+         }, 0);
+@@ -1032,6 +1041,7 @@ class NebulaCodeAssistant {
+ 
+         // Dispose Monaco model
+         if (fileData.monacoModel) {
++            this.monacoModels.delete(fileData.id);
+             fileData.monacoModel.dispose();
+         }
+ 
+@@ -1217,6 +1227,7 @@ class NebulaCodeAssistant {
+             if (!fileData.monacoModel) {
+                 fileData.monacoModel = monaco.editor.createModel(
+                     fileData.content,
+                     fileData.language
+                 );
++                this.monacoModels.set(fileData.id, fileData.monacoModel);
+             }
+             this.monacoEditor.setModel(fileData.monacoModel);
+         } else if (this.monacoEditor) {
+@@ -1547,6 +1558,152 @@ class NebulaCodeAssistant {
+         }
+     }
+ 
++    // NEW: Enhanced error detection and suggestions
++    setupErrorDetection() {
++        if (!this.monacoEditor) return;
++        
++        this.monacoEditor.onDidChangeModelContent(() => {
++            clearTimeout(this.errorCheckTimeout);
++            this.errorCheckTimeout = setTimeout(() => {
++                this.checkForErrors();
++            }, 2000); // Check after 2 seconds of inactivity
++        });
++    }
++
++    checkForErrors() {
++        if (!this.monacoEditor || !monaco) return;
++        
++        const model = this.monacoEditor.getModel();
++        if (!model) return;
++        
++        const markers = monaco.editor.getModelMarkers({ resource: model.uri });
++        
++        if (markers.length > 0) {
++            this.updateErrorStatus(markers);
++        } else {
++            this.clearErrorStatus();
++        }
++    }
++
++    updateErrorStatus(errors) {
++        const fileStatus = document.getElementById(`fileStatus-${this.windowId}`);
++        if (!fileStatus) return;
++        
++        const errorCount = errors.filter(e => e.severity === 8).length; // Error severity
++        const warningCount = errors.filter(e => e.severity === 4).length; // Warning severity
++        
++        let statusText = '';
++        if (errorCount > 0) {
++            statusText += `${errorCount} error${errorCount > 1 ? 's' : ''}`;
++        }
++        if (warningCount > 0) {
++            if (statusText) statusText += ', ';
++            statusText += `${warningCount} warning${warningCount > 1 ? 's' : ''}`;
++        }
++        
++        if (statusText) {
++            fileStatus.innerHTML = `<span style="color: ${errorCount > 0 ? '#ef4444' : '#f59e0b'}">${statusText}</span>`;
++            fileStatus.title = 'Click to see AI suggestions for fixes';
++            fileStatus.style.cursor = 'pointer';
++            fileStatus.onclick = () => this.showErrorSuggestions(errors);
++        }
++    }
++
++    clearErrorStatus() {
++        const fileStatus = document.getElementById(`fileStatus-${this.windowId}`);
++        if (fileStatus) {
++            const fileData = this.getCurrentFileData();
++            fileStatus.textContent = fileData && fileData.hasUnsavedChanges ? 'Modified' : 'Saved';
++            fileStatus.style.cursor = 'default';
++            fileStatus.onclick = null;
++            fileStatus.title = '';
++        }
++    }
++
++    async showErrorSuggestions(errors) {
++        const errorContext = errors.map(error => 
++            `Line ${error.startLineNumber}: ${error.message}`
++        ).join('\n');
++        
++        // Build context for AI
++        const code = this.monacoEditor.getValue();
++        const fileData = this.getCurrentFileData();
++        
++        const prompt = `I have ${errors.length} error${errors.length > 1 ? 's' : ''} in my ${fileData?.language || 'JavaScript'} code. Can you help me fix them?
++
++Errors:
++${errorContext}
++
++Code context (showing relevant sections):
++\`\`\`${fileData?.language || 'javascript'}
++${code}
++\`\`\`
++
++Please provide specific fixes for each error.`;
++
++        // Send to AI if available, or copy to clipboard
++        if (this.isAPIService() && this.currentAIService === 'lmstudio') {
++            await this.sendToLMStudio(prompt, 'fix-errors');
++        } else {
++            navigator.clipboard.writeText(prompt);
++            this.writeOutput('Error fixing prompt copied to clipboard!', 'info');
++            alert('Error analysis prompt copied to clipboard!\nPaste it into the AI chat for assistance.');
++        }
++    }
++
++    // NEW: Enhanced context analysis for AI
++    analyzeCodeContext() {
++        if (!this.monacoEditor) return null;
++        
++        const code = this.monacoEditor.getValue();
++        const fileData = this.getCurrentFileData();
++        if (!fileData) return null;
++        
++        const lines = code.split('\n');
++        const symbols = this.parseSymbols(code, fileData.language);
++        
++        return {
++            language: fileData.language,
++            fileName: fileData.name,
++            lineCount: lines.length,
++            symbolCount: symbols.length,
++            hasErrors: this.hasErrors(),
++            complexity: this.estimateComplexity(code),
++            imports: this.extractImports(code, fileData.language)
++        };
++    }
++
++    hasErrors() {
++        if (!this.monacoEditor || !monaco) return false;
++        
++        const model = this.monacoEditor.getModel();
++        if (!model) return false;
++        
++        const markers = monaco.editor.getModelMarkers({ resource: model.uri });
++        return markers.some(m => m.severity === 8); // Error severity
++    }
++
++    estimateComplexity(code) {
++        // Simple complexity estimation based on control structures
++        const controlStructures = [
++            /\bif\s*\(/g, /\belse\b/g, /\bfor\s*\(/g, /\bwhile\s*\(/g,
++            /\bswitch\s*\(/g, /\bcatch\s*\(/g, /\btry\s*{/g, /\?\s*.*:/g
++        ];
++        
++        let complexity = 1; // Base complexity
++        controlStructures.forEach(pattern => {
++            const matches = code.match(pattern);
++            if (matches) complexity += matches.length;
++        });
++        
++        return {
++            score: complexity,
++            level: complexity < 5 ? 'low' : complexity < 15 ? 'medium' : 'high'
++        };
++    }
++
++    extractImports(code, language) {
++        const imports = [];
++        
++        if (language === 'javascript' || language === 'typescript') {
++            // ES6 imports
++            const importRegex = /import\s+.*?from\s+['"`]([^'"`]+)['"`]/g;
++            let match;
++            while ((match = importRegex.exec(code)) !== null) {
++                imports.push(match[1]);
++            }
++            
++            // CommonJS requires
++            const requireRegex = /require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g;
++            while ((match = requireRegex.exec(code)) !== null) {
++                imports.push(match[1]);
++            }
++        } else if (language === 'python') {
++            const importRegex = /(?:from\s+(\S+)\s+)?import\s+([^\n]+)/g;
++            let match;
++            while ((match = importRegex.exec(code)) !== null) {
++                imports.push(match[1] || match[2].split(',')[0].trim());
++            }
++        }
++        
++        return imports;
++    }
++
++    // ENHANCED: Build enhanced context with analysis
++    buildEnhancedContext(userMessage) {
++        const basicContext = this.buildContextMessage(userMessage);
++        const analysis = this.analyzeCodeContext();
++        
++        if (analysis) {
++            const contextAddition = `
++
++--- CODE ANALYSIS ---
++File: ${analysis.fileName} (${analysis.language})
++Lines: ${analysis.lineCount}
++Symbols: ${analysis.symbolCount} functions/classes found
++Complexity: ${analysis.complexity.level} (${analysis.complexity.score})
++Has Errors: ${analysis.hasErrors ? 'Yes' : 'No'}
++${analysis.imports.length > 0 ? `Dependencies: ${analysis.imports.join(', ')}` : 'No dependencies detected'}
++--- END ANALYSIS ---`;
++            
++            return basicContext + contextAddition;
++        }
++        
++        return basicContext;
++    }
++
+     /**
+      * Send chat message to LM Studio
+      */
+@@ -1571,7 +1728,7 @@ class NebulaCodeAssistant {
+         this.addChatMessage(message, 'user');
+         
+         // Build message with context if enabled
+-        const contextualMessage = this.buildContextMessage(message);
++        const contextualMessage = this.buildEnhancedContext(message); // Use enhanced context
+         
+         // Clear file context after sending (optional - comment out if you want it to persist)
+         this.clearFileContext();
+@@ -2061,6 +2218,8 @@ class NebulaCodeAssistant {
+                 guides: {
+                     bracketPairs: true,
+                     indentation: true
++                },
++                'semanticHighlighting.enabled': true // Better syntax highlighting
+             });
+ 
+             // NEW: Track changes for unsaved indicator
+@@ -2081,6 +2240,9 @@ class NebulaCodeAssistant {
+                 }
+             });
+ 
++            // NEW: Setup enhanced error detection
++            this.setupErrorDetection();
++
+             console.log('Monaco Editor initialized');
+         } catch (error) {
+             console.error('Failed to initialize Monaco Editor:', error);
+@@ -2750,7 +2912,7 @@ class NebulaCodeAssistant {
+ 
+         // Check if we're using LM Studio API
+         if (this.isAPIService() && this.currentAIService === 'lmstudio') {
+-            await this.sendToLMStudio(prompt, 'optimize');
++            await this.sendToLMStudio(this.buildEnhancedContext(prompt), 'optimize');
+         } else {
+             // Fallback to clipboard for webview services
+             navigator.clipboard.writeText(prompt);
+@@ -2773,6 +2935,9 @@ class NebulaCodeAssistant {
+                     messages: [
+                         {
+                             role: 'system',
+-                            content: 'You are a helpful coding assistant. When optimizing code, provide the complete improved code in a code block.'
++                            content: `You are a helpful coding assistant specializing in ${this.currentLanguage}. 
++When providing code fixes or optimizations, always include the complete improved code in a code block.
++Be specific about what changes you made and why.
++Consider performance, readability, and best practices.`
+                         },
+                         { role: 'user', content: prompt }
+                     ],
+@@ -3117,6 +3282,27 @@ class NebulaCodeAssistant {
+         return true;
+     }
+ 
++    // ENHANCED: Enhanced cleanup with proper model disposal
++    cleanup() {
++        // Check for unsaved changes before closing
++        if (this.hasUnsavedChanges) {
++            if (confirm('You have unsaved changes. Close anyway?')) {
++                // User confirmed, proceed with cleanup
++            } else {
++                // User cancelled, prevent close
++                return false;
++            }
++        }
++
++        // Dispose all Monaco models to prevent memory leaks
++        this.monacoModels.forEach((model, id) => {
++            if (model && !model.isDisposed()) {
++                model.dispose();
++            }
++        });
++        this.monacoModels.clear();
++
+         if (this.monacoEditor) {
+             this.monacoEditor.dispose();
+             this.monacoEditor = null;
+         }
++        
++        // Clear timeouts
++        if (this.symbolUpdateTimeout) clearTimeout(this.symbolUpdateTimeout);
++        if (this.errorCheckTimeout) clearTimeout(this.errorCheckTimeout);
++        
+         console.log('Code Assistant cleanup');
+         return true;
+     }
+ }

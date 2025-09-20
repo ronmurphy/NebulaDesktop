@@ -14,7 +14,7 @@ class NebulaCodeAssistant {
 
         // LM Studio Configuration
         this.lmStudioConfig = {
-            baseUrl: 'http://127.0.0.1:1234',
+            baseUrl: 'http://192.168.1.254:1234',
             model: 'local-model', // Will be detected automatically
             temperature: 0.7,
             maxTokens: 2048
@@ -35,14 +35,6 @@ class NebulaCodeAssistant {
         this.nextFileId = 1;
         this.symbolUpdateTimeout = null; // For debounced symbol updates
 
-
-        // NEW: Monaco model management
-        this.monacoModels = new Map(); // Track all Monaco models for proper disposal
-        this.errorCheckTimeout = null; // For debounced error checking
-        
-        // NEW: Plugin system
-        this.plugins = new Map();
-        this.pluginHooks = ['beforeSave', 'afterLoad', 'onError', 'beforeAIRequest'];
 
         // NEW: Chat width management
         this.assistantVisible = true;
@@ -290,7 +282,6 @@ class NebulaCodeAssistant {
             this.setupEventListeners();
             this.initializeMonaco();
             this.createWebview();
-            this.setupErrorDetection(); // NEW: Add error detection
             this.createNewTab(); // Initialize with first tab
             this.updateWindowTitle(); // Set initial window title and status
         }, 0);
@@ -397,8 +388,7 @@ class NebulaCodeAssistant {
             ">
                 <option value="">📋 Go to Symbol...</option>
             </select>
-
-                      
+            
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
             <!-- ⚡ NEW: JS Execution Controls -->
@@ -457,13 +447,6 @@ class NebulaCodeAssistant {
     <span class="material-symbols-outlined">smart_toy</span>
     <span>${this.assistantVisible ? 'Hide' : 'Show'} AI</span>
 </button>
-
-<button id="diffMergeBtn-${this.windowId}" class="code-toolbar-btn" title="Diff & Merge Tool">
-    <span class="material-symbols-outlined">merge</span>
-    <span>Diff/Merge</span>
-</button>
-
-<div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
 
 <!-- Chat Width Controls -->
 <div id="chatWidthControls-${this.windowId}" style="
@@ -716,10 +699,6 @@ document.getElementById(`templateSelect-${this.windowId}`)?.addEventListener('ch
         this.showTemplateCustomizationModal(e.target.value);
         e.target.value = ''; // Reset selector
     }
-});
-
-document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('click', () => {
-    this.showDiffMergeDialog();
 });
 
         // Language selector (original)
@@ -1179,7 +1158,6 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
 
         // Dispose Monaco model
         if (fileData.monacoModel) {
-            this.monacoModels.delete(fileData.id);
             fileData.monacoModel.dispose();
         }
 
@@ -1314,97 +1292,6 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
             outputContent.innerHTML = 'Output cleared... 🧹\n';
         }
     }
-
-    // NEW: Enhanced error detection and suggestions
-setupErrorDetection() {
-    if (!this.monacoEditor) return;
-    
-    this.monacoEditor.onDidChangeModelContent(() => {
-        clearTimeout(this.errorCheckTimeout);
-        this.errorCheckTimeout = setTimeout(() => {
-            this.checkForErrors();
-        }, 2000);
-    });
-}
-
-checkForErrors() {
-    if (!this.monacoEditor || !monaco) return;
-    
-    const model = this.monacoEditor.getModel();
-    if (!model) return;
-    
-    const markers = monaco.editor.getModelMarkers({ resource: model.uri });
-    
-    if (markers.length > 0) {
-        this.updateErrorStatus(markers);
-    } else {
-        this.clearErrorStatus();
-    }
-}
-
-updateErrorStatus(errors) {
-    const fileStatus = document.getElementById(`fileStatus-${this.windowId}`);
-    if (!fileStatus) return;
-    
-    const errorCount = errors.filter(e => e.severity === 8).length;
-    const warningCount = errors.filter(e => e.severity === 4).length;
-    
-    let statusText = '';
-    if (errorCount > 0) {
-        statusText += `${errorCount} error${errorCount > 1 ? 's' : ''}`;
-    }
-    if (warningCount > 0) {
-        if (statusText) statusText += ', ';
-        statusText += `${warningCount} warning${warningCount > 1 ? 's' : ''}`;
-    }
-    
-    if (statusText) {
-        fileStatus.innerHTML = `<span style="color: ${errorCount > 0 ? '#ef4444' : '#f59e0b'}">${statusText}</span>`;
-        fileStatus.title = 'Click to see AI suggestions for fixes';
-        fileStatus.style.cursor = 'pointer';
-        fileStatus.onclick = () => this.showErrorSuggestions(errors);
-    }
-}
-
-clearErrorStatus() {
-    const fileStatus = document.getElementById(`fileStatus-${this.windowId}`);
-    if (fileStatus) {
-        const fileData = this.getCurrentFileData();
-        fileStatus.textContent = fileData && fileData.hasUnsavedChanges ? 'Modified' : 'Saved';
-        fileStatus.style.cursor = 'default';
-        fileStatus.onclick = null;
-        fileStatus.title = '';
-    }
-}
-
-async showErrorSuggestions(errors) {
-    const errorContext = errors.map(error => 
-        `Line ${error.startLineNumber}: ${error.message}`
-    ).join('\n');
-    
-    const code = this.monacoEditor.getValue();
-    const fileData = this.getCurrentFileData();
-    
-    const prompt = `I have ${errors.length} error${errors.length > 1 ? 's' : ''} in my ${fileData?.language || 'JavaScript'} code. Can you help me fix them?
-
-Errors:
-${errorContext}
-
-Code context:
-\`\`\`${fileData?.language || 'javascript'}
-${code}
-\`\`\`
-
-Please provide specific fixes for each error.`;
-
-    if (this.isAPIService() && this.currentAIService === 'lmstudio') {
-        await this.sendToLMStudio(prompt, 'fix-errors');
-    } else {
-        navigator.clipboard.writeText(prompt);
-        this.writeOutput('Error fixing prompt copied to clipboard!', 'info');
-        alert('Error analysis prompt copied to clipboard!\nPaste it into the AI chat for assistance.');
-    }
-}
 
     // Update existing methods to work with tabs
     getCurrentFileData() {
@@ -1718,7 +1605,6 @@ Please provide specific fixes for each error.`;
                     }
                 }
             });
-            this.setupErrorDetection();
 
             console.log('Monaco Editor initialized');
         } catch (error) {
@@ -3456,349 +3342,6 @@ function createAmazingApp() {
         }
     }
 
-    // NEW: Diff/Merge Tool
-showDiffMergeDialog() {
-    const modal = document.createElement('div');
-    modal.className = 'diff-merge-modal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
-
-    const dialog = document.createElement('div');
-    dialog.style.cssText = `
-        background: var(--nebula-surface);
-        border: 1px solid var(--nebula-border);
-        border-radius: var(--nebula-radius-lg);
-        width: 90%;
-        height: 85%;
-        max-width: 1200px;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    `;
-
-    dialog.innerHTML = `
-        <div class="diff-header" style="
-            padding: 20px;
-            border-bottom: 1px solid var(--nebula-border);
-            background: var(--nebula-surface-elevated);
-        ">
-            <h2 style="margin: 0 0 16px 0; color: var(--nebula-text-primary); display: flex; align-items: center; gap: 12px;">
-                <span class="material-symbols-outlined" style="font-size: 28px;">merge</span>
-                Diff & Merge Tool
-            </h2>
-            
-            <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 16px;">
-                <button id="selectSourceBtn" class="diff-btn primary">
-                    📄 Select Source File
-                </button>
-                <span style="color: var(--nebula-text-secondary);">vs</span>
-                <button id="selectDiffBtn" class="diff-btn primary">
-                    📝 Select Diff/Modified File
-                </button>
-                <div style="flex: 1;"></div>
-                <button id="applyMergeBtn" class="diff-btn success" disabled>
-                    ✅ Apply Merge to Current File
-                </button>
-            </div>
-            
-            <div id="diffStatus" style="
-                color: var(--nebula-text-secondary);
-                font-size: 14px;
-                min-height: 20px;
-            ">Select source and modified files to see differences</div>
-        </div>
-
-        <div id="diffEditorContainer" style="
-            flex: 1;
-            background: var(--nebula-bg-primary);
-            position: relative;
-        ">
-            <div style="
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                text-align: center;
-                color: var(--nebula-text-secondary);
-            ">
-                <div style="font-size: 48px; margin-bottom: 16px;">⚡</div>
-                <div style="font-size: 18px; margin-bottom: 8px;">Ready for Diff & Merge</div>
-                <div style="font-size: 14px;">Select your source and modified files above</div>
-            </div>
-        </div>
-
-        <div class="diff-footer" style="
-            padding: 16px 20px;
-            border-top: 1px solid var(--nebula-border);
-            background: var(--nebula-surface);
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-        ">
-            <button id="closeDiffBtn" class="diff-btn secondary">Close</button>
-        </div>
-    `;
-
-    modal.appendChild(dialog);
-    document.body.appendChild(modal);
-
-    // Setup diff dialog functionality
-    this.setupDiffDialog(modal, dialog);
-}
-
-setupDiffDialog(modal, dialog) {
-    let sourceContent = '';
-    let modifiedContent = '';
-    let diffEditor = null;
-
-    const selectSourceBtn = dialog.querySelector('#selectSourceBtn');
-    const selectDiffBtn = dialog.querySelector('#selectDiffBtn');
-    const applyMergeBtn = dialog.querySelector('#applyMergeBtn');
-    const closeDiffBtn = dialog.querySelector('#closeDiffBtn');
-    const diffStatus = dialog.querySelector('#diffStatus');
-    const diffContainer = dialog.querySelector('#diffEditorContainer');
-
-    // Source file selection
-    selectSourceBtn.addEventListener('click', async () => {
-        try {
-            const result = await this.selectFileForDiff('Select Source File');
-            if (result) {
-                sourceContent = result.content;
-                selectSourceBtn.innerHTML = `📄 Source: ${result.name}`;
-                selectSourceBtn.classList.remove('primary');
-                selectSourceBtn.classList.add('success');
-                this.updateDiffView();
-            }
-        } catch (error) {
-            alert('Error loading source file: ' + error.message);
-        }
-    });
-
-    // Modified file selection
-    selectDiffBtn.addEventListener('click', async () => {
-        try {
-            const result = await this.selectFileForDiff('Select Modified/Diff File');
-            if (result) {
-                modifiedContent = result.content;
-                selectDiffBtn.innerHTML = `📝 Modified: ${result.name}`;
-                selectDiffBtn.classList.remove('primary');
-                selectDiffBtn.classList.add('success');
-                this.updateDiffView();
-            }
-        } catch (error) {
-            alert('Error loading modified file: ' + error.message);
-        }
-    });
-
-    // Apply merge
-    applyMergeBtn.addEventListener('click', () => {
-        if (diffEditor && this.monacoEditor) {
-            const mergedContent = diffEditor.getModifiedEditor().getValue();
-            this.monacoEditor.setValue(mergedContent);
-            this.hasUnsavedChanges = true;
-            this.updateWindowTitle();
-            this.writeOutput('Merged content applied to current file!', 'success');
-            this.closeDiffModal(modal, diffEditor);
-        }
-    });
-
-    // Close dialog
-    closeDiffBtn.addEventListener('click', () => {
-        this.closeDiffModal(modal, diffEditor);
-    });
-
-    // Close on outside click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            this.closeDiffModal(modal, diffEditor);
-        }
-    });
-
-    const updateDiffView = () => {
-        if (sourceContent && modifiedContent) {
-            this.createMonacoDiffEditor(diffContainer, sourceContent, modifiedContent);
-            diffStatus.textContent = 'Diff loaded! Review changes and click "Apply Merge" when ready.';
-            diffStatus.style.color = 'var(--nebula-success)';
-            applyMergeBtn.disabled = false;
-            applyMergeBtn.style.opacity = '1';
-        }
-    };
-
-    this.updateDiffView = updateDiffView;
-}
-
-async selectFileForDiff(title) {
-    return new Promise((resolve) => {
-        const options = [
-            { id: 'current', name: 'Current File in Editor', content: () => this.monacoEditor?.getValue() || '' },
-            { id: 'clipboard', name: 'From Clipboard', content: () => navigator.clipboard.readText() },
-            { id: 'file', name: 'Browse for File...', content: null }
-        ];
-
-        const selectionModal = document.createElement('div');
-        selectionModal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10001;
-        `;
-
-        const selectionDialog = document.createElement('div');
-        selectionDialog.style.cssText = `
-            background: var(--nebula-surface);
-            border: 1px solid var(--nebula-border);
-            border-radius: var(--nebula-radius-md);
-            padding: 24px;
-            min-width: 400px;
-        `;
-
-        selectionDialog.innerHTML = `
-            <h3 style="color: var(--nebula-text-primary); margin: 0 0 20px 0;">${title}</h3>
-            <div class="file-options">
-                ${options.map(option => `
-                    <button class="file-option-btn" data-id="${option.id}" style="
-                        width: 100%;
-                        padding: 12px 16px;
-                        margin-bottom: 8px;
-                        border: 1px solid var(--nebula-border);
-                        border-radius: var(--nebula-radius-sm);
-                        background: var(--nebula-surface-hover);
-                        color: var(--nebula-text-primary);
-                        cursor: pointer;
-                        text-align: left;
-                        transition: var(--nebula-transition-fast);
-                    ">${option.name}</button>
-                `).join('')}
-            </div>
-            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
-                <button id="cancelSelection" style="
-                    background: var(--nebula-surface-hover);
-                    border: 1px solid var(--nebula-border);
-                    color: var(--nebula-text-primary);
-                    padding: 8px 16px;
-                    border-radius: var(--nebula-radius-sm);
-                    cursor: pointer;
-                ">Cancel</button>
-            </div>
-        `;
-
-        selectionModal.appendChild(selectionDialog);
-        document.body.appendChild(selectionModal);
-
-        selectionDialog.querySelectorAll('.file-option-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const optionId = btn.dataset.id;
-                const option = options.find(o => o.id === optionId);
-
-                try {
-                    let content = '';
-                    let name = option.name;
-
-                    if (optionId === 'current') {
-                        content = option.content();
-                        const fileData = this.getCurrentFileData();
-                        name = fileData ? fileData.name : 'Current File';
-                    } else if (optionId === 'clipboard') {
-                        content = await option.content();
-                        name = 'Clipboard Content';
-                    } else if (optionId === 'file') {
-                        // File browsing would go here - for now, show input dialog
-                        const filePath = await this.showInputDialog('Enter File Path', 'Enter the path to your file:');
-                        if (filePath && window.nebula?.fs) {
-                            content = await window.nebula.fs.readFile(filePath);
-                            name = filePath.split('/').pop();
-                        } else {
-                            document.body.removeChild(selectionModal);
-                            resolve(null);
-                            return;
-                        }
-                    }
-
-                    document.body.removeChild(selectionModal);
-                    resolve({ content, name });
-                } catch (error) {
-                    alert('Error loading content: ' + error.message);
-                    document.body.removeChild(selectionModal);
-                    resolve(null);
-                }
-            });
-
-            btn.addEventListener('mouseenter', () => {
-                btn.style.background = 'var(--nebula-surface-active)';
-            });
-
-            btn.addEventListener('mouseleave', () => {
-                btn.style.background = 'var(--nebula-surface-hover)';
-            });
-        });
-
-        selectionDialog.querySelector('#cancelSelection').addEventListener('click', () => {
-            document.body.removeChild(selectionModal);
-            resolve(null);
-        });
-    });
-}
-
-createMonacoDiffEditor(container, original, modified) {
-    container.innerHTML = '';
-
-    if (!monaco) {
-        container.innerHTML = `
-            <div style="padding: 40px; text-align: center; color: var(--nebula-text-secondary);">
-                <div style="font-size: 24px; margin-bottom: 16px;">⚠️</div>
-                <div>Monaco Editor not available</div>
-                <div style="font-size: 14px; margin-top: 8px;">Diff comparison requires Monaco Editor to be loaded</div>
-            </div>
-        `;
-        return null;
-    }
-
-    const diffEditor = monaco.editor.createDiffEditor(container, {
-        theme: 'vs-dark',
-        renderSideBySide: true,
-        readOnly: false,
-        automaticLayout: true,
-        originalEditable: false,
-        fontSize: 13,
-        wordWrap: 'on'
-    });
-
-    const originalModel = monaco.editor.createModel(original, this.currentLanguage);
-    const modifiedModel = monaco.editor.createModel(modified, this.currentLanguage);
-
-    diffEditor.setModel({
-        original: originalModel,
-        modified: modifiedModel
-    });
-
-    return diffEditor;
-}
-
-closeDiffModal(modal, diffEditor) {
-    if (diffEditor) {
-        diffEditor.dispose();
-    }
-    if (modal && modal.parentNode) {
-        modal.parentNode.removeChild(modal);
-    }
-}
-
     /**
      * Send request to LM Studio API
      */
@@ -4912,43 +4455,6 @@ closeModal(modal) {
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
-}
-
-.diff-btn {
-    padding: 8px 16px;
-    border-radius: var(--nebula-radius-sm);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: var(--nebula-transition-fast);
-    border: none;
-}
-
-.diff-btn.primary {
-    background: var(--nebula-primary);
-    color: white;
-}
-
-.diff-btn.success {
-    background: var(--nebula-success);
-    color: white;
-}
-
-.diff-btn.secondary {
-    background: var(--nebula-surface-hover);
-    border: 1px solid var(--nebula-border);
-    color: var(--nebula-text-primary);
-}
-
-.diff-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--nebula-shadow-sm);
-}
-
-.diff-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
 }
         `;
         document.head.appendChild(style);

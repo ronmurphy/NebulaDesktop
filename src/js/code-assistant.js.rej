@@ -1,0 +1,10 @@
+--- code-assistant.js
++++ code-assistant.js
+@@ -1227,6 +1237,7 @@ class NebulaCodeAssistant {
+             if (!fileData.monacoModel) {
+                 fileData.monacoModel = monaco.editor.createModel(
+                     fileData.content,
+                     fileData.language
+                 );
++                this.monacoModels.set(fileData.id, fileData.monacoModel);
+             }
