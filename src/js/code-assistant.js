@@ -382,6 +382,11 @@ class NebulaCodeAssistant {
             <button id="saveAsBtn-${this.windowId}" class="code-toolbar-btn title="Save As (Ctrl+Shift+S)">
                 <span class="material-symbols-outlined">save_as</span>
             </button>
+
+                <!-- Hot Reload Button -->
+                <button id="hotReloadBtn-${this.windowId}" class="code-toolbar-btn" title="Hot Reload File">
+                    <span class="material-symbols-outlined">refresh</span>
+                </button>
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
@@ -758,8 +763,33 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
         });
 
         // NEW: Tab management
+
         document.getElementById(`newTabBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.createNewTab();
+        });
+
+        // Hot Reload Button handler
+        document.getElementById(`hotReloadBtn-${this.windowId}`)?.addEventListener('click', async () => {
+            const fileData = this.getCurrentFileData();
+            if (!fileData || !fileData.path) {
+                alert('No file to reload.');
+                return;
+            }
+            // Close the current tab
+            this.closeTab(fileData.id);
+            // Load file content before creating new tab
+            try {
+                // Use Nebula/Electron API to read file
+                let newContent = '';
+                if (window.nebula?.fs?.readFile) {
+                    newContent = await window.nebula.fs.readFile(fileData.path);
+                } else if (window.electronAPI?.readFile) {
+                    newContent = await window.electronAPI.readFile(fileData.path);
+                }
+                this.createNewTab(fileData.path, newContent);
+            } catch (err) {
+                alert('Failed to reload file: ' + err.message);
+            }
         });
 
         // ⚡ NEW: JS Execution Controls
@@ -2997,32 +3027,31 @@ function createAmazingApp() {
         this.writeOutput(`Opening file: ${filePath}...`, 'info');
         const content = await window.nebula.fs.readFile(filePath);
 
-        if (this.monacoEditor) {
-            this.monacoEditor.setValue(content);
-            this.currentFilePath = filePath;
-            this.hasUnsavedChanges = false;
-            this.updateWindowTitle();
+        // Always open in a new tab and set file path
+        this.createNewTab(filePath, content);
+        this.currentFilePath = filePath;
+        this.hasUnsavedChanges = false;
+        this.updateWindowTitle();
 
-            // Auto-detect language from file extension
-            const extension = filePath.split('.').pop().toLowerCase();
-            const languageMap = {
-                'js': 'javascript',
-                'ts': 'typescript',
-                'py': 'python',
-                'html': 'html',
-                'css': 'css',
-                'json': 'json',
-                'md': 'markdown'
-            };
+        // Auto-detect language from file extension
+        const extension = filePath.split('.').pop().toLowerCase();
+        const languageMap = {
+            'js': 'javascript',
+            'ts': 'typescript',
+            'py': 'python',
+            'html': 'html',
+            'css': 'css',
+            'json': 'json',
+            'md': 'markdown'
+        };
 
-            if (languageMap[extension]) {
-                this.switchLanguage(languageMap[extension]);
-                const languageSelect = document.getElementById(`languageSelect-${this.windowId}`);
-                if (languageSelect) languageSelect.value = languageMap[extension];
-            }
-
-            this.writeOutput(`✅ File opened successfully!`, 'success');
+        if (languageMap[extension]) {
+            this.switchLanguage(languageMap[extension]);
+            const languageSelect = document.getElementById(`languageSelect-${this.windowId}`);
+            if (languageSelect) languageSelect.value = languageMap[extension];
         }
+
+        this.writeOutput(`✅ File opened successfully!`, 'success');
     }
 
     // ENHANCED: Save using NATIVE dialog

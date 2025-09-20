@@ -59,8 +59,8 @@ class NebulaVoxelApp {
 
         this.windowId = window.windowManager.createWindow({
             title: 'Voxel World',
-            width: 900,
-            height: 700,
+            width: 1000,
+            height: 720,
             resizable: true,
             maximizable: true,
             minimizable: true
@@ -81,11 +81,69 @@ class NebulaVoxelApp {
             background: black;
         `;
 
-        const toolbar = this.createToolbar();
         const contentArea = this.createContentArea();
         const statusBar = this.createStatusBar();
 
-        container.appendChild(toolbar);
+        // Modal menu button
+        const menuBtn = document.createElement('button');
+        menuBtn.textContent = '☰ Menu';
+        menuBtn.style.cssText = `
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 2000;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 18px;
+            cursor: pointer;
+        `;
+        contentArea.appendChild(menuBtn);
+
+        // Modal menu overlay (near button)
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: absolute;
+            top: 56px;
+            left: 16px;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            z-index: 3000;
+        `;
+        modal.innerHTML = `
+            <div style="background: var(--nebula-surface); border-radius: 12px; padding: 24px 32px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 18px; align-items: center; min-width: 220px;">
+                <h2 style="margin:0 0 12px 0; color: var(--nebula-text-primary); font-size: 20px;">Voxel World Menu</h2>
+                <button id="modal-save-btn" style="font-size: 16px; padding: 8px 24px;">💾 Save Game</button>
+                <button id="modal-load-btn" style="font-size: 16px; padding: 8px 24px;">📂 Load Game</button>
+                <button id="modal-delete-btn" style="font-size: 16px; padding: 8px 24px;">🗑 Delete Save</button>
+                <button id="modal-close-btn" style="margin-top: 12px; font-size: 14px; padding: 6px 18px; background: var(--nebula-danger); color: white; border-radius: 6px;">Close Menu</button>
+            </div>
+        `;
+        contentArea.appendChild(modal);
+
+        // Initialize pointer lock ready flag
+        this.pointerLockReady = true;
+        
+        // Pause/resume logic
+        menuBtn.onclick = () => {
+            modal.style.display = 'block';
+            if (typeof this.pauseGame === 'function') this.pauseGame();
+            // Exit pointer lock if active
+            if (document.pointerLockElement) {
+                document.exitPointerLock();
+            }
+        };
+        
+        modal.querySelector('#modal-close-btn').onclick = () => {
+            modal.style.display = 'none';
+            if (typeof this.resumeGame === 'function') this.resumeGame();
+            // Debounce pointer lock: allow after short delay
+            this.pointerLockReady = false;
+            setTimeout(() => { this.pointerLockReady = true; }, 300);
+        };
+
         container.appendChild(contentArea);
         container.appendChild(statusBar);
 
@@ -203,6 +261,33 @@ class NebulaVoxelApp {
     }
 
     startGame(container) {
+    // Initialize controlsEnabled to true
+    this.controlsEnabled = true;
+        // Listen for pointer lock changes to re-enable controls
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === container) {
+                // Pointer lock regained, resume movement controls
+                this.controlsEnabled = true;
+                console.log('Pointer lock active, controls enabled');
+                // Always restart animation loop when pointer lock is gained and game is not paused
+                if (!this.isPaused && !this.animationId) {
+                    console.log('Restarting animation loop');
+                    animate();
+                }
+            } else {
+                // Pointer lock lost
+                this.controlsEnabled = false;
+                console.log('Pointer lock lost, controls disabled');
+            }
+        });
+        // Pause/resume helpers
+        this.isPaused = false;
+        this.pauseGame = () => {
+            this.isPaused = true;
+        };
+        this.resumeGame = () => {
+            this.isPaused = false;
+        };
         // Verify Three.js is available
         if (!window.THREE) {
             console.error('Three.js not available');
@@ -590,14 +675,14 @@ class NebulaVoxelApp {
         hotbar.style.cssText = `
             position: fixed;
             right: 20px;
-            bottom: 80px;
+            bottom: 40px;
             background: rgba(0, 0, 0, 0.8);
             border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px;
-            padding: 10px;
+            padding: 6px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 5px;
             pointer-events: none;
             z-index: 1000;
             font-family: 'Courier New', monospace;
@@ -610,8 +695,8 @@ class NebulaVoxelApp {
         for (let i = 0; i < this.hotbarSlots.length; i++) {
             const slot = document.createElement('div');
             slot.style.cssText = `
-                width: 60px;
-                height: 60px;
+                width: 44px;
+                height: 44px;
                 background: rgba(40, 40, 40, 0.9);
                 border: 2px solid ${i === this.selectedSlot ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)'};
                 border-radius: 6px;
@@ -630,25 +715,25 @@ class NebulaVoxelApp {
             const blockType = this.hotbarSlots[i];
             const blockEmoji = this.getBlockEmoji(blockType);
             slot.innerHTML = `
-                <div style="font-size: 28px; margin-bottom: 2px;">${blockEmoji}</div>
-                <div style="font-size: 10px; font-weight: bold;">${this.inventory[blockType] || 0}</div>
+                <div style="font-size: 20px; margin-bottom: 2px;">${blockEmoji}</div>
+                <div style="font-size: 9px; font-weight: bold;">${this.inventory[blockType] || 0}</div>
             `;
             
             // Add number indicator
             const numberIndicator = document.createElement('div');
             numberIndicator.style.cssText = `
                 position: absolute;
-                top: -8px;
-                left: -8px;
-                width: 16px;
-                height: 16px;
+                top: -6px;
+                left: -6px;
+                width: 12px;
+                height: 12px;
                 background: rgba(0, 0, 0, 0.8);
                 border: 1px solid rgba(255, 255, 255, 0.5);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 10px;
+                font-size: 8px;
                 color: white;
                 font-weight: bold;
             `;
@@ -706,8 +791,11 @@ class NebulaVoxelApp {
         this.updateHotbar();
 
         container.requestPointerLock = container.requestPointerLock || container.mozRequestPointerLock;
+        // Only allow pointer lock after menu closes and debounce
         const clickHandler = () => {
-            container.requestPointerLock();
+            if (!this.isPaused && this.pointerLockReady && document.pointerLockElement !== container) {
+                container.requestPointerLock();
+            }
         };
         container.addEventListener("click", clickHandler);
         this.eventListeners.push({ element: container, type: 'click', handler: clickHandler });
@@ -741,10 +829,9 @@ class NebulaVoxelApp {
             }
         };
         const mousemoveHandler = (e) => {
-            if (document.pointerLockElement === container) {
+            if (document.pointerLockElement === container && this.controlsEnabled) {
                 this.player.rotation.y -= e.movementX * 0.002;
                 this.player.rotation.x -= e.movementY * 0.002;
-                
                 // Clamp vertical rotation to prevent flipping upside down
                 const maxLookUp = Math.PI / 2 - 0.1;   // Almost straight up
                 const maxLookDown = -Math.PI / 2 + 0.1; // Almost straight down
@@ -786,6 +873,7 @@ class NebulaVoxelApp {
 
         // Place & remove blocks
         const mousedownHandler = (e) => {
+            if (!this.controlsEnabled) return;
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera); // center of screen
             const intersects = raycaster.intersectObjects(Object.values(this.world).map(b => b.mesh));
 
@@ -795,14 +883,12 @@ class NebulaVoxelApp {
 
                 if (e.button === 0) { // Left = place
                     const selectedBlockType = this.hotbarSlots[this.selectedSlot];
-                    
                     // Check if player has blocks of this type
                     if (this.inventory[selectedBlockType] > 0) {
                         const normal = hit.face.normal.clone();
                         const newPos = pos.clone().add(normal);
                         highlightBlock(newPos, true); // Green highlight for placement
                         addBlock(newPos.x, newPos.y, newPos.z, selectedBlockType, true); // Mark as player-placed
-                        
                         // Decrease inventory
                         this.inventory[selectedBlockType]--;
                         this.updateHotbar();
@@ -818,7 +904,6 @@ class NebulaVoxelApp {
                         const blockType = hit.object.userData.type;
                         highlightBlock(pos, false); // Red highlight for removal
                         removeBlock(pos.x, pos.y, pos.z);
-                        
                         // Add to inventory if it's a type we track
                         if (this.inventory.hasOwnProperty(blockType)) {
                             this.inventory[blockType]++;
@@ -900,15 +985,26 @@ class NebulaVoxelApp {
             this.updateStatus("Save deleted");
         };
 
-        document.getElementById("save-btn").onclick = saveWorld;
-        document.getElementById("load-btn").onclick = loadWorld;
-        document.getElementById("delete-btn").onclick = deleteSave;
+    // Modal menu button handlers
+    const modalSaveBtn = document.getElementById("modal-save-btn");
+    const modalLoadBtn = document.getElementById("modal-load-btn");
+    const modalDeleteBtn = document.getElementById("modal-delete-btn");
+    if (modalSaveBtn) modalSaveBtn.onclick = saveWorld;
+    if (modalLoadBtn) modalLoadBtn.onclick = loadWorld;
+    if (modalDeleteBtn) modalDeleteBtn.onclick = deleteSave;
  
 
         // Improved movement with gravity and chunk loading
         let lastChunkUpdate = 0;
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
+            
+            // Always continue animation loop, but skip input processing if paused or controls disabled
+            if (this.isPaused || !this.controlsEnabled) {
+                // Still render the scene even when paused
+                renderer.render(scene, camera);
+                return;
+            }
             
             const speed = 0.15; // Slightly faster movement
             const jumpSpeed = 0.3;
