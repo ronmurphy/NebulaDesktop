@@ -24,6 +24,14 @@ class NebulaVoxelApp {
         };
         this.keys = {};
         this.selectedBlock = "grass"; // Default block type to place
+        
+        // Three.js objects for cleanup
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.animationId = null;
+        this.eventListeners = [];
+        
         this.init();
     }
 
@@ -93,7 +101,6 @@ class NebulaVoxelApp {
             <div style="margin-left: auto; font-weight: 500;">
                 Voxel World
             </div>
-            // <button id="close-btn" style="margin-left: 8px;">✖ Close</button>
         `;
 
         return toolbar;
@@ -194,6 +201,11 @@ class NebulaVoxelApp {
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        // Store as instance variables for cleanup
+        this.scene = scene;
+        this.camera = camera;
+        this.renderer = renderer;
         renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.setClearColor(0x87CEEB); // Sky blue background
         container.appendChild(renderer.domElement);
@@ -207,6 +219,7 @@ class NebulaVoxelApp {
             renderer.setSize(width, height);
         };
         window.addEventListener('resize', handleResize);
+        this.eventListeners.push({ element: window, type: 'resize', handler: handleResize });
 
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
@@ -391,7 +404,7 @@ class NebulaVoxelApp {
 
         // Controls - make sure to capture all key events properly
         this.keys = {}; // Reset keys object
-        document.addEventListener("keydown", e => {
+        const keydownHandler = (e) => {
             const key = e.key.toLowerCase();
             this.keys[key] = true;
             
@@ -400,8 +413,8 @@ class NebulaVoxelApp {
                 return; // Allow Ctrl+Shift+R, Alt+Tab, etc.
             }
             e.preventDefault(); // Only prevent default for game keys
-        });
-        document.addEventListener("keyup", e => {
+        };
+        const keyupHandler = (e) => {
             const key = e.key.toLowerCase();
             this.keys[key] = false;
             
@@ -410,9 +423,14 @@ class NebulaVoxelApp {
                 return;
             }
             e.preventDefault();
-        });
+        };
+        
+        document.addEventListener("keydown", keydownHandler);
+        document.addEventListener("keyup", keyupHandler);
+        this.eventListeners.push({ element: document, type: 'keydown', handler: keydownHandler });
+        this.eventListeners.push({ element: document, type: 'keyup', handler: keyupHandler });
 
-                // Add simple crosshair overlay (like Minecraft)
+        // Add simple crosshair overlay (like Minecraft)
         const crosshair = document.createElement('div');
         crosshair.style.cssText = `
             position: fixed;
@@ -432,9 +450,11 @@ class NebulaVoxelApp {
         container.appendChild(crosshair);
 
         container.requestPointerLock = container.requestPointerLock || container.mozRequestPointerLock;
-        container.addEventListener("click", () => {
+        const clickHandler = () => {
             container.requestPointerLock();
-        });
+        };
+        container.addEventListener("click", clickHandler);
+        this.eventListeners.push({ element: container, type: 'click', handler: clickHandler });
         
         // Target block highlight
         let targetHighlight = null;
@@ -464,7 +484,7 @@ class NebulaVoxelApp {
                 targetHighlight.visible = false;
             }
         };
-        document.addEventListener("mousemove", e => {
+        const mousemoveHandler = (e) => {
             if (document.pointerLockElement === container) {
                 this.player.rotation.y -= e.movementX * 0.002;
                 this.player.rotation.x -= e.movementY * 0.002;
@@ -474,7 +494,9 @@ class NebulaVoxelApp {
                 const maxLookDown = -Math.PI / 2 + 0.1; // Almost straight down
                 this.player.rotation.x = Math.max(maxLookDown, Math.min(maxLookUp, this.player.rotation.x));
             }
-        });
+        };
+        document.addEventListener("mousemove", mousemoveHandler);
+        this.eventListeners.push({ element: document, type: 'mousemove', handler: mousemoveHandler });
 
         // Simple block highlight system (only when clicking, not every frame)
         let currentHighlight = null;
@@ -507,7 +529,7 @@ class NebulaVoxelApp {
         };
 
         // Place & remove blocks
-        container.addEventListener("mousedown", (e) => {
+        const mousedownHandler = (e) => {
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera); // center of screen
             const intersects = raycaster.intersectObjects(Object.values(this.world).map(b => b.mesh));
 
@@ -534,8 +556,13 @@ class NebulaVoxelApp {
                     }
                 }
             }
-        });
-        container.addEventListener("contextmenu", (e) => e.preventDefault()); // prevent right-click menu
+        };
+        const contextmenuHandler = (e) => e.preventDefault();
+        
+        container.addEventListener("mousedown", mousedownHandler);
+        container.addEventListener("contextmenu", contextmenuHandler); // prevent right-click menu
+        this.eventListeners.push({ element: container, type: 'mousedown', handler: mousedownHandler });
+        this.eventListeners.push({ element: container, type: 'contextmenu', handler: contextmenuHandler });
 
         // Save/load - optimized for performance
         const saveWorld = () => {
@@ -590,16 +617,12 @@ class NebulaVoxelApp {
         document.getElementById("save-btn").onclick = saveWorld;
         document.getElementById("load-btn").onclick = loadWorld;
         document.getElementById("delete-btn").onclick = deleteSave;
-        // document.getElementById("close-btn").onclick = () => {
-        //     if (window.windowManager && this.windowId) {
-        //         window.windowManager.closeWindow(this.windowId);
-        //     }
-        // };
+ 
 
         // Improved movement with gravity and chunk loading
         let lastChunkUpdate = 0;
         const animate = () => {
-            requestAnimationFrame(animate);
+            this.animationId = requestAnimationFrame(animate);
             
             const speed = 0.15; // Slightly faster movement
             const jumpSpeed = 0.3;
@@ -707,14 +730,80 @@ class NebulaVoxelApp {
         };
         animate();
 
-        window.addEventListener("beforeunload", saveWorld);
+        // Store the saveWorld function for cleanup
+        this.saveWorldHandler = saveWorld;
+        window.addEventListener("beforeunload", this.saveWorldHandler);
+        this.eventListeners.push({ element: window, type: 'beforeunload', handler: this.saveWorldHandler });
     }
 
     cleanup() {
-        // Remove crosshair
-        const crosshair = container.querySelector('div[style*="position: fixed"]');
-        if (crosshair) crosshair.remove();
-        console.log("VoxelApp cleanup complete");
+        console.log("Starting VoxelApp cleanup...");
+        
+        // Cancel animation frame
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        
+        // Remove all event listeners
+        this.eventListeners.forEach(({ element, type, handler }) => {
+            element.removeEventListener(type, handler);
+        });
+        this.eventListeners = [];
+        
+        // Dispose of Three.js scene and all its children
+        if (this.scene) {
+            this.scene.traverse((child) => {
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => {
+                            if (material.map) material.map.dispose();
+                            material.dispose();
+                        });
+                    } else {
+                        if (child.material.map) child.material.map.dispose();
+                        child.material.dispose();
+                    }
+                }
+            });
+            this.scene.clear();
+            this.scene = null;
+        }
+        
+        // Dispose of renderer
+        if (this.renderer) {
+            this.renderer.dispose();
+            this.renderer.forceContextLoss();
+            if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+                this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+            }
+            this.renderer = null;
+        }
+        
+        // Clear camera reference
+        this.camera = null;
+        
+        // Remove crosshair if it exists
+        const crosshairs = document.querySelectorAll('div[style*="position: fixed"]');
+        crosshairs.forEach(crosshair => {
+            if (crosshair.style.cssText.includes('pointer-events: none')) {
+                crosshair.remove();
+            }
+        });
+        
+        // Clear world data
+        this.world = {};
+        this.loadedChunks.clear();
+        
+        // Release pointer lock if active
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+        
+        console.log("VoxelApp cleanup complete - all resources disposed");
     }
 
     getTitle() { return 'Voxel World'; }
