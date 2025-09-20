@@ -20,6 +20,15 @@ class NebulaCodeAssistant {
             maxTokens: 2048
         };
 
+        // File context for AI chat
+        this.fileContext = {
+            includeCurrentFile: false,
+            includeSelection: false,
+            currentFileContent: null,
+            selectedText: null,
+            fileName: null
+        };
+
         // NEW: Multi-file tab system
         this.openFiles = new Map(); // fileId -> fileData
         this.activeFileId = null;
@@ -2036,6 +2045,58 @@ function createAmazingApp() {
                         padding: 16px;
                         flex-shrink: 0;
                     ">
+                        <!-- File Context Controls -->
+                        <div style="
+                            display: flex;
+                            gap: 8px;
+                            margin-bottom: 12px;
+                            flex-wrap: wrap;
+                        ">
+                            <button id="includeCurrentFileBtn-${this.windowId}" style="
+                                background: var(--nebula-surface-hover);
+                                border: 1px solid var(--nebula-border);
+                                color: var(--nebula-text-secondary);
+                                padding: 6px 12px;
+                                border-radius: var(--nebula-radius-sm);
+                                cursor: pointer;
+                                font-size: 12px;
+                                display: flex;
+                                align-items: center;
+                                gap: 4px;
+                                transition: all 0.2s;
+                            " title="Include current file content">
+                                📄 <span>Current File</span>
+                            </button>
+                            <button id="includeSelectionBtn-${this.windowId}" style="
+                                background: var(--nebula-surface-hover);
+                                border: 1px solid var(--nebula-border);
+                                color: var(--nebula-text-secondary);
+                                padding: 6px 12px;
+                                border-radius: var(--nebula-radius-sm);
+                                cursor: pointer;
+                                font-size: 12px;
+                                display: flex;
+                                align-items: center;
+                                gap: 4px;
+                                transition: all 0.2s;
+                            " title="Include selected text">
+                                ✂️ <span>Selection</span>
+                            </button>
+                            <div id="contextIndicator-${this.windowId}" style="
+                                color: var(--nebula-text-secondary);
+                                font-size: 11px;
+                                padding: 6px 8px;
+                                display: none;
+                                align-items: center;
+                                gap: 4px;
+                                background: rgba(76, 175, 80, 0.1);
+                                border: 1px solid rgba(76, 175, 80, 0.3);
+                                border-radius: var(--nebula-radius-sm);
+                            ">
+                                📎 <span id="contextText-${this.windowId}">Context included</span>
+                            </div>
+                        </div>
+                        
                         <div style="display: flex; gap: 8px; align-items: flex-end;">
                             <textarea id="chatInput-${this.windowId}" 
                                 placeholder="Type your message here... (Shift+Enter for new line, Enter to send)"
@@ -2129,6 +2190,8 @@ function createAmazingApp() {
     setupChatEventListeners() {
         const chatInput = document.getElementById(`chatInput-${this.windowId}`);
         const sendBtn = document.getElementById(`sendBtn-${this.windowId}`);
+        const includeCurrentFileBtn = document.getElementById(`includeCurrentFileBtn-${this.windowId}`);
+        const includeSelectionBtn = document.getElementById(`includeSelectionBtn-${this.windowId}`);
         
         if (!chatInput || !sendBtn) return;
 
@@ -2151,6 +2214,212 @@ function createAmazingApp() {
         sendBtn.addEventListener('click', () => {
             this.sendChatMessage();
         });
+
+        // File context buttons
+        if (includeCurrentFileBtn) {
+            includeCurrentFileBtn.addEventListener('click', () => {
+                this.toggleCurrentFileContext();
+            });
+        }
+
+        if (includeSelectionBtn) {
+            includeSelectionBtn.addEventListener('click', () => {
+                this.toggleSelectionContext();
+            });
+        }
+    }
+
+    /**
+     * Toggle current file inclusion in chat context
+     */
+    toggleCurrentFileContext() {
+        this.fileContext.includeCurrentFile = !this.fileContext.includeCurrentFile;
+        
+        if (this.fileContext.includeCurrentFile) {
+            this.extractCurrentFileContent();
+        } else {
+            this.fileContext.currentFileContent = null;
+            this.fileContext.fileName = null;
+        }
+        
+        this.updateFileContextButtons();
+        this.updateContextIndicator();
+    }
+
+    /**
+     * Toggle selection inclusion in chat context
+     */
+    toggleSelectionContext() {
+        this.fileContext.includeSelection = !this.fileContext.includeSelection;
+        
+        if (this.fileContext.includeSelection) {
+            this.extractSelectedText();
+        } else {
+            this.fileContext.selectedText = null;
+        }
+        
+        this.updateFileContextButtons();
+        this.updateContextIndicator();
+    }
+
+    /**
+     * Extract current file content from Monaco editor
+     */
+    extractCurrentFileContent() {
+        if (!this.monacoEditor) {
+            console.warn('Monaco editor not available');
+            return;
+        }
+
+        try {
+            const content = this.monacoEditor.getValue();
+            const model = this.monacoEditor.getModel();
+            const fileName = model ? model.uri.path.split('/').pop() : 'current-file';
+            
+            this.fileContext.currentFileContent = content;
+            this.fileContext.fileName = fileName;
+            
+            console.log(`Extracted ${content.length} characters from ${fileName}`);
+        } catch (error) {
+            console.error('Error extracting file content:', error);
+            this.fileContext.currentFileContent = null;
+            this.fileContext.fileName = null;
+        }
+    }
+
+    /**
+     * Extract selected text from Monaco editor
+     */
+    extractSelectedText() {
+        if (!this.monacoEditor) {
+            console.warn('Monaco editor not available');
+            return;
+        }
+
+        try {
+            const selection = this.monacoEditor.getSelection();
+            const selectedText = this.monacoEditor.getModel().getValueInRange(selection);
+            
+            this.fileContext.selectedText = selectedText.trim();
+            
+            if (!this.fileContext.selectedText) {
+                // If no selection, get current line
+                const position = this.monacoEditor.getPosition();
+                const lineText = this.monacoEditor.getModel().getLineContent(position.lineNumber);
+                this.fileContext.selectedText = lineText.trim();
+            }
+            
+            console.log(`Extracted selection: ${this.fileContext.selectedText.length} characters`);
+        } catch (error) {
+            console.error('Error extracting selection:', error);
+            this.fileContext.selectedText = null;
+        }
+    }
+
+    /**
+     * Update file context button states
+     */
+    updateFileContextButtons() {
+        const currentFileBtn = document.getElementById(`includeCurrentFileBtn-${this.windowId}`);
+        const selectionBtn = document.getElementById(`includeSelectionBtn-${this.windowId}`);
+        
+        if (currentFileBtn) {
+            if (this.fileContext.includeCurrentFile) {
+                currentFileBtn.style.background = 'var(--nebula-primary)';
+                currentFileBtn.style.color = 'white';
+                currentFileBtn.style.borderColor = 'var(--nebula-primary)';
+            } else {
+                currentFileBtn.style.background = 'var(--nebula-surface-hover)';
+                currentFileBtn.style.color = 'var(--nebula-text-secondary)';
+                currentFileBtn.style.borderColor = 'var(--nebula-border)';
+            }
+        }
+        
+        if (selectionBtn) {
+            if (this.fileContext.includeSelection) {
+                selectionBtn.style.background = 'var(--nebula-primary)';
+                selectionBtn.style.color = 'white';
+                selectionBtn.style.borderColor = 'var(--nebula-primary)';
+            } else {
+                selectionBtn.style.background = 'var(--nebula-surface-hover)';
+                selectionBtn.style.color = 'var(--nebula-text-secondary)';
+                selectionBtn.style.borderColor = 'var(--nebula-border)';
+            }
+        }
+    }
+
+    /**
+     * Update context indicator
+     */
+    updateContextIndicator() {
+        const indicator = document.getElementById(`contextIndicator-${this.windowId}`);
+        const contextText = document.getElementById(`contextText-${this.windowId}`);
+        
+        if (!indicator || !contextText) return;
+        
+        const hasContext = this.fileContext.includeCurrentFile || this.fileContext.includeSelection;
+        
+        if (hasContext) {
+            let text = '';
+            if (this.fileContext.includeCurrentFile && this.fileContext.includeSelection) {
+                text = `File + Selection (${this.fileContext.fileName || 'current'})`;
+            } else if (this.fileContext.includeCurrentFile) {
+                text = `File: ${this.fileContext.fileName || 'current'}`;
+            } else if (this.fileContext.includeSelection) {
+                text = 'Selection included';
+            }
+            
+            contextText.textContent = text;
+            indicator.style.display = 'flex';
+        } else {
+            indicator.style.display = 'none';
+        }
+    }
+
+    /**
+     * Build context message for AI
+     */
+    buildContextMessage(userMessage) {
+        let message = userMessage;
+        let contextParts = [];
+        
+        if (this.fileContext.includeCurrentFile && this.fileContext.currentFileContent) {
+            const content = this.fileContext.currentFileContent;
+            const fileName = this.fileContext.fileName || 'current-file';
+            
+            // For large files, include a smart summary
+            if (content.length > 8000) {
+                const preview = content.substring(0, 4000);
+                const ending = content.substring(content.length - 2000);
+                contextParts.push(`\n\n--- FILE CONTEXT: ${fileName} (${content.length} chars, showing preview) ---\n${preview}\n\n... [file continues] ...\n\n${ending}\n--- END FILE CONTEXT ---`);
+            } else {
+                contextParts.push(`\n\n--- FILE CONTEXT: ${fileName} ---\n${content}\n--- END FILE CONTEXT ---`);
+            }
+        }
+        
+        if (this.fileContext.includeSelection && this.fileContext.selectedText) {
+            contextParts.push(`\n\n--- SELECTED TEXT ---\n${this.fileContext.selectedText}\n--- END SELECTION ---`);
+        }
+        
+        if (contextParts.length > 0) {
+            message = userMessage + contextParts.join('');
+        }
+        
+        return message;
+    }
+
+    /**
+     * Clear file context after sending message
+     */
+    clearFileContext() {
+        this.fileContext.includeCurrentFile = false;
+        this.fileContext.includeSelection = false;
+        this.fileContext.currentFileContent = null;
+        this.fileContext.selectedText = null;
+        this.fileContext.fileName = null;
+        
+        this.updateFileContextButtons();
+        this.updateContextIndicator();
     }
 
     /**
@@ -2176,6 +2445,12 @@ function createAmazingApp() {
         // Add user message to chat
         this.addChatMessage(message, 'user');
         
+        // Build message with context if enabled
+        const contextualMessage = this.buildContextMessage(message);
+        
+        // Clear file context after sending (optional - comment out if you want it to persist)
+        this.clearFileContext();
+        
         // Show typing indicator
         const typingId = this.addTypingIndicator();
         
@@ -2190,9 +2465,9 @@ function createAmazingApp() {
                     messages: [
                         {
                             role: 'system',
-                            content: 'You are a helpful AI assistant specializing in coding and development. Provide clear, concise, and helpful responses.'
+                            content: 'You are a helpful AI assistant specializing in coding and development. Provide clear, concise, and helpful responses. When provided with file context, analyze the code carefully and provide specific suggestions.'
                         },
-                        { role: 'user', content: message }
+                        { role: 'user', content: contextualMessage }
                     ],
                     temperature: this.lmStudioConfig.temperature,
                     max_tokens: this.lmStudioConfig.maxTokens
