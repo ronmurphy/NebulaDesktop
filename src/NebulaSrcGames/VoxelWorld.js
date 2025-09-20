@@ -23,7 +23,23 @@ class NebulaVoxelApp {
             rotation: { x: 0, y: 0 }
         };
         this.keys = {};
-        this.selectedBlock = "grass"; // Default block type to place
+        this.selectedSlot = 0; // Currently selected hotbar slot
+        
+        // Expanded inventory system
+        this.inventory = {
+            grass: 50,
+            stone: 30,
+            wood: 25,
+            sand: 20,
+            glass: 15,
+            brick: 10,
+            glowstone: 8,
+            iron: 5,
+            flowers: 0 // Collectible
+        };
+        
+        // Hotbar slots (what shows in the vertical bar)
+        this.hotbarSlots = ['grass', 'stone', 'wood', 'sand', 'glass', 'brick', 'glowstone', 'iron'];
         
         // Three.js objects for cleanup
         this.scene = null;
@@ -235,9 +251,14 @@ class NebulaVoxelApp {
 
         const blockTypes = {
             grass: { color: 0x228B22, texture: 'grass' },    // Forest green with grass pattern
-            dirt: { color: 0xD2691E, texture: 'dirt' },      // Chocolate brown with dirt pattern  
             stone: { color: 0x696969, texture: 'stone' },    // Dim gray with stone pattern
-            bedrock: { color: 0x2F2F2F, texture: 'bedrock' } // Dark gray, unbreakable
+            wood: { color: 0x8B4513, texture: 'wood' },      // Saddle brown with wood grain
+            sand: { color: 0xF4A460, texture: 'sand' },      // Sandy brown with grain texture
+            glass: { color: 0x87CEEB, texture: 'glass' },    // Sky blue, translucent
+            brick: { color: 0xB22222, texture: 'brick' },    // Fire brick with mortar lines
+            glowstone: { color: 0xFFD700, texture: 'glow' }, // Gold with glowing effect
+            iron: { color: 0x708090, texture: 'metal' },     // Slate gray with metallic shine
+            flowers: { color: 0xFF69B4, texture: 'flower' }  // Hot pink with flower pattern
         };
 
         // Create textured materials
@@ -258,33 +279,106 @@ class NebulaVoxelApp {
                 for (let i = 0; i < 20; i++) {
                     ctx.fillRect(Math.random() * 64, Math.random() * 64, 2, 2);
                 }
-            } else if (blockType.texture === 'dirt') {
-                // Dirt texture - brown spots
-                ctx.fillStyle = '#8B4513';
-                for (let i = 0; i < 15; i++) {
-                    ctx.fillRect(Math.random() * 64, Math.random() * 64, 3, 3);
-                }
             } else if (blockType.texture === 'stone') {
                 // Stone texture - gray speckles
                 ctx.fillStyle = '#A9A9A9';
                 for (let i = 0; i < 25; i++) {
                     ctx.fillRect(Math.random() * 64, Math.random() * 64, 1, 1);
                 }
-            } else if (blockType.texture === 'bedrock') {
-                // Bedrock texture - dark cracks
-                ctx.strokeStyle = '#1C1C1C';
+            } else if (blockType.texture === 'wood') {
+                // Wood texture - vertical grain lines
+                ctx.strokeStyle = '#654321';
                 ctx.lineWidth = 1;
-                for (let i = 0; i < 10; i++) {
+                for (let i = 0; i < 8; i++) {
                     ctx.beginPath();
-                    ctx.moveTo(Math.random() * 64, Math.random() * 64);
-                    ctx.lineTo(Math.random() * 64, Math.random() * 64);
+                    ctx.moveTo(i * 8 + Math.random() * 4, 0);
+                    ctx.lineTo(i * 8 + Math.random() * 4, 64);
                     ctx.stroke();
+                }
+            } else if (blockType.texture === 'sand') {
+                // Sand texture - random dots
+                ctx.fillStyle = '#D2B48C';
+                for (let i = 0; i < 30; i++) {
+                    ctx.fillRect(Math.random() * 64, Math.random() * 64, 1, 1);
+                }
+            } else if (blockType.texture === 'glass') {
+                // Glass texture - light streaks
+                ctx.globalAlpha = 0.1;
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(Math.random() * 64, 0);
+                    ctx.lineTo(Math.random() * 64, 64);
+                    ctx.stroke();
+                }
+            } else if (blockType.texture === 'brick') {
+                // Brick texture - mortar lines
+                ctx.strokeStyle = '#8B8B8B';
+                ctx.lineWidth = 1;
+                // Horizontal lines
+                for (let y = 8; y < 64; y += 16) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(64, y);
+                    ctx.stroke();
+                }
+                // Vertical lines (offset pattern)
+                for (let y = 0; y < 64; y += 16) {
+                    const offset = (y / 16) % 2 === 0 ? 0 : 16;
+                    for (let x = offset; x < 64; x += 32) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x, y + 16);
+                        ctx.stroke();
+                    }
+                }
+            } else if (blockType.texture === 'glow') {
+                // Glowstone texture - bright particles
+                ctx.fillStyle = '#FFFF00';
+                ctx.globalAlpha = 0.6;
+                for (let i = 0; i < 15; i++) {
+                    ctx.fillRect(Math.random() * 64, Math.random() * 64, 3, 3);
+                }
+            } else if (blockType.texture === 'metal') {
+                // Metal texture - horizontal lines with shine
+                ctx.strokeStyle = '#C0C0C0';
+                ctx.lineWidth = 1;
+                for (let y = 2; y < 64; y += 4) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(64, y);
+                    ctx.stroke();
+                }
+            } else if (blockType.texture === 'flower') {
+                // Flower texture - small colored circles
+                const colors = ['#FF1493', '#FF69B4', '#FFB6C1', '#FF6347'];
+                for (let i = 0; i < 10; i++) {
+                    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                    ctx.beginPath();
+                    ctx.arc(Math.random() * 64, Math.random() * 64, 2, 0, Math.PI * 2);
+                    ctx.fill();
                 }
             }
             
             const texture = new THREE.CanvasTexture(canvas);
             texture.magFilter = THREE.NearestFilter; // Pixelated look
-            return new THREE.MeshLambertMaterial({ map: texture });
+            
+            // Create material based on block type
+            if (blockType.texture === 'glass') {
+                return new THREE.MeshLambertMaterial({ 
+                    map: texture, 
+                    transparent: true, 
+                    opacity: 0.6 
+                });
+            } else if (blockType.texture === 'glow') {
+                return new THREE.MeshLambertMaterial({ 
+                    map: texture, 
+                    emissive: new THREE.Color(0x444400) 
+                });
+            } else {
+                return new THREE.MeshLambertMaterial({ map: texture });
+            }
         };
 
         // Create materials once for efficiency (normal + darker versions)
@@ -339,11 +433,11 @@ class NebulaVoxelApp {
                     // Generate height with noise (simpler calculation)
                     const height = Math.floor(Math.sin(worldX * 0.05) * Math.cos(worldZ * 0.05) * 2);
                     
-                    // Create layers: grass -> dirt -> stone -> bedrock
+                    // Create layers: grass -> stone (simplified for available types)
                     addBlock(worldX, height, worldZ, "grass");           // Surface
-                    addBlock(worldX, height - 1, worldZ, "dirt");        // 1 dirt layer
-                    addBlock(worldX, height - 2, worldZ, "stone");       // 1 stone layer
-                    addBlock(worldX, height - 3, worldZ, "bedrock");     // Unbreakable bedrock
+                    addBlock(worldX, height - 1, worldZ, "stone");       // Stone layer  
+                    addBlock(worldX, height - 2, worldZ, "stone");       // More stone
+                    addBlock(worldX, height - 3, worldZ, "iron");        // Iron at bottom (unbreakable for now)
                 }
             }
             
@@ -408,6 +502,31 @@ class NebulaVoxelApp {
             const key = e.key.toLowerCase();
             this.keys[key] = true;
             
+            // Hotbar selection (1-9 keys)
+            if (e.key >= '1' && e.key <= '9') {
+                const slot = parseInt(e.key) - 1;
+                if (slot < this.hotbarSlots.length) {
+                    this.selectedSlot = slot;
+                    this.updateHotbar();
+                    e.preventDefault();
+                    return;
+                }
+            }
+            
+            // Hotbar navigation with Q/E keys
+            if (key === 'q') {
+                this.selectedSlot = (this.selectedSlot - 1 + this.hotbarSlots.length) % this.hotbarSlots.length;
+                this.updateHotbar();
+                e.preventDefault();
+                return;
+            }
+            if (key === 'e') {
+                this.selectedSlot = (this.selectedSlot + 1) % this.hotbarSlots.length;
+                this.updateHotbar();
+                e.preventDefault();
+                return;
+            }
+            
             // Don't prevent default for important shortcuts
             if (e.ctrlKey || e.altKey || e.metaKey) {
                 return; // Allow Ctrl+Shift+R, Alt+Tab, etc.
@@ -448,6 +567,143 @@ class NebulaVoxelApp {
                 0 0 0 1px rgba(0,0,0,0.5);
         `;
         container.appendChild(crosshair);
+
+        // Block emoji mapping method (defined before hotbar creation)
+        this.getBlockEmoji = (blockType) => {
+            const emojiMap = {
+                grass: '🌱',
+                stone: '🪨',
+                wood: '🪵',
+                sand: '🏖️',
+                glass: '💎',
+                brick: '🧱',
+                glowstone: '⭐',
+                iron: '⚙️',
+                flowers: '🌸'
+            };
+            return emojiMap[blockType] || '📦';
+        };
+
+        // Create vertical hotbar UI
+        const hotbar = document.createElement('div');
+        hotbar.id = 'voxel-hotbar';
+        hotbar.style.cssText = `
+            position: fixed;
+            right: 20px;
+            bottom: 80px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 1000;
+            font-family: 'Courier New', monospace;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        `;
+        
+        // Create hotbar slots
+        this.hotbarElements = [];
+        for (let i = 0; i < this.hotbarSlots.length; i++) {
+            const slot = document.createElement('div');
+            slot.style.cssText = `
+                width: 60px;
+                height: 60px;
+                background: rgba(40, 40, 40, 0.9);
+                border: 2px solid ${i === this.selectedSlot ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)'};
+                border-radius: 6px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                transition: all 0.2s ease;
+                font-size: 24px;
+                color: white;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+            `;
+            
+            // Add block type emoji/icon
+            const blockType = this.hotbarSlots[i];
+            const blockEmoji = this.getBlockEmoji(blockType);
+            slot.innerHTML = `
+                <div style="font-size: 28px; margin-bottom: 2px;">${blockEmoji}</div>
+                <div style="font-size: 10px; font-weight: bold;">${this.inventory[blockType] || 0}</div>
+            `;
+            
+            // Add number indicator
+            const numberIndicator = document.createElement('div');
+            numberIndicator.style.cssText = `
+                position: absolute;
+                top: -8px;
+                left: -8px;
+                width: 16px;
+                height: 16px;
+                background: rgba(0, 0, 0, 0.8);
+                border: 1px solid rgba(255, 255, 255, 0.5);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                color: white;
+                font-weight: bold;
+            `;
+            numberIndicator.textContent = i + 1;
+            slot.appendChild(numberIndicator);
+            
+            this.hotbarElements.push(slot);
+            hotbar.appendChild(slot);
+        }
+        
+        container.appendChild(hotbar);
+        this.hotbarElement = hotbar;
+
+        // Add hotbar update method
+        this.updateHotbar = () => {
+            this.hotbarElements.forEach((element, index) => {
+                const blockType = this.hotbarSlots[index];
+                const quantity = this.inventory[blockType] || 0;
+                const isSelected = index === this.selectedSlot;
+                
+                // Update border for selection
+                element.style.border = `2px solid ${isSelected ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)'}`;
+                
+                // Update content
+                const blockEmoji = this.getBlockEmoji(blockType);
+                element.innerHTML = `
+                    <div style="font-size: 28px; margin-bottom: 2px;">${blockEmoji}</div>
+                    <div style="font-size: 10px; font-weight: bold;">${quantity}</div>
+                `;
+                
+                // Re-add number indicator
+                const numberIndicator = document.createElement('div');
+                numberIndicator.style.cssText = `
+                    position: absolute;
+                    top: -8px;
+                    left: -8px;
+                    width: 16px;
+                    height: 16px;
+                    background: rgba(0, 0, 0, 0.8);
+                    border: 1px solid rgba(255, 255, 255, 0.5);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 10px;
+                    color: white;
+                    font-weight: bold;
+                `;
+                numberIndicator.textContent = index + 1;
+                element.appendChild(numberIndicator);
+            });
+        };
+        
+        // Initialize hotbar display
+        this.updateHotbar();
 
         container.requestPointerLock = container.requestPointerLock || container.mozRequestPointerLock;
         const clickHandler = () => {
@@ -538,21 +794,41 @@ class NebulaVoxelApp {
                 const pos = hit.object.position;
 
                 if (e.button === 0) { // Left = place
-                    const normal = hit.face.normal.clone();
-                    const newPos = pos.clone().add(normal);
-                    highlightBlock(newPos, true); // Green highlight for placement
-                    addBlock(newPos.x, newPos.y, newPos.z, this.selectedBlock, true); // Mark as player-placed
-                    this.updateStatus(`Placed ${this.selectedBlock}`);
+                    const selectedBlockType = this.hotbarSlots[this.selectedSlot];
+                    
+                    // Check if player has blocks of this type
+                    if (this.inventory[selectedBlockType] > 0) {
+                        const normal = hit.face.normal.clone();
+                        const newPos = pos.clone().add(normal);
+                        highlightBlock(newPos, true); // Green highlight for placement
+                        addBlock(newPos.x, newPos.y, newPos.z, selectedBlockType, true); // Mark as player-placed
+                        
+                        // Decrease inventory
+                        this.inventory[selectedBlockType]--;
+                        this.updateHotbar();
+                        this.updateStatus(`Placed ${selectedBlockType} (${this.inventory[selectedBlockType]} left)`);
+                    } else {
+                        this.updateStatus(`No ${selectedBlockType} blocks remaining!`);
+                    }
                 }
 
                 if (e.button === 2) { // Right = remove
-                    // Don't allow removing bedrock
-                    if (hit.object.userData.type !== 'bedrock') {
+                    // Don't allow removing iron blocks (acting as bedrock)
+                    if (hit.object.userData.type !== 'iron') {
+                        const blockType = hit.object.userData.type;
                         highlightBlock(pos, false); // Red highlight for removal
                         removeBlock(pos.x, pos.y, pos.z);
-                        this.updateStatus("Removed block");
+                        
+                        // Add to inventory if it's a type we track
+                        if (this.inventory.hasOwnProperty(blockType)) {
+                            this.inventory[blockType]++;
+                            this.updateHotbar();
+                            this.updateStatus(`Collected ${blockType} (${this.inventory[blockType]} total)`);
+                        } else {
+                            this.updateStatus("Removed block");
+                        }
                     } else {
-                        this.updateStatus("Cannot break bedrock!");
+                        this.updateStatus("Cannot break iron blocks!");
                     }
                 }
             }
@@ -563,6 +839,16 @@ class NebulaVoxelApp {
         container.addEventListener("contextmenu", contextmenuHandler); // prevent right-click menu
         this.eventListeners.push({ element: container, type: 'mousedown', handler: mousedownHandler });
         this.eventListeners.push({ element: container, type: 'contextmenu', handler: contextmenuHandler });
+
+        // Mouse wheel for hotbar navigation
+        const wheelHandler = (e) => {
+            e.preventDefault();
+            const direction = e.deltaY > 0 ? 1 : -1;
+            this.selectedSlot = (this.selectedSlot + direction + this.hotbarSlots.length) % this.hotbarSlots.length;
+            this.updateHotbar();
+        };
+        container.addEventListener("wheel", wheelHandler);
+        this.eventListeners.push({ element: container, type: 'wheel', handler: wheelHandler });
 
         // Save/load - optimized for performance
         const saveWorld = () => {
@@ -793,6 +1079,13 @@ class NebulaVoxelApp {
                 crosshair.remove();
             }
         });
+        
+        // Remove hotbar if it exists
+        if (this.hotbarElement && this.hotbarElement.parentNode) {
+            this.hotbarElement.parentNode.removeChild(this.hotbarElement);
+            this.hotbarElement = null;
+        }
+        this.hotbarElements = [];
         
         // Clear world data
         this.world = {};
