@@ -205,10 +205,104 @@ class NebulaApp_Rummikub {
     newGameBtn.addEventListener('click', () => this.startGame() && this.refreshUI());
     rightSection.appendChild(newGameBtn);
 
+    // 🆘 Help Button
+    const helpBtn = document.createElement('button');
+    helpBtn.innerHTML = '❓';
+    helpBtn.title = 'Rummikub Rules & Help';
+    helpBtn.style.cssText = 'padding: 4px 8px; border: none; border-radius: 4px; background: var(--nebula-bg-tertiary); cursor: pointer;';
+    helpBtn.addEventListener('click', () => this.showHelpModal());
+    rightSection.appendChild(helpBtn);
+
     bar.appendChild(leftSection);
     bar.appendChild(rightSection);
     return bar;
   }
+  showHelpModal() {
+    // Remove any existing modal
+    const oldModal = document.getElementById('rummikub-help-modal');
+    if (oldModal) oldModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'rummikub-help-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999;
+    `;
+
+    const box = document.createElement('div');
+    box.style.cssText = `
+      background: var(--nebula-bg-primary);
+      color: var(--nebula-text-primary);
+      border-radius: 12px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+      padding: 32px 28px 24px 28px;
+      max-width: 420px;
+      width: 90vw;
+      font-family: var(--nebula-font-family);
+      position: relative;
+      text-align: left;
+    `;
+
+    // Modal content (as elements)
+    const title = document.createElement('h2');
+    title.style.marginTop = '0';
+    title.style.color = 'var(--nebula-primary)';
+    title.textContent = 'Rummikub Rules';
+    box.appendChild(title);
+
+    const logoRow = document.createElement('div');
+    logoRow.style.marginBottom = '12px';
+    logoRow.innerHTML = `<img src='assets/nebula-desktop-logo.png' alt='Rummikub' style='height:38px; vertical-align:middle; margin-right:8px;'><span style='font-size:15px; color:var(--nebula-text-secondary);'>How to Play</span>`;
+    box.appendChild(logoRow);
+
+    const rulesList = document.createElement('ul');
+    rulesList.style.fontSize = '14px';
+    rulesList.style.lineHeight = '1.6';
+    rulesList.style.paddingLeft = '18px';
+    rulesList.innerHTML = `
+      <li><b>Goal:</b> Be first to play all your tiles.</li>
+      <li><b>Melds:</b> Play sets of tiles as either:<br>
+        <span style='color:red;'>Runs</span>: 3+ consecutive numbers, same color (e.g., <span style='color:red;'>red 11, red 12, red 13</span>)<br>
+        <span style='color:blue;'>Groups</span>: 3-4 same number, different colors (e.g., <span style='color:red;'>red 11</span>, <span style='color:blue;'>blue 11</span>, <span style='color:black;'>black 11</span>)
+      </li>
+      <li><b>Initial Meld:</b> Must total at least <b>30 points</b> (sum of tile numbers).</li>
+      <li><b>Jokers:</b> Can substitute any tile in a meld.</li>
+      <li><b>On Your Turn:</b> Play tiles, rearrange melds, or draw if stuck.</li>
+      <li><b>End Turn:</b> Click 'End Turn' after playing.</li>
+    `;
+    box.appendChild(rulesList);
+
+    const tip = document.createElement('div');
+    tip.style.marginTop = '10px';
+    tip.style.fontSize = '13px';
+    tip.style.color = 'var(--nebula-text-secondary)';
+    tip.innerHTML = `<b>Tip:</b> Click melds to edit, drag tiles, and use the toolbar for game actions.`;
+    box.appendChild(tip);
+
+    // Close button (append last so it overlays)
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✖';
+    closeBtn.title = 'Close';
+    closeBtn.style.cssText = `
+      position: absolute; top: 12px; right: 16px;
+      background: var(--nebula-bg-tertiary);
+      color: var(--nebula-text-primary);
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 8px;
+    `;
+    closeBtn.onclick = () => modal.remove();
+    box.appendChild(closeBtn);
+
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+  }
+  
 
   createStatusBar() {
     const bar = document.createElement('div');
