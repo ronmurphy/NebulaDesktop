@@ -108,6 +108,14 @@ contextBridge.exposeInMainWorld('nebula', {
         }
     },
 
+    // Ad Blocker API
+    adBlocker: {
+        getStatus: () => ipcRenderer.invoke('adblocker:get-status'),
+        toggle: (enabled) => ipcRenderer.invoke('adblocker:toggle', enabled),
+        refreshLists: () => ipcRenderer.invoke('adblocker:refresh-lists'),
+        getStats: () => ipcRenderer.invoke('adblocker:get-stats')
+    },
+
     // 🔸 SCREENSHOT API - NEW!
     screenshot: {
         // Capture entire screen

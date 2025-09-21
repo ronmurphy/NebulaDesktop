@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ad Blocker Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-item { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .blocked { background: #f8d7da; color: #721c24; }
+        .allowed { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>NebulaDesktop Ad Blocker Test</h1>
+    
+    <div class="test-item">
+        <h3>Test 1: Google Analytics (Should be blocked)</h3>
+        <script async src="https://www.google-analytics.com/analytics.js"></script>
+        <p>If blocked, no analytics script will load</p>
+    </div>
+    
+    <div class="test-item">
+        <h3>Test 2: Google Fonts (Should be allowed)</h3>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+        <p style="font-family: 'Roboto', sans-serif;">This text should display in Roboto font if allowed</p>
+    </div>
+    
+    <div class="test-item">
+        <h3>Test 3: DoubleClick (Should be blocked)</h3>
+        <script src="https://googleads.g.doubleclick.net/pagead/viewthroughconversion/123456789/?value=0&label=test"></script>
+        <p>If blocked, no DoubleClick script will load</p>
+    </div>
+    
+    <div class="test-item">
+        <h3>Test 4: CDN Resources (Should be allowed)</h3>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <p>jQuery should load from CDN: <span id="jquery-test">❌ Not loaded</span></p>
+    </div>
+    
+    <script>
+        // Test if jQuery loaded
+        setTimeout(() => {
+            if (typeof jQuery !== 'undefined') {
+                document.getElementById('jquery-test').textContent = '✅ Loaded successfully';
+                document.getElementById('jquery-test').parentElement.parentElement.className += ' allowed';
+            } else {
+                document.getElementById('jquery-test').parentElement.parentElement.className += ' blocked';
+            }
+        }, 1000);
+        
+        // Test analytics
+        setTimeout(() => {
+            if (typeof ga === 'undefined') {
+                document.querySelectorAll('.test-item')[0].className += ' blocked';
+                document.querySelectorAll('.test-item')[0].innerHTML += '<p><strong>✅ Google Analytics blocked successfully</strong></p>';
+            } else {
+                document.querySelectorAll('.test-item')[0].className += ' allowed';
+                document.querySelectorAll('.test-item')[0].innerHTML += '<p><strong>❌ Google Analytics not blocked</strong></p>';
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

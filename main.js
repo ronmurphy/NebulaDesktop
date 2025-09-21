@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, session, screen, dialog, desktopCapturer, nativeImage } = require('electron');
 const path = require('path');
+const fs = require('fs').promises;
 
 // Enable hot reload in development
 if (process.argv.includes('--dev')) {
@@ -14,6 +15,16 @@ class NebulaDesktop {
         this.mainWindow = null;
         this.childWindows = new Map();
         this.isFullscreen = !process.argv.includes('--dev');
+        this.adBlockerEnabled = true; // Default to enabled
+        this.adBlockFilters = new Set(); // Use Set for faster lookups
+        this.filterListUrls = [
+            'https://easylist.to/easylist/easylist.txt', // EasyList
+            'https://easylist.to/easylist/easyprivacy.txt', // EasyPrivacy
+            'https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext' // Peter Lowe's Ad and tracking server list
+        ];
+        this.listsPath = path.join(__dirname, 'adblock-lists.json');
+        this.lastUpdate = 0;
+        this.updateInterval = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     }
 
     createMainWindow() {
@@ -40,6 +51,245 @@ class NebulaDesktop {
         }
     }
 
+    async setupAdBlocker() {
+        try {
+            console.log('Setting up enhanced ad blocker...');
+            
+            // Load existing filter lists from storage
+            await this.loadFilterLists();
+            
+            // Check if we need to update the lists
+            const now = Date.now();
+            if (now - this.lastUpdate > this.updateInterval || this.adBlockFilters.size === 0) {
+                console.log('Filter lists are outdated or missing, downloading...');
+                await this.downloadFilterLists();
+            }
+            
+            // Set up web request blocking with the loaded filters
+            session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+                if (!this.adBlockerEnabled) {
+                    callback({ cancel: false });
+                    return;
+                }
+
+                const url = details.url.toLowerCase();
+                const shouldBlock = this.shouldBlockUrl(url);
+
+                if (shouldBlock) {
+                    console.log('Blocked ad/tracker:', details.url);
+                    callback({ cancel: true });
+                } else {
+                    callback({ cancel: false });
+                }
+            });
+            
+            console.log(`Ad blocker initialized with ${this.adBlockFilters.size} filter rules`);
+        } catch (error) {
+            console.error('Failed to initialize ad blocker:', error);
+            // Fallback to basic blocking
+            this.setupBasicAdBlocker();
+        }
+    }
+
+    async loadFilterLists() {
+        try {
+            const data = await fs.readFile(this.listsPath, 'utf8');
+            const parsed = JSON.parse(data);
+            this.adBlockFilters = new Set(parsed.filters || []);
+            this.lastUpdate = parsed.lastUpdate || 0;
+            console.log(`Loaded ${this.adBlockFilters.size} filter rules from storage`);
+        } catch (error) {
+            console.log('No existing filter lists found, will download fresh ones');
+            this.adBlockFilters = new Set();
+            this.lastUpdate = 0;
+        }
+    }
+
+    async downloadFilterLists() {
+        try {
+            console.log('Downloading filter lists...');
+            const allFilters = new Set();
+            
+            for (const url of this.filterListUrls) {
+                try {
+                    console.log(`Downloading from: ${url}`);
+                    const response = await fetch(url);
+                    const text = await response.text();
+                    
+                    // Parse the filter list
+                    const filters = this.parseFilterList(text, url);
+                    filters.forEach(filter => allFilters.add(filter));
+                    
+                    console.log(`Added ${filters.length} rules from ${url}`);
+                } catch (error) {
+                    console.error(`Failed to download from ${url}:`, error);
+                }
+            }
+            
+            // Add some basic fallback filters
+            const basicFilters = [
+                'doubleclick.net', 'googleadservices.com', 'googlesyndication.com',
+                'amazon-adsystem.com', 'facebook.com/tr', 'google-analytics.com',
+                'googletagmanager.com', 'hotjar.com', 'quantserve.com'
+            ];
+            basicFilters.forEach(filter => allFilters.add(filter));
+            
+            this.adBlockFilters = allFilters;
+            this.lastUpdate = Date.now();
+            
+            // Save to storage
+            await this.saveFilterLists();
+            
+            console.log(`Downloaded and saved ${this.adBlockFilters.size} total filter rules`);
+        } catch (error) {
+            console.error('Failed to download filter lists:', error);
+            throw error;
+        }
+    }
+
+    parseFilterList(text, sourceUrl) {
+        const filters = [];
+        const lines = text.split('\n');
+        
+        for (const line of lines) {
+            const trimmed = line.trim();
+            
+            // Skip comments and empty lines
+            if (!trimmed || trimmed.startsWith('!') || trimmed.startsWith('#') || trimmed.startsWith('[')) {
+                continue;
+            }
+            
+            // Handle different filter formats
+            if (sourceUrl.includes('hosts')) {
+                // Handle hosts file format (127.0.0.1 domain.com or 0.0.0.0 domain.com)
+                const hostsMatch = trimmed.match(/^(?:127\.0\.0\.1|0\.0\.0\.0)\s+(.+)$/);
+                if (hostsMatch && hostsMatch[1] && hostsMatch[1] !== 'localhost') {
+                    filters.push(hostsMatch[1].toLowerCase());
+                }
+            } else {
+                // Handle EasyList format
+                if (trimmed.startsWith('||') && trimmed.includes('^')) {
+                    // Extract domain from ||domain.com^ format
+                    const domain = trimmed.slice(2, trimmed.indexOf('^'));
+                    if (domain && !domain.includes('/') && !domain.includes('*')) {
+                        filters.push(domain.toLowerCase());
+                    }
+                } else if (trimmed.includes('.') && !trimmed.includes('*') && !trimmed.includes('/')) {
+                    // Simple domain filter
+                    filters.push(trimmed.toLowerCase());
+                }
+            }
+        }
+        
+        return filters;
+    }
+
+    async saveFilterLists() {
+        try {
+            const data = {
+                filters: Array.from(this.adBlockFilters),
+                lastUpdate: this.lastUpdate
+            };
+            await fs.writeFile(this.listsPath, JSON.stringify(data, null, 2));
+        } catch (error) {
+            console.error('Failed to save filter lists:', error);
+        }
+    }
+
+    shouldBlockUrl(url) {
+        // Always allow essential browser and development functionality
+        const allowedPatterns = [
+            'devtools://',
+            'chrome-extension://',
+            'moz-extension://',
+            'webkit://',
+            'chrome-devtools-frontend.appspot.com',
+            'fonts.googleapis.com',
+            'fonts.gstatic.com',
+            'cdnjs.cloudflare.com',
+            'jsdelivr.net',
+            'unpkg.com',
+            'localhost:',
+            '127.0.0.1:',
+            '192.168.',
+            '10.0.0.',
+            'file://'
+        ];
+
+        // First check if this URL should be allowed
+        for (const pattern of allowedPatterns) {
+            if (url.includes(pattern)) {
+                return false;
+            }
+        }
+
+        // Check against our filter list
+        for (const filter of this.adBlockFilters) {
+            if (url.includes(filter)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    setupBasicAdBlocker() {
+        // Fallback basic ad blocker
+        const basicFilters = [
+            'doubleclick.net', 'googleadservices.com', 'googlesyndication.com',
+            'amazon-adsystem.com', 'facebook.com/tr', 'google-analytics.com',
+            'googletagmanager.com', 'hotjar.com', 'quantserve.com'
+        ];
+
+        const allowedPatterns = [
+            'devtools://', 'chrome-extension://', 'moz-extension://', 'webkit://',
+            'chrome-devtools-frontend.appspot.com', 'fonts.googleapis.com',
+            'fonts.gstatic.com', 'localhost:', '127.0.0.1:', 'file://'
+        ];
+
+        session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+            if (!this.adBlockerEnabled) {
+                callback({ cancel: false });
+                return;
+            }
+
+            const url = details.url.toLowerCase();
+            
+            // Check if this should be allowed
+            const isAllowed = allowedPatterns.some(pattern => url.includes(pattern));
+            if (isAllowed) {
+                callback({ cancel: false });
+                return;
+            }
+            
+            const shouldBlock = basicFilters.some(filter => url.includes(filter));
+
+            if (shouldBlock) {
+                console.log('Blocked ad/tracker (basic):', details.url);
+                callback({ cancel: true });
+            } else {
+                callback({ cancel: false });
+            }
+        });
+
+        console.log('Basic ad blocker initialized as fallback');
+    }
+
+    toggleAdBlocker(enabled) {
+        this.adBlockerEnabled = enabled;
+        console.log(`Ad blocker ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
+    async refreshFilterLists() {
+        try {
+            console.log('Manually refreshing filter lists...');
+            await this.downloadFilterLists();
+            return { success: true, count: this.adBlockFilters.size };
+        } catch (error) {
+            console.error('Failed to refresh filter lists:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
     setupIPC() {
         // System operations
         ipcMain.handle('system:shutdown', () => {
@@ -54,6 +304,28 @@ class NebulaDesktop {
 
         ipcMain.handle('system:logout', () => {
             app.quit();
+        });
+
+        // Ad blocker settings
+        ipcMain.handle('adblocker:get-status', () => {
+            return this.adBlockerEnabled;
+        });
+
+        ipcMain.handle('adblocker:toggle', (event, enabled) => {
+            this.toggleAdBlocker(enabled);
+            return this.adBlockerEnabled;
+        });
+
+        ipcMain.handle('adblocker:refresh-lists', async () => {
+            return await this.refreshFilterLists();
+        });
+
+        ipcMain.handle('adblocker:get-stats', () => {
+            return {
+                filterCount: this.adBlockFilters.size,
+                lastUpdate: this.lastUpdate,
+                isOutdated: Date.now() - this.lastUpdate > this.updateInterval
+            };
         });
 
         // Window management
@@ -463,9 +735,10 @@ class NebulaDesktop {
     }
 
     init() {
-        app.whenReady().then(() => {
+        app.whenReady().then(async () => {
             this.createMainWindow();
             this.setupIPC();
+            await this.setupAdBlocker(); // Initialize ad blocker
 
             app.on('activate', () => {
                 if (BrowserWindow.getAllWindows().length === 0) {

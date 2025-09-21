@@ -1782,6 +1782,98 @@ class NebulaSettings {
                 ">Refresh Information</button>
             </div>
 
+            <!-- Privacy & Security -->
+            <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="color: var(--nebula-primary); font-size: 20px;">security</span>
+                    Privacy & Security
+                </h3>
+                
+                <div style="margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--nebula-bg-secondary); border-radius: 8px; border: 1px solid var(--nebula-border);">
+                        <div>
+                            <div style="color: var(--nebula-text-primary); font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                                <span class="material-symbols-outlined" style="font-size: 18px; color: var(--nebula-accent);">block</span>
+                                Ad Blocker
+                            </div>
+                            <div style="color: var(--nebula-text-secondary); font-size: 14px;">Block ads, trackers, and malicious content across all web content</div>
+                            <div style="color: var(--nebula-text-tertiary); font-size: 12px; margin-top: 4px;">
+                                Status: <span id="adBlockerStatus">Loading...</span> | 
+                                Rules: <span id="adBlockerRuleCount">Loading...</span> | 
+                                Last Updated: <span id="adBlockerLastUpdate">Loading...</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div class="toggle-switch" style="position: relative; width: 50px; height: 24px;">
+                                <input type="checkbox" id="adBlockerToggle" style="
+                                    position: absolute;
+                                    opacity: 0;
+                                    width: 100%;
+                                    height: 100%;
+                                    cursor: pointer;
+                                    z-index: 2;
+                                ">
+                                <div class="toggle-track" style="
+                                    position: absolute;
+                                    top: 0;
+                                    left: 0;
+                                    width: 100%;
+                                    height: 100%;
+                                    background: var(--nebula-border);
+                                    border-radius: 12px;
+                                    transition: all 0.2s ease;
+                                "></div>
+                                <div class="toggle-thumb" style="
+                                    position: absolute;
+                                    top: 2px;
+                                    left: 2px;
+                                    width: 20px;
+                                    height: 20px;
+                                    background: white;
+                                    border-radius: 50%;
+                                    transition: all 0.2s ease;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                                "></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 12px; display: flex; gap: 12px;">
+                        <button id="refreshAdBlockLists" style="
+                            background: var(--nebula-primary);
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 500;
+                            font-size: 13px;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                        ">
+                            <span class="material-symbols-outlined" style="font-size: 16px;">refresh</span>
+                            Update Filter Lists
+                        </button>
+                        
+                        <div id="adBlockerUpdateStatus" style="
+                            display: flex;
+                            align-items: center;
+                            color: var(--nebula-text-secondary);
+                            font-size: 12px;
+                            gap: 6px;
+                        " hidden>
+                            <span class="material-symbols-outlined" style="font-size: 14px;">downloading</span>
+                            <span>Updating...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="color: var(--nebula-text-secondary); font-size: 13px; padding: 12px; background: var(--nebula-bg-tertiary); border-radius: 6px; border-left: 3px solid var(--nebula-accent);">
+                    <strong>Enhanced Ad Blocking:</strong> Uses industry-standard filter lists (EasyList, EasyPrivacy, Peter Lowe's list) downloaded daily. Filter lists are cached locally for performance. The "Update Filter Lists" button manually refreshes the lists from their sources.
+                </div>
+            </div>
+
             <!-- Storage & Data Management -->
             <div class="settings-section" style="background: var(--nebula-surface); border: 1px solid var(--nebula-border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
                 <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Storage & Data</h3>
@@ -1937,6 +2029,71 @@ class NebulaSettings {
         refreshBtn?.addEventListener('click', () => {
             this.updateSystemInfo(container);
         });
+
+        // Ad blocker toggle
+        const adBlockerToggle = container.querySelector('#adBlockerToggle');
+        adBlockerToggle?.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            try {
+                await window.nebula.adBlocker.toggle(enabled);
+                this.updateAdBlockerStatus(container);
+                
+                // Visual feedback
+                const track = container.querySelector('.toggle-track');
+                const thumb = container.querySelector('.toggle-thumb');
+                if (track && thumb) {
+                    if (enabled) {
+                        track.style.background = 'var(--nebula-accent)';
+                        thumb.style.left = '28px';
+                    } else {
+                        track.style.background = 'var(--nebula-border)';
+                        thumb.style.left = '2px';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to toggle ad blocker:', error);
+                // Reset toggle on error
+                e.target.checked = !enabled;
+            }
+        });
+
+        // Ad blocker refresh button
+        const refreshAdBlockBtn = container.querySelector('#refreshAdBlockLists');
+        refreshAdBlockBtn?.addEventListener('click', async () => {
+            const statusEl = container.querySelector('#adBlockerUpdateStatus');
+            
+            try {
+                // Show loading state
+                if (statusEl) {
+                    statusEl.hidden = false;
+                }
+                refreshAdBlockBtn.disabled = true;
+                refreshAdBlockBtn.style.opacity = '0.6';
+                
+                // Refresh the lists
+                const result = await window.nebula.adBlocker.refreshLists();
+                
+                if (result.success) {
+                    this.showNotification(`✅ Updated ${result.count} filter rules`);
+                    this.updateAdBlockerStatus(container);
+                } else {
+                    this.showNotification(`❌ Failed to update: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Failed to refresh ad block lists:', error);
+                this.showNotification('❌ Failed to update filter lists');
+            } finally {
+                // Hide loading state
+                if (statusEl) {
+                    statusEl.hidden = true;
+                }
+                refreshAdBlockBtn.disabled = false;
+                refreshAdBlockBtn.style.opacity = '1';
+            }
+        });
+
+        // Initialize ad blocker status
+        this.updateAdBlockerStatus(container);
 
         // Storage management buttons
         const clearDataBtn = container.querySelector('#clearAllDataBtn');
@@ -4350,6 +4507,86 @@ class NebulaSettings {
         }
         
         console.log('System information updated');
+    }
+
+    async updateAdBlockerStatus(container) {
+        try {
+            const statusEl = container.querySelector('#adBlockerStatus');
+            const ruleCountEl = container.querySelector('#adBlockerRuleCount');
+            const lastUpdateEl = container.querySelector('#adBlockerLastUpdate');
+            const toggle = container.querySelector('#adBlockerToggle');
+            const track = container.querySelector('.toggle-track');
+            const thumb = container.querySelector('.toggle-thumb');
+            
+            // Get current ad blocker status and stats
+            const [isEnabled, stats] = await Promise.all([
+                window.nebula.adBlocker.getStatus(),
+                window.nebula.adBlocker.getStats()
+            ]);
+            
+            // Update status text
+            if (statusEl) {
+                statusEl.textContent = isEnabled ? 'Enabled' : 'Disabled';
+                statusEl.style.color = isEnabled ? 'var(--nebula-accent)' : 'var(--nebula-text-tertiary)';
+            }
+            
+            // Update rule count
+            if (ruleCountEl) {
+                ruleCountEl.textContent = stats.filterCount ? `${stats.filterCount.toLocaleString()}` : 'Loading...';
+            }
+            
+            // Update last update time
+            if (lastUpdateEl) {
+                if (stats.lastUpdate) {
+                    const date = new Date(stats.lastUpdate);
+                    const now = new Date();
+                    const diffHours = Math.floor((now - date) / (1000 * 60 * 60));
+                    
+                    if (diffHours < 1) {
+                        lastUpdateEl.textContent = 'Just now';
+                    } else if (diffHours < 24) {
+                        lastUpdateEl.textContent = `${diffHours}h ago`;
+                    } else {
+                        lastUpdateEl.textContent = `${Math.floor(diffHours / 24)}d ago`;
+                    }
+                    
+                    // Add indicator if outdated
+                    if (stats.isOutdated) {
+                        lastUpdateEl.textContent += ' (outdated)';
+                        lastUpdateEl.style.color = '#dc2626';
+                    } else {
+                        lastUpdateEl.style.color = 'var(--nebula-text-tertiary)';
+                    }
+                } else {
+                    lastUpdateEl.textContent = 'Never';
+                    lastUpdateEl.style.color = '#dc2626';
+                }
+            }
+            
+            // Update toggle switch
+            if (toggle) {
+                toggle.checked = isEnabled;
+            }
+            
+            // Update toggle visual state
+            if (track && thumb) {
+                if (isEnabled) {
+                    track.style.background = 'var(--nebula-accent)';
+                    thumb.style.left = '28px';
+                } else {
+                    track.style.background = 'var(--nebula-border)';
+                    thumb.style.left = '2px';
+                }
+            }
+            
+        } catch (error) {
+            console.error('Failed to get ad blocker status:', error);
+            const statusEl = container.querySelector('#adBlockerStatus');
+            if (statusEl) {
+                statusEl.textContent = 'Error';
+                statusEl.style.color = '#dc2626';
+            }
+        }
     }
 
     updateStorageInfo(container) {

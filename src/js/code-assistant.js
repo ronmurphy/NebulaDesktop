@@ -447,6 +447,10 @@ class NebulaCodeAssistant {
                 <span class="material-symbols-outlined">code</span>
             </button>
             
+            <button id="designModeBtn-${this.windowId}" class="code-toolbar-btn" title="Design Mode - Visual UI Builder">
+                <span class="material-symbols-outlined">design_services</span>
+            </button>
+            
             <button id="copyAllBtn-${this.windowId}" class="code-toolbar-btn title="Copy All Code">
                 <span class="material-symbols-outlined">content_copy</span>
             </button>
@@ -812,6 +816,10 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
         // Code operations (original)
         document.getElementById(`formatBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.formatCode();
+        });
+
+        document.getElementById(`designModeBtn-${this.windowId}`)?.addEventListener('click', () => {
+            this.toggleDesignMode();
         });
 
         document.getElementById(`copyAllBtn-${this.windowId}`)?.addEventListener('click', () => {
@@ -2655,6 +2663,7 @@ function createAmazingApp() {
                 line-height: 1.4;
                 white-space: pre-wrap;
             `;
+            messageDiv.textContent = content;
         } else if (type === 'assistant') {
             messageDiv.style.cssText = `
                 align-self: flex-start;
@@ -2668,6 +2677,10 @@ function createAmazingApp() {
                 line-height: 1.4;
                 white-space: pre-wrap;
             `;
+            
+            // 🚀 NEW: Enhanced message processing for code blocks and placement suggestions
+            this.processAssistantMessage(messageDiv, content);
+            
         } else if (type === 'error') {
             messageDiv.style.cssText = `
                 align-self: center;
@@ -2681,9 +2694,9 @@ function createAmazingApp() {
                 line-height: 1.4;
                 text-align: center;
             `;
+            messageDiv.textContent = content;
         }
 
-        messageDiv.textContent = content;
         container.appendChild(messageDiv);
         
         // Smooth scroll to bottom
@@ -2693,6 +2706,219 @@ function createAmazingApp() {
                 behavior: 'smooth'
             });
         }, 10);
+    }
+
+    /**
+     * 🚀 NEW: Process assistant messages for code blocks and placement suggestions
+     */
+    processAssistantMessage(messageDiv, content) {
+        // Detect code blocks with ```
+        const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)\n?```/g;
+        const placementSuggestionRegex = /(place|add|insert|put).*(?:in|at|to|inside|above|below|after|before)\s+([^\n.]+)/gi;
+        
+        let lastIndex = 0;
+        let hasCodeBlocks = false;
+        const matches = [...content.matchAll(codeBlockRegex)];
+        
+        if (matches.length === 0) {
+            // No code blocks, just add as text
+            messageDiv.textContent = content;
+            return;
+        }
+
+        // Process message with code blocks
+        matches.forEach((match, index) => {
+            const beforeText = content.slice(lastIndex, match.index);
+            const codeLanguage = match[1] || 'javascript';
+            const codeContent = match[2].trim();
+            
+            // Add text before code block
+            if (beforeText.trim()) {
+                const textSpan = document.createElement('span');
+                textSpan.textContent = beforeText;
+                messageDiv.appendChild(textSpan);
+            }
+            
+            // Create code block container
+            const codeContainer = document.createElement('div');
+            codeContainer.style.cssText = `
+                margin: 8px 0;
+                border: 1px solid var(--nebula-border);
+                border-radius: 6px;
+                background: #1e1e1e;
+                overflow: hidden;
+            `;
+            
+            // Code header with language and placement button
+            const codeHeader = document.createElement('div');
+            codeHeader.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 12px;
+                background: rgba(255, 255, 255, 0.05);
+                border-bottom: 1px solid var(--nebula-border);
+                font-size: 12px;
+                color: #888;
+            `;
+            
+            const languageLabel = document.createElement('span');
+            languageLabel.textContent = codeLanguage;
+            codeHeader.appendChild(languageLabel);
+            
+            // Check for placement suggestions in the surrounding text
+            const contextText = beforeText + content.slice(match.index + match[0].length, match.index + match[0].length + 200);
+            const placementMatches = [...contextText.matchAll(placementSuggestionRegex)];
+            
+            if (placementMatches.length > 0) {
+                const placementBtn = document.createElement('button');
+                placementBtn.innerHTML = '📍 Smart Place';
+                placementBtn.style.cssText = `
+                    background: var(--nebula-primary);
+                    color: white;
+                    border: none;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                `;
+                
+                placementBtn.addEventListener('mouseover', () => {
+                    placementBtn.style.background = 'var(--nebula-primary-hover)';
+                });
+                
+                placementBtn.addEventListener('mouseout', () => {
+                    placementBtn.style.background = 'var(--nebula-primary)';
+                });
+                
+                placementBtn.addEventListener('click', () => {
+                    this.smartPlaceCode(codeContent, placementMatches[0][0], contextText);
+                });
+                
+                codeHeader.appendChild(placementBtn);
+            }
+            
+            codeContainer.appendChild(codeHeader);
+            
+            // Code content
+            const codeElement = document.createElement('pre');
+            codeElement.style.cssText = `
+                margin: 0;
+                padding: 12px;
+                color: #d4d4d4;
+                font-family: 'Fira Code', monospace;
+                font-size: 13px;
+                line-height: 1.4;
+                overflow-x: auto;
+                white-space: pre-wrap;
+            `;
+            codeElement.textContent = codeContent;
+            codeContainer.appendChild(codeElement);
+            
+            messageDiv.appendChild(codeContainer);
+            
+            lastIndex = match.index + match[0].length;
+            hasCodeBlocks = true;
+        });
+        
+        // Add any remaining text after the last code block
+        const remainingText = content.slice(lastIndex);
+        if (remainingText.trim()) {
+            const textSpan = document.createElement('span');
+            textSpan.textContent = remainingText;
+            messageDiv.appendChild(textSpan);
+        }
+    }
+
+    /**
+     * 🚀 NEW: Smart placement of code based on AI suggestions
+     */
+    smartPlaceCode(code, suggestion, context) {
+        if (!this.monacoEditor) {
+            this.showNotification('❌ No active editor to place code', 'error');
+            return;
+        }
+        
+        const currentCode = this.monacoEditor.getValue();
+        const lines = currentCode.split('\n');
+        
+        // Parse placement suggestion
+        const lowerSuggestion = suggestion.toLowerCase();
+        const lowerContext = context.toLowerCase();
+        
+        let targetLocation = null;
+        let insertMode = 'at-cursor'; // Default fallback
+        
+        // Try to extract target method/function/location
+        const methodMatch = suggestion.match(/(?:in|at|to|inside|above|below|after|before)\s+([^.\n]+)/i);
+        if (methodMatch) {
+            const target = methodMatch[1].trim();
+            
+            // Search for the target in the code
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes(target)) {
+                    targetLocation = i;
+                    
+                    // Determine insertion mode based on suggestion
+                    if (lowerSuggestion.includes('above') || lowerSuggestion.includes('before')) {
+                        insertMode = 'above';
+                    } else if (lowerSuggestion.includes('below') || lowerSuggestion.includes('after')) {
+                        insertMode = 'below';
+                    } else if (lowerSuggestion.includes('inside') || lowerSuggestion.includes('in')) {
+                        insertMode = 'inside';
+                    }
+                    break;
+                }
+            }
+        }
+        
+        // Perform the placement
+        if (targetLocation !== null) {
+            this.placeCodeAtLocation(code, targetLocation, insertMode);
+            this.showNotification(`✅ Code placed ${insertMode} target location!`, 'success');
+        } else {
+            // Fallback to cursor position
+            const position = this.monacoEditor.getPosition();
+            this.monacoEditor.executeEdits('smart-placement', [{
+                range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                text: '\n' + code + '\n'
+            }]);
+            this.showNotification('📍 Code placed at cursor (target not found)', 'info');
+        }
+    }
+
+    /**
+     * 🚀 NEW: Place code at specific location with different modes
+     */
+    placeCodeAtLocation(code, targetLine, mode) {
+        const lines = this.monacoEditor.getValue().split('\n');
+        let insertLine = targetLine;
+        
+        if (mode === 'above') {
+            insertLine = targetLine;
+        } else if (mode === 'below') {
+            insertLine = targetLine + 1;
+        } else if (mode === 'inside') {
+            // Look for opening brace after target line
+            for (let i = targetLine; i < Math.min(targetLine + 10, lines.length); i++) {
+                if (lines[i].includes('{')) {
+                    insertLine = i + 1;
+                    break;
+                }
+            }
+        }
+        
+        // Insert the code
+        this.monacoEditor.executeEdits('smart-placement', [{
+            range: new monaco.Range(insertLine + 1, 1, insertLine + 1, 1),
+            text: code + '\n'
+        }]);
+        
+        // Move cursor to inserted code
+        this.monacoEditor.setPosition({ lineNumber: insertLine + 1, column: 1 });
+        this.monacoEditor.focus();
     }
 
     /**
@@ -3906,6 +4132,18 @@ closeDiffModal(modal, diffEditor) {
      * Show AI response with apply options
      */
     showAIResponse(response, action) {
+        // Special handling for GUI placement analysis - route to chat sidebar
+        if (action === 'gui-placement') {
+            this.addChatMessage(`🤖 **AI GUI Placement Analysis**\n\n${response}`, 'assistant');
+            return;
+        }
+
+        // Special handling for AI placement suggestions
+        if (action === 'ai-placement') {
+            this.showAIPlacementDialog(response);
+            return;
+        }
+
         const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)\n?```/g;
         const matches = [...response.matchAll(codeBlockRegex)];
         
@@ -3915,6 +4153,63 @@ closeDiffModal(modal, diffEditor) {
         } else {
             alert(`AI Response:\n\n${response}`);
         }
+    }
+
+    /**
+     * Show AI placement suggestions dialog
+     */
+    showAIPlacementDialog(response) {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); display: flex; align-items: center;
+            justify-content: center; z-index: 10000;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: var(--nebula-surface); border: 1px solid var(--nebula-border);
+            border-radius: var(--nebula-radius-md); padding: 24px; min-width: 600px;
+            max-width: 90vw; max-height: 80vh; display: flex; flex-direction: column;
+        `;
+
+        dialog.innerHTML = `
+            <h3 style="color: var(--nebula-text-primary); margin: 0 0 16px 0;">🤖 AI Placement Suggestions</h3>
+            <div style="
+                border: 1px solid var(--nebula-border); border-radius: var(--nebula-radius-sm);
+                background: var(--nebula-bg-primary); color: var(--nebula-text-primary);
+                font-size: 13px; padding: 16px; overflow: auto; max-height: 400px;
+                margin-bottom: 16px; line-height: 1.5;
+            ">${response.replace(/\n/g, '<br>')}</div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button id="insertManuallyBtn" style="
+                    background: var(--nebula-primary); color: white; border: none;
+                    padding: 8px 16px; border-radius: 4px; cursor: pointer;
+                ">Insert at Cursor Anyway</button>
+                <button id="closeAIDialog" style="
+                    background: var(--nebula-surface); color: var(--nebula-text-primary);
+                    border: 1px solid var(--nebula-border); padding: 8px 16px;
+                    border-radius: 4px; cursor: pointer;
+                ">Close</button>
+            </div>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        // Event listeners
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) document.body.removeChild(modal);
+        });
+
+        document.getElementById('closeAIDialog').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        document.getElementById('insertManuallyBtn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            this.generateButtonCode(); // Insert at cursor as fallback
+        });
     }
 
     /**
@@ -5053,6 +5348,1408 @@ closeModal(modal) {
         }
         console.log('Code Assistant cleanup');
         return true;
+    }
+
+    // ==================== DESIGN MODE - Visual UI Builder ====================
+    
+    toggleDesignMode() {
+        const designPanel = document.getElementById(`designPanel-${this.windowId}`);
+        
+        if (designPanel) {
+            // Design mode is open, close it
+            designPanel.remove();
+            console.log('Design mode closed');
+        } else {
+            // Open design mode
+            this.openDesignMode();
+            console.log('Design mode opened');
+        }
+    }
+
+    openDesignMode() {
+        // Check if designer is already open
+        if (document.getElementById(`gui-designer-${this.windowId}`)) {
+            return; // Already open
+        }
+
+        // Create full-screen modal GUI designer (Visual Basic style)
+        const designerModal = document.createElement('div');
+        designerModal.id = `gui-designer-${this.windowId}`;
+        designerModal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--nebula-bg-primary);
+            z-index: 50000;
+            display: flex;
+            flex-direction: column;
+            font-family: var(--nebula-font-family);
+        `;
+
+        designerModal.innerHTML = `
+            <!-- GUI Designer Header -->
+            <div style="
+                height: 50px;
+                background: var(--nebula-surface);
+                border-bottom: 1px solid var(--nebula-border);
+                display: flex;
+                align-items: center;
+                padding: 0 16px;
+                gap: 16px;
+            ">
+                <div style="
+                    font-weight: 600;
+                    color: var(--nebula-text-primary);
+                    font-size: 14px;
+                ">🎨 Visual GUI Designer</div>
+                
+                <div style="flex: 1;"></div>
+                
+                <button id="generateGuiCode-${this.windowId}" style="
+                    background: var(--nebula-primary);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 500;
+                ">Generate visualGui() Method</button>
+                
+                <button id="aiAnalyzeGui-${this.windowId}" style="
+                    background: var(--nebula-accent);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 500;
+                ">AI Suggest Where to Place</button>
+                
+                <button id="closeDesigner-${this.windowId}" style="
+                    background: var(--nebula-surface);
+                    color: var(--nebula-text-primary);
+                    border: 1px solid var(--nebula-border);
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                ">Close Designer</button>
+            </div>
+
+            <!-- Main Designer Area -->
+            <div style="
+                flex: 1;
+                display: flex;
+                overflow: hidden;
+            ">
+                <!-- Component Toolbox -->
+                <div style="
+                    width: 200px;
+                    background: var(--nebula-surface);
+                    border-right: 1px solid var(--nebula-border);
+                    padding: 16px;
+                    overflow-y: auto;
+                ">
+                    <h4 style="
+                        margin: 0 0 12px 0;
+                        color: var(--nebula-text-primary);
+                        font-size: 13px;
+                        font-weight: 600;
+                    ">Components</h4>
+                    
+                    <div class="component-toolbox">
+                        <!-- Controls -->
+                        <div class="component-category" style="margin-bottom: 16px;">
+                            <div style="
+                                font-size: 11px;
+                                color: var(--nebula-text-secondary);
+                                margin-bottom: 8px;
+                                text-transform: uppercase;
+                                font-weight: 600;
+                            ">Controls</div>
+                            
+                            <div class="component-item" data-type="button" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-primary);">▣</span>
+                                Button
+                            </div>
+                            
+                            <div class="component-item" data-type="input" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-accent);">▭</span>
+                                Text Input
+                            </div>
+                            
+                            <div class="component-item" data-type="label" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-text-secondary);">A</span>
+                                Label
+                            </div>
+                            
+                            <div class="component-item" data-type="checkbox" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-success);">☑</span>
+                                Checkbox
+                            </div>
+                            
+                            <div class="component-item" data-type="select" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-warning);">▼</span>
+                                Dropdown
+                            </div>
+                        </div>
+                        
+                        <!-- Layout -->
+                        <div class="component-category">
+                            <div style="
+                                font-size: 11px;
+                                color: var(--nebula-text-secondary);
+                                margin-bottom: 8px;
+                                text-transform: uppercase;
+                                font-weight: 600;
+                            ">Layout</div>
+                            
+                            <div class="component-item" data-type="div" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-info);">▢</span>
+                                Container
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Design Canvas -->
+                <div style="
+                    flex: 1;
+                    background: #f5f5f5;
+                    position: relative;
+                    overflow: auto;
+                    padding: 20px;
+                ">
+                    <div id="designCanvas-${this.windowId}" style="
+                        width: 600px;
+                        height: 400px;
+                        background: white;
+                        border: 2px solid #ddd;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                        position: relative;
+                        margin: 0 auto;
+                        border-radius: 8px;
+                        overflow: hidden;
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            text-align: center;
+                            color: #999;
+                            font-size: 14px;
+                            pointer-events: none;
+                        ">
+                            <div style="font-size: 32px; margin-bottom: 8px;">🎨</div>
+                            Drop components here to design your GUI
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Properties Panel -->
+                <div style="
+                    width: 250px;
+                    background: var(--nebula-surface);
+                    border-left: 1px solid var(--nebula-border);
+                    padding: 16px;
+                    overflow-y: auto;
+                ">
+                    <h4 style="
+                        margin: 0 0 12px 0;
+                        color: var(--nebula-text-primary);
+                        font-size: 13px;
+                        font-weight: 600;
+                    ">Properties</h4>
+                    
+                    <div id="propertiesPanel-${this.windowId}" style="
+                        color: var(--nebula-text-secondary);
+                        font-size: 12px;
+                    ">
+                        Select a component to edit properties
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(designerModal);
+        this.setupGuiDesigner();
+    }
+
+    setupGuiDesigner() {
+        const windowId = this.windowId;
+        
+        // Track designed components
+        this.designedComponents = [];
+        this.selectedComponent = null;
+        this.componentIdCounter = 1;
+
+        // Get elements
+        const canvas = document.getElementById(`designCanvas-${windowId}`);
+        const propertiesPanel = document.getElementById(`propertiesPanel-${windowId}`);
+        const generateBtn = document.getElementById(`generateGuiCode-${windowId}`);
+        const aiBtn = document.getElementById(`aiAnalyzeGui-${windowId}`);
+        const closeBtn = document.getElementById(`closeDesigner-${windowId}`);
+
+        // Component drag and drop
+        const componentItems = document.querySelectorAll('.component-item');
+        componentItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const type = item.dataset.type;
+                this.addComponentToCanvas(type, canvas, propertiesPanel);
+            });
+        });
+
+        // Generate visualGui() method
+        generateBtn?.addEventListener('click', () => {
+            this.generateVisualGuiMethod();
+        });
+
+        // AI placement analysis
+        aiBtn?.addEventListener('click', () => {
+            this.analyzeGuiPlacementWithAI();
+        });
+
+        // Close designer
+        closeBtn?.addEventListener('click', () => {
+            const designer = document.getElementById(`gui-designer-${windowId}`);
+            designer?.remove();
+        });
+
+        // Canvas click to deselect
+        canvas?.addEventListener('click', (e) => {
+            if (e.target === canvas) {
+                this.selectComponent(null, propertiesPanel);
+            }
+        });
+    }
+
+    addComponentToCanvas(type, canvas, propertiesPanel) {
+        const componentId = `comp_${this.componentIdCounter++}`;
+        
+        const component = document.createElement('div');
+        component.className = 'gui-component';
+        component.dataset.componentId = componentId;
+        component.dataset.type = type;
+        component.style.cssText = `
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            cursor: move;
+            border: 2px solid transparent;
+            min-width: 80px;
+            min-height: 30px;
+        `;
+
+        // Create component content based on type
+        const componentData = this.createComponentContent(type, componentId);
+        component.innerHTML = componentData.html;
+        
+        // Store component data
+        this.designedComponents.push({
+            id: componentId,
+            type: type,
+            element: component,
+            properties: componentData.properties,
+            position: { x: 50, y: 50 },
+            parent: null, // Track container relationships
+            children: [] // Track child components
+        });
+
+        // Make draggable
+        this.makeComponentDraggable(component);
+
+        // Click to select
+        component.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.selectComponent(componentId, propertiesPanel);
+        });
+
+        canvas.appendChild(component);
+        this.selectComponent(componentId, propertiesPanel);
+    }
+
+    createComponentContent(type, componentId) {
+        const baseId = componentId;
+        
+        switch (type) {
+            case 'button':
+                return {
+                    html: `<button style="
+                        background: var(--nebula-primary);
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 13px;
+                    ">Button</button>`,
+                    properties: {
+                        text: 'Button',
+                        backgroundColor: '#667eea',
+                        color: '#ffffff',
+                        width: '80px',
+                        height: '32px'
+                    }
+                };
+            
+            case 'input':
+                return {
+                    html: `<input type="text" placeholder="Enter text" style="
+                        padding: 8px;
+                        border: 1px solid #ccc;
+                        border-radius: 4px;
+                        font-size: 13px;
+                        width: 120px;
+                    ">`,
+                    properties: {
+                        placeholder: 'Enter text',
+                        width: '120px',
+                        height: '32px'
+                    }
+                };
+            
+            case 'label':
+                return {
+                    html: `<label style="
+                        color: var(--nebula-text-primary);
+                        font-size: 13px;
+                        display: block;
+                    ">Label Text</label>`,
+                    properties: {
+                        text: 'Label Text',
+                        fontSize: '13px',
+                        color: '#333333'
+                    }
+                };
+            
+            case 'checkbox':
+                return {
+                    html: `<label style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                        <input type="checkbox"> Checkbox
+                    </label>`,
+                    properties: {
+                        text: 'Checkbox',
+                        checked: false
+                    }
+                };
+            
+            case 'select':
+                return {
+                    html: `<select style="
+                        padding: 8px;
+                        border: 1px solid #ccc;
+                        border-radius: 4px;
+                        font-size: 13px;
+                        width: 120px;
+                    ">
+                        <option>Option 1</option>
+                        <option>Option 2</option>
+                    </select>`,
+                    properties: {
+                        options: ['Option 1', 'Option 2'],
+                        width: '120px'
+                    }
+                };
+            
+            case 'div':
+                return {
+                    html: `<div style="
+                        border: 2px dashed #ccc;
+                        padding: 20px;
+                        min-width: 150px;
+                        min-height: 80px;
+                        background: rgba(0,0,0,0.02);
+                        text-align: center;
+                        color: #999;
+                        font-size: 12px;
+                    ">Container</div>`,
+                    properties: {
+                        width: '150px',
+                        height: '80px',
+                        padding: '20px'
+                    }
+                };
+            
+            default:
+                return {
+                    html: '<div>Unknown Component</div>',
+                    properties: {}
+                };
+        }
+    }
+
+    makeComponentDraggable(component) {
+        let isDragging = false;
+        let startX, startY, startLeft, startTop;
+        let dragPreview = null;
+        let potentialDropTarget = null;
+
+        component.addEventListener('mousedown', (e) => {
+            // Only allow dragging from the component itself or its immediate content
+            if (e.target !== component && e.target.parentElement !== component) return;
+            
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startLeft = parseInt(component.style.left) || 0;
+            startTop = parseInt(component.style.top) || 0;
+            
+            // Create drag preview indicator
+            component.style.opacity = '0.7';
+            component.style.zIndex = '9999';
+            
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            component.style.left = (startLeft + deltaX) + 'px';
+            component.style.top = (startTop + deltaY) + 'px';
+            
+            // Check for container drop targets
+            this.updateContainerDropTargets(e, component);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (isDragging) {
+                isDragging = false;
+                
+                // Restore visual state
+                component.style.opacity = '1';
+                component.style.zIndex = 'auto';
+                
+                // Clear any drop target highlights
+                this.clearContainerDropHighlights();
+                
+                // Check if dropped into a container
+                const dropTarget = this.findContainerDropTarget(e, component);
+                
+                if (dropTarget) {
+                    this.moveComponentToContainer(component, dropTarget);
+                } else {
+                    // Check if moved out of a container
+                    this.checkRemoveFromContainer(component);
+                }
+                
+                // Update component data
+                const componentData = this.designedComponents.find(c => c.element === component);
+                if (componentData) {
+                    componentData.position.x = parseInt(component.style.left) || 0;
+                    componentData.position.y = parseInt(component.style.top) || 0;
+                }
+            }
+        });
+    }
+
+    updateContainerDropTargets(mouseEvent, draggedComponent) {
+        // Clear previous highlights
+        this.clearContainerDropHighlights();
+        
+        // Find containers that could be drop targets
+        const containers = this.designedComponents.filter(comp => 
+            comp.type === 'div' && comp.element !== draggedComponent
+        );
+        
+        containers.forEach(container => {
+            const rect = container.element.getBoundingClientRect();
+            const mouseX = mouseEvent.clientX;
+            const mouseY = mouseEvent.clientY;
+            
+            // Check if mouse is over this container
+            if (mouseX >= rect.left && mouseX <= rect.right && 
+                mouseY >= rect.top && mouseY <= rect.bottom) {
+                
+                // Highlight as potential drop target
+                container.element.style.border = '3px dashed var(--nebula-accent)';
+                container.element.style.backgroundColor = 'rgba(102, 126, 234, 0.1)';
+            }
+        });
+    }
+
+    clearContainerDropHighlights() {
+        this.designedComponents.forEach(comp => {
+            if (comp.type === 'div') {
+                comp.element.style.border = '2px dashed #ccc';
+                comp.element.style.backgroundColor = 'rgba(0,0,0,0.02)';
+            }
+        });
+    }
+
+    findContainerDropTarget(mouseEvent, draggedComponent) {
+        const containers = this.designedComponents.filter(comp => 
+            comp.type === 'div' && comp.element !== draggedComponent
+        );
+        
+        for (const container of containers) {
+            const rect = container.element.getBoundingClientRect();
+            const mouseX = mouseEvent.clientX;
+            const mouseY = mouseEvent.clientY;
+            
+            if (mouseX >= rect.left && mouseX <= rect.right && 
+                mouseY >= rect.top && mouseY <= rect.bottom) {
+                return container;
+            }
+        }
+        return null;
+    }
+
+    moveComponentToContainer(component, containerData) {
+        const componentData = this.designedComponents.find(c => c.element === component);
+        if (!componentData) return;
+        
+        // Remove from previous parent if any
+        if (componentData.parent) {
+            const oldParent = this.designedComponents.find(c => c.id === componentData.parent);
+            if (oldParent) {
+                oldParent.children = oldParent.children.filter(id => id !== componentData.id);
+            }
+        }
+        
+        const container = containerData.element;
+        
+        // Calculate relative position within container
+        const componentLeft = parseInt(component.style.left) || 0;
+        const componentTop = parseInt(component.style.top) || 0;
+        
+        const containerLeft = parseInt(container.style.left) || 0;
+        const containerTop = parseInt(container.style.top) || 0;
+        
+        // Set position relative to container
+        const relativeLeft = componentLeft - containerLeft;
+        const relativeTop = componentTop - containerTop;
+        
+        // Move component into container DOM-wise
+        container.appendChild(component);
+        
+        // Update position to be relative within container
+        component.style.left = relativeLeft + 'px';
+        component.style.top = relativeTop + 'px';
+        
+        // Update parent-child relationships
+        componentData.parent = containerData.id;
+        componentData.position.x = relativeLeft;
+        componentData.position.y = relativeTop;
+        
+        // Add to container's children
+        if (!containerData.children.includes(componentData.id)) {
+            containerData.children.push(componentData.id);
+        }
+        
+        console.log(`Component ${componentData.id} moved into container ${containerData.id}`);
+        this.showNotification(`✅ Component moved into container`, 'success');
+    }
+
+    checkRemoveFromContainer(component) {
+        const componentData = this.designedComponents.find(c => c.element === component);
+        if (!componentData || !componentData.parent) return;
+        
+        const canvas = document.getElementById(`designCanvas-${this.windowId}`);
+        const containerData = this.designedComponents.find(c => c.id === componentData.parent);
+        
+        if (!containerData) return;
+        
+        const containerRect = containerData.element.getBoundingClientRect();
+        const componentRect = component.getBoundingClientRect();
+        
+        // Check if component is dragged outside container bounds
+        const isOutside = (
+            componentRect.left < containerRect.left ||
+            componentRect.right > containerRect.right ||
+            componentRect.top < containerRect.top ||
+            componentRect.bottom > containerRect.bottom
+        );
+        
+        if (isOutside) {
+            // Move component back to canvas
+            const containerLeft = parseInt(containerData.element.style.left) || 0;
+            const containerTop = parseInt(containerData.element.style.top) || 0;
+            
+            // Calculate absolute position
+            const relativeLeft = parseInt(component.style.left) || 0;
+            const relativeTop = parseInt(component.style.top) || 0;
+            
+            const absoluteLeft = containerLeft + relativeLeft;
+            const absoluteTop = containerTop + relativeTop;
+            
+            // Move back to canvas
+            canvas.appendChild(component);
+            component.style.left = absoluteLeft + 'px';
+            component.style.top = absoluteTop + 'px';
+            
+            // Remove from parent's children list
+            containerData.children = containerData.children.filter(id => id !== componentData.id);
+            
+            // Update component data
+            componentData.parent = null;
+            componentData.position.x = absoluteLeft;
+            componentData.position.y = absoluteTop;
+            
+            console.log(`Component ${componentData.id} moved out of container ${containerData.id}`);
+            this.showNotification(`✅ Component moved out of container`, 'success');
+        }
+    }
+
+    selectComponent(componentId, propertiesPanel) {
+        // Remove previous selection
+        document.querySelectorAll('.gui-component').forEach(comp => {
+            comp.style.border = '2px solid transparent';
+        });
+
+        this.selectedComponent = componentId;
+
+        if (componentId) {
+            // Highlight selected component
+            const component = this.designedComponents.find(c => c.id === componentId);
+            if (component) {
+                component.element.style.border = '2px solid var(--nebula-primary)';
+                this.showComponentProperties(component, propertiesPanel);
+            }
+        } else {
+            propertiesPanel.innerHTML = `
+                <div style="color: var(--nebula-text-secondary); font-size: 12px;">
+                    Select a component to edit properties
+                </div>
+            `;
+        }
+    }
+
+    showComponentProperties(component, propertiesPanel) {
+        const props = component.properties;
+        let html = `<div style="color: var(--nebula-text-primary); font-weight: 600; margin-bottom: 12px; font-size: 13px;">
+            ${component.type.charAt(0).toUpperCase() + component.type.slice(1)} Properties
+        </div>`;
+
+        // Generate property inputs based on component type
+        Object.entries(props).forEach(([key, value]) => {
+            html += `
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 11px; color: var(--nebula-text-secondary); margin-bottom: 4px;">
+                        ${key.charAt(0).toUpperCase() + key.slice(1)}
+                    </label>
+                    <input 
+                        type="${key.includes('color') || key.includes('Color') ? 'color' : 'text'}"
+                        value="${value}"
+                        data-component-id="${component.id}"
+                        data-property="${key}"
+                        style="
+                            width: 100%;
+                            padding: 6px;
+                            border: 1px solid var(--nebula-border);
+                            border-radius: 3px;
+                            font-size: 12px;
+                            background: var(--nebula-bg-primary);
+                            color: var(--nebula-text-primary);
+                        "
+                    >
+                </div>
+            `;
+        });
+
+        propertiesPanel.innerHTML = html;
+
+        // Add property change listeners
+        propertiesPanel.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                this.updateComponentProperty(
+                    e.target.dataset.componentId,
+                    e.target.dataset.property,
+                    e.target.value
+                );
+            });
+        });
+    }
+
+    updateComponentProperty(componentId, property, value) {
+        const component = this.designedComponents.find(c => c.id === componentId);
+        if (!component) return;
+
+        component.properties[property] = value;
+
+        // Update the visual element
+        const element = component.element;
+        const content = element.querySelector('button, input, label, select, div');
+        
+        if (content) {
+            switch (property) {
+                case 'text':
+                    if (content.tagName === 'BUTTON' || content.tagName === 'LABEL') {
+                        content.textContent = value;
+                    } else if (content.tagName === 'INPUT') {
+                        content.placeholder = value;
+                    }
+                    break;
+                case 'backgroundColor':
+                    content.style.backgroundColor = value;
+                    break;
+                case 'color':
+                    content.style.color = value;
+                    break;
+                case 'width':
+                    content.style.width = value;
+                    break;
+                case 'height':
+                    content.style.height = value;
+                    break;
+                case 'fontSize':
+                    content.style.fontSize = value;
+                    break;
+                case 'placeholder':
+                    if (content.tagName === 'INPUT') {
+                        content.placeholder = value;
+                    }
+                    break;
+            }
+        }
+    }
+
+    generateVisualGuiMethod() {
+        if (this.designedComponents.length === 0) {
+            this.showNotification('❌ No components to generate! Add some components to the canvas first.', 'error');
+            return;
+        }
+
+        // Get current file content for template detection
+        const currentCode = this.monacoEditor?.getValue() || '';
+        if (!currentCode.trim()) {
+            this.showNotification('📝 Please have some code in the editor first.', 'info');
+            return;
+        }
+
+        // Check if this is a template file by looking at first 8 lines
+        const lines = currentCode.split('\n');
+        const firstEightLines = lines.slice(0, 8).join('\n');
+        const isTemplate = /\/\/ Template:/i.test(firstEightLines);
+
+        console.log('Template detection:', isTemplate);
+
+        if (isTemplate) {
+            this.generateForTemplate(currentCode);
+        } else {
+            this.generateManualPlacement();
+        }
+    }
+
+    generateForTemplate(currentCode) {
+        // Find createContentArea method location
+        const lines = currentCode.split('\n');
+        let createContentAreaLine = -1;
+        let methodStartLine = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.includes('createContentArea()')) {
+                createContentAreaLine = i;
+                // Find the opening brace (could be same line or next few lines)
+                for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+                    if (lines[j].includes('{')) {
+                        methodStartLine = j;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+
+        if (createContentAreaLine === -1) {
+            this.showNotification('❌ Could not find createContentArea() method in template', 'error');
+            return;
+        }
+
+        // Generate the visualGui method
+        const visualGuiMethod = this.buildVisualGuiMethod();
+
+        // Find where to insert the method (above createContentArea)
+        let insertLine = createContentAreaLine;
+        // Look backward to find a good insertion point (after previous method)
+        for (let i = createContentAreaLine - 1; i >= 0; i--) {
+            const line = lines[i].trim();
+            if (line === '}' || line.startsWith('/**') || line === '') {
+                insertLine = i + 1;
+                break;
+            }
+        }
+
+        // Insert the visualGui method
+        const beforeLines = lines.slice(0, insertLine);
+        const afterLines = lines.slice(insertLine);
+        const newContent = beforeLines.join('\n') + '\n' + visualGuiMethod + '\n\n' + afterLines.join('\n');
+
+        // Now find the createContentArea method again in the new content to add the call
+        const updatedLines = newContent.split('\n');
+        let contentAreaBodyStart = -1;
+
+        for (let i = 0; i < updatedLines.length; i++) {
+            if (updatedLines[i].includes('createContentArea()')) {
+                // Find the opening brace and the first line inside
+                for (let j = i; j < Math.min(i + 10, updatedLines.length); j++) {
+                    if (updatedLines[j].includes('{')) {
+                        contentAreaBodyStart = j + 1;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+
+        if (contentAreaBodyStart !== -1) {
+            // Look for existing contentArea creation or good insertion point
+            let insertCallLine = contentAreaBodyStart;
+            for (let i = contentAreaBodyStart; i < Math.min(contentAreaBodyStart + 20, updatedLines.length); i++) {
+                const line = updatedLines[i].trim();
+                if (line.includes('contentArea') && line.includes('createElement')) {
+                    insertCallLine = i + 1;
+                    break;
+                } else if (line.includes('innerHTML') || line.includes('appendChild')) {
+                    insertCallLine = i;
+                    break;
+                }
+            }
+
+            // Add the visualGui call
+            const guiCall = `
+        // Add visual GUI components
+        const visualGuiContainer = this.visualGui();
+        contentArea.appendChild(visualGuiContainer);`;
+
+            const finalBeforeLines = updatedLines.slice(0, insertCallLine);
+            const finalAfterLines = updatedLines.slice(insertCallLine);
+            const finalContent = finalBeforeLines.join('\n') + guiCall + '\n' + finalAfterLines.join('\n');
+
+            // Replace all content in editor
+            if (this.monacoEditor) {
+                this.monacoEditor.setValue(finalContent);
+                this.showNotification('✅ Template auto-integrated! visualGui() method added and called from createContentArea()', 'success');
+                
+                // Close designer
+                const designer = document.getElementById(`gui-designer-${this.windowId}`);
+                designer?.remove();
+            }
+        } else {
+            this.showNotification('❌ Could not find insertion point in createContentArea method', 'error');
+        }
+    }
+
+    generateManualPlacement() {
+        // For non-template files, just insert at cursor like before
+        const methodCode = this.buildVisualGuiMethod();
+
+        if (this.monacoEditor) {
+            const position = this.monacoEditor.getPosition();
+            this.monacoEditor.executeEdits('gui-designer', [{
+                range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                text: methodCode
+            }]);
+            
+            this.showNotification('✅ visualGui() method generated! Add call manually where needed.', 'success');
+            
+            // Close designer
+            const designer = document.getElementById(`gui-designer-${this.windowId}`);
+            designer?.remove();
+        }
+    }
+
+    buildVisualGuiMethod() {
+        // Generate the complete visualGui() method with proper nesting
+        let methodCode = `    /**
+     * Visual GUI Method - Generated by NebulaDesktop GUI Designer
+     * Call this method from createContentArea() or anywhere you need the GUI
+     */
+    visualGui() {
+        const container = document.createElement('div');
+        container.className = 'visual-gui-container';
+        container.style.cssText = ` + '`' + `
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            overflow: visible;
+        ` + '`' + `;
+
+`;
+
+        // First, create all components
+        const componentVars = new Map();
+        this.designedComponents.forEach((comp, index) => {
+            const varName = `${comp.type}${index + 1}`;
+            componentVars.set(comp.id, varName);
+            
+            methodCode += `        // ${comp.type.charAt(0).toUpperCase() + comp.type.slice(1)} Component\n`;
+            methodCode += `        const ${varName} = document.createElement('${this.getElementTag(comp.type)}');\n`;
+            
+            // Add properties based on component type
+            methodCode += this.generateComponentProperties(comp, varName);
+            
+            // Add styling
+            methodCode += this.generateComponentStyling(comp, varName);
+            
+            methodCode += '\n';
+        });
+
+        // Then, build the hierarchy (containers first, then children)
+        methodCode += `        // Build component hierarchy\n`;
+        
+        // Add top-level components (no parent) to main container
+        const topLevelComponents = this.designedComponents.filter(comp => !comp.parent);
+        topLevelComponents.forEach(comp => {
+            const varName = componentVars.get(comp.id);
+            methodCode += `        container.appendChild(${varName});\n`;
+        });
+
+        // Add child components to their containers
+        const containers = this.designedComponents.filter(comp => comp.type === 'div');
+        containers.forEach(containerComp => {
+            if (containerComp.children && containerComp.children.length > 0) {
+                const containerVar = componentVars.get(containerComp.id);
+                methodCode += `\n        // Add children to ${containerVar}\n`;
+                
+                containerComp.children.forEach(childId => {
+                    const childVar = componentVars.get(childId);
+                    if (childVar) {
+                        methodCode += `        ${containerVar}.appendChild(${childVar});\n`;
+                    }
+                });
+            }
+        });
+
+        methodCode += `\n        return container;
+    }`;
+
+        return methodCode;
+    }
+
+    generateComponentProperties(comp, varName) {
+        let code = '';
+        
+        switch (comp.type) {
+            case 'button':
+                code += `        ${varName}.textContent = '${comp.properties.text || 'Button'}';\n`;
+                code += `        ${varName}.addEventListener('click', () => {\n`;
+                code += `            console.log('${comp.properties.text || 'Button'} clicked');\n`;
+                code += `            // TODO: Add your click functionality here\n`;
+                code += `        });\n`;
+                break;
+                
+            case 'input':
+                code += `        ${varName}.type = 'text';\n`;
+                code += `        ${varName}.placeholder = '${comp.properties.placeholder || 'Enter text'}';\n`;
+                break;
+                
+            case 'label':
+                code += `        ${varName}.textContent = '${comp.properties.text || 'Label Text'}';\n`;
+                break;
+                
+            case 'select':
+                const options = comp.properties.options || ['Option 1', 'Option 2'];
+                options.forEach(option => {
+                    code += `        ${varName}.innerHTML += '<option value="${option}">${option}</option>';\n`;
+                });
+                break;
+                
+            case 'checkbox':
+                code += `        ${varName}.innerHTML = \`
+            <input type="checkbox" id="${varName}_input"> 
+            <label for="${varName}_input">${comp.properties.text || 'Checkbox'}</label>
+        \`;\n`;
+                break;
+                
+            case 'div':
+                // Container doesn't need special properties
+                break;
+        }
+        
+        return code;
+    }
+
+    generateComponentStyling(comp, varName) {
+        let code = `        ${varName}.style.cssText = \`\n            position: ${comp.parent ? 'absolute' : 'absolute'};\n`;
+        
+        // Position
+        code += `            left: ${comp.position.x}px;\n`;
+        code += `            top: ${comp.position.y}px;\n`;
+
+        // Component-specific properties
+        Object.entries(comp.properties).forEach(([key, value]) => {
+            if (key === 'backgroundColor') code += `            background-color: ${value};\n`;
+            else if (key === 'color') code += `            color: ${value};\n`;
+            else if (key === 'width') code += `            width: ${value};\n`;
+            else if (key === 'height') code += `            height: ${value};\n`;
+            else if (key === 'fontSize') code += `            font-size: ${value};\n`;
+            else if (key === 'padding') code += `            padding: ${value};\n`;
+        });
+
+        // Default styling based on component type
+        switch (comp.type) {
+            case 'button':
+                code += `            border: none;\n`;
+                code += `            border-radius: 4px;\n`;
+                code += `            cursor: pointer;\n`;
+                code += `            font-weight: 500;\n`;
+                break;
+                
+            case 'input':
+                code += `            border: 1px solid #ccc;\n`;
+                code += `            border-radius: 4px;\n`;
+                code += `            padding: 8px;\n`;
+                break;
+                
+            case 'div':
+                code += `            border: 2px dashed #ccc;\n`;
+                code += `            background: rgba(0,0,0,0.02);\n`;
+                code += `            min-width: 150px;\n`;
+                code += `            min-height: 80px;\n`;
+                break;
+        }
+
+        code += `        \`;\n`;
+        return code;
+    }
+
+    getElementTag(type) {
+        const tagMap = {
+            'button': 'button',
+            'input': 'input',
+            'label': 'div',
+            'select': 'select',
+            'checkbox': 'div',
+            'div': 'div'
+        };
+        return tagMap[type] || 'div';
+    }
+
+    async analyzeGuiPlacementWithAI() {
+        if (this.designedComponents.length === 0) {
+            this.showNotification('❌ No GUI components to analyze! Design something first.', 'error');
+            return;
+        }
+
+        // Check if LM Studio is available
+        if (this.currentAIService !== 'lmstudio') {
+            this.showNotification('🤖 Please switch to LM Studio for AI placement analysis', 'info');
+            return;
+        }
+
+        // Get current file content
+        const currentCode = this.monacoEditor?.getValue() || '';
+        const fileName = this.openFiles.get(this.activeFileId)?.name || 'untitled.js';
+
+        if (!currentCode.trim()) {
+            this.showNotification('📝 Please have some code in the editor so AI can suggest where to place the visualGui() method', 'info');
+            return;
+        }
+
+        // Show loading state
+        const aiBtn = document.getElementById(`aiAnalyzeGui-${this.windowId}`);
+        const originalText = aiBtn ? aiBtn.innerHTML : '';
+        if (aiBtn) {
+            aiBtn.innerHTML = '⏳ Analyzing...';
+            aiBtn.disabled = true;
+        }
+
+        try {
+            // Describe the designed GUI
+            const guiDescription = this.designedComponents.map(comp => {
+                return `- ${comp.type}: "${comp.properties.text || comp.type}" at position (${comp.position.x}, ${comp.position.y})`;
+            }).join('\n');
+
+            // Create prompt for AI analysis
+            const prompt = `
+I've designed a GUI with these components using a visual designer:
+
+DESIGNED GUI COMPONENTS:
+${guiDescription}
+
+This generates a visualGui() method that creates these components. I need your help to understand where to place and call this method in my existing code.
+
+CURRENT CODE (${fileName}):
+\`\`\`javascript
+${currentCode}
+\`\`\`
+
+Please analyze my code and suggest:
+
+1. **WHERE** should I place the visualGui() method? (Which class, after which method, etc.)
+
+2. **HOW** should I call visualGui()? Looking at patterns like:
+   - If there's a createContentArea() method, should I call it from there?
+   - If this is a template, where does the GUI fit best?
+   - What's the best integration point?
+
+3. **WHY** that location makes sense for the code structure
+
+4. **INTEGRATION** tips - any modifications needed to make it work well
+
+Focus on:
+- Existing code patterns and architecture
+- Best practices for code organization  
+- How the GUI fits into the overall application structure
+- Template patterns (like NebulaApp templates)
+
+Provide specific, actionable advice for integrating the visualGui() method.`;
+
+            // Add this as a message to the AI chat instead of showing modal
+            this.addChatMessage(`🎨 **GUI Placement Analysis Request**\n\nAnalyzing designed GUI components and suggesting optimal placement in code...`, 'user');
+
+            // Send to LM Studio (this will add response to chat)
+            await this.sendToLMStudio(prompt, 'gui-placement');
+
+        } catch (error) {
+            console.error('AI GUI analysis error:', error);
+            this.showNotification('❌ AI analysis failed. Try again.', 'error');
+        } finally {
+            // Restore button state
+            if (aiBtn) {
+                aiBtn.innerHTML = originalText;
+                aiBtn.disabled = false;
+            }
+        }
+    }
+
+    generateButtonCode() {
+        const buttonText = document.getElementById(`buttonText-${this.windowId}`)?.value || 'Click Me';
+        const buttonColor = document.getElementById(`buttonColor-${this.windowId}`)?.value || '#667eea';
+        const buttonSize = document.getElementById(`buttonSize-${this.windowId}`)?.value || 'medium';
+
+        // Size configurations
+        const sizeMap = {
+            small: { padding: '6px 12px', fontSize: '12px' },
+            medium: { padding: '8px 16px', fontSize: '13px' },
+            large: { padding: '12px 24px', fontSize: '14px' }
+        };
+
+        const sizeConfig = sizeMap[buttonSize] || sizeMap.medium;
+
+        // Generate clean button code
+        const buttonCode = `
+        // Button created with Design Mode
+        const button = document.createElement('button');
+        button.textContent = '${buttonText}';
+        button.style.cssText = \`
+            background: ${buttonColor};
+            color: white;
+            border: none;
+            padding: ${sizeConfig.padding};
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: ${sizeConfig.fontSize};
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+        \`;
+        
+        // Add hover effect
+        button.addEventListener('mouseenter', () => {
+            button.style.opacity = '0.8';
+        });
+        
+        button.addEventListener('mouseleave', () => {
+            button.style.opacity = '1';
+        });
+        
+        // Add click handler
+        button.addEventListener('click', () => {
+            console.log('Button clicked: ${buttonText}');
+            // TODO: Add your click functionality here
+        });
+        
+        container.appendChild(button);`.trim();
+
+        // Insert the code into the active editor
+        if (this.monacoEditor) {
+            const position = this.monacoEditor.getPosition();
+            this.monacoEditor.executeEdits('design-mode', [{
+                range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                text: buttonCode
+            }]);
+            
+            console.log('Button code inserted at cursor position');
+            
+            // Optional: Show notification
+            this.showNotification('✅ Button code inserted!', 'success');
+        }
+    }
+
+    async generateButtonCodeWithAI() {
+        const buttonText = document.getElementById(`buttonText-${this.windowId}`)?.value || 'Click Me';
+        const buttonColor = document.getElementById(`buttonColor-${this.windowId}`)?.value || '#667eea';
+        const buttonSize = document.getElementById(`buttonSize-${this.windowId}`)?.value || 'medium';
+
+        // Get current file content for AI analysis
+        const currentCode = this.monacoEditor?.getValue() || '';
+        const fileName = this.openFiles.get(this.activeFileId)?.name || 'untitled.js';
+
+        if (!currentCode.trim()) {
+            this.showNotification('📝 Please add some code first so AI can suggest placement', 'info');
+            return;
+        }
+
+        // Check if LM Studio is available
+        if (this.currentAIService !== 'lmstudio') {
+            this.showNotification('🤖 Please switch to LM Studio for AI placement suggestions', 'info');
+            return;
+        }
+
+        // Show loading state
+        const aiBtn = document.getElementById(`aiPlacementBtn-${this.windowId}`);
+        const originalText = aiBtn ? aiBtn.innerHTML : '';
+        if (aiBtn) {
+            aiBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">hourglass_empty</span> Analyzing...';
+            aiBtn.disabled = true;
+        }
+
+        try {
+            // Create prompt for AI analysis
+            const prompt = `
+I'm building a "${buttonText}" button in my code. Please analyze my current code and suggest the best place to insert this button.
+
+CURRENT CODE (${fileName}):
+\`\`\`javascript
+${currentCode}
+\`\`\`
+
+BUTTON DESCRIPTION:
+- Text: "${buttonText}"
+- Color: ${buttonColor}
+- Size: ${buttonSize}
+- Purpose: ${buttonText.toLowerCase().includes('submit') ? 'Form submission' : 
+                 buttonText.toLowerCase().includes('save') ? 'Save data' :
+                 buttonText.toLowerCase().includes('cancel') ? 'Cancel action' :
+                 buttonText.toLowerCase().includes('delete') ? 'Delete action' :
+                 buttonText.toLowerCase().includes('add') ? 'Add new item' :
+                 'General action button'}
+
+Please analyze the code structure and provide:
+
+1. **BEST PLACEMENT LOCATION**: Where should this button go? Be specific about:
+   - After which existing line or element
+   - Inside which container/function
+   - Line number if possible
+
+2. **REASONING**: Why this location makes sense from UX/UI perspective
+
+3. **INTEGRATION SUGGESTIONS**: Any modifications needed to integrate properly
+
+4. **CODE CONTEXT**: What other elements should this button be near
+
+Focus on:
+- Existing UI patterns in the code
+- Logical grouping with related elements  
+- User workflow and accessibility
+- Code organization
+
+Provide specific, actionable placement advice with technical details.`;
+
+            // Send to LM Studio
+            await this.sendToLMStudio(prompt, 'ai-placement');
+
+        } catch (error) {
+            console.error('AI placement error:', error);
+            this.showNotification('❌ AI analysis failed. Try manual placement.', 'error');
+        } finally {
+            // Restore button state
+            if (aiBtn) {
+                aiBtn.innerHTML = originalText;
+                aiBtn.disabled = false;
+            }
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        // Simple notification system
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? 'var(--nebula-accent)' : 'var(--nebula-primary)'};
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     }
 }
 
