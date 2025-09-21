@@ -20,7 +20,6 @@ class NebulaApp_Rummikub {
       // 🔧 NEW: Meld building state
       buildingMeld: [], // Tiles being assembled into a new meld
       pendingMelds: [], // Melds being modified but not yet committed
-      manipulatedMelds: [], // Store original melds that were moved to building area
       playerMadePlay: false, // Track if player made a move this turn
     };
 
@@ -49,7 +48,7 @@ class NebulaApp_Rummikub {
     this.windowId = window.windowManager.createWindow({
       title: 'Rummikub',
       width: 800,
-      height: 715,
+      height: 600,
       resizable: true,
       maximizable: true,
       minimizable: true
@@ -99,7 +98,6 @@ class NebulaApp_Rummikub {
     this.state.melds = [];
     this.state.buildingMeld = [];
     this.state.pendingMelds = [];
-    this.state.manipulatedMelds = [];
     this.state.turn = 0;
     this.state.playerMadePlay = false;
     this.state.message = "Game started! Play your first meld (minimum 30 points).";
@@ -269,9 +267,9 @@ class NebulaApp_Rummikub {
       return contentArea;
     }
 
-    // 🗂️ Main Virtual Tabletop Section (now the primary focus)
-    const tabletopSection = this.createMainTabletopSection();
-    contentArea.appendChild(tabletopSection);
+    // 🗂️ Melds Section
+    const meldsSection = this.createMeldsSection();
+    contentArea.appendChild(meldsSection);
 
     // 🧠 Debug Section (if enabled)
     if (this.state.debugMode) {
@@ -279,46 +277,35 @@ class NebulaApp_Rummikub {
       contentArea.appendChild(debugSection);
     }
 
-    // ️ Player Hand at Bottom (with controls in header)
+    // 🎮 Player Hand Section
     const handSection = this.createPlayerHandSection();
     contentArea.appendChild(handSection);
 
-    // Set up event listeners for buttons in player hand section
-    setTimeout(() => {
-      const endTurnBtn = document.getElementById('end-turn-btn');
-      const drawTileBtn = document.getElementById('draw-tile-btn');
-      const playMeldBtn = document.getElementById('play-meld-btn');
-      
-      if (endTurnBtn) {
-        endTurnBtn.addEventListener('click', () => this.endTurn());
-      }
-      
-      if (drawTileBtn) {
-        drawTileBtn.addEventListener('click', () => this.drawTile());
-      }
+    // 🎯 Drop Zones Section
+    const dropZoneSection = this.createDropZoneSection();
+    contentArea.appendChild(dropZoneSection);
 
-      if (playMeldBtn) {
-        playMeldBtn.addEventListener('click', () => this.validateAllMelds());
-      }
-    }, 0);
+    // 🎮 Game Controls
+    const controlsSection = this.createGameControls();
+    contentArea.appendChild(controlsSection);
 
     return contentArea;
   }
 
-  createMainTabletopSection() {
+  createMeldsSection() {
     const section = document.createElement('div');
     section.style.cssText = `
       background: var(--nebula-bg-secondary);
       border-radius: 8px;
       padding: 16px;
-      height: 400px; /* Increased from 320px for main focus */
+      height: 320px;
       display: flex;
       flex-direction: column;
       position: relative;
     `;
 
     const title = document.createElement('h3');
-    title.innerHTML = '🗂️ Virtual Tabletop <span style="font-size: 12px; color: var(--nebula-text-secondary); font-weight: normal;">(Click melds to edit • Emoji shows who played)</span>';
+    title.textContent = '🗂️ Virtual Tabletop';
     title.style.cssText = 'margin: 0 0 12px 0; color: var(--nebula-text-primary); flex-shrink: 0;';
     section.appendChild(title);
 
@@ -354,7 +341,7 @@ class NebulaApp_Rummikub {
       transform: translate(0px, 0px) scale(1);
     `;
 
-    // Add melds to the tabletop with emoji indicators
+    // Add melds to the tabletop
     this.layoutMeldsOnTabletop(viewport);
 
     tabletop.appendChild(viewport);
@@ -397,99 +384,8 @@ class NebulaApp_Rummikub {
       color: var(--nebula-text-secondary);
       text-align: center;
     `;
-    instructions.textContent = '🖱️ Drag to pan • 🔍 Use buttons to zoom • Drop tiles on melds to add • Click melds to edit • Rearrange in building area';
+    instructions.textContent = '🖱️ Drag to pan • 🔍 Use buttons to zoom • Drop tiles directly on melds to add';
     section.appendChild(instructions);
-
-    // Building zone integrated into tabletop area
-    const buildingZone = document.createElement('div');
-    buildingZone.id = 'building-meld-zone';
-    buildingZone.style.cssText = `
-      margin: 8px 0 0 0;
-      padding: 8px 12px;
-      border: 2px dashed ${this.state.buildingMeld.length > 0 ? 'var(--nebula-primary)' : 'rgba(255,255,255,0.3)'};
-      border-radius: 6px;
-      background: rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      transition: all 0.2s ease;
-      min-height: 40px;
-      backdrop-filter: blur(5px);
-    `;
-
-    if (this.state.buildingMeld.length === 0) {
-      const placeholder = document.createElement('div');
-      placeholder.textContent = '🛠️ Drag tiles here to build a meld';
-      placeholder.style.cssText = `
-        color: rgba(255,255,255,0.7); 
-        font-style: italic; 
-        font-size: 12px;
-        text-align: center; 
-        width: 100%;
-      `;
-      buildingZone.appendChild(placeholder);
-    } else {
-      // Show tiles in building meld
-      this.state.buildingMeld.forEach((tile, index) => {
-        const tileElement = this.createTileElement(tile, null, false);
-        tileElement.style.cursor = 'pointer';
-        tileElement.title = 'Click to remove';
-        tileElement.addEventListener('click', () => this.removeFromBuildingMeld(index));
-        buildingZone.appendChild(tileElement);
-      });
-
-      // Show validity indicator
-      const isValid = this.isValidMeld(this.state.buildingMeld);
-      const validityIndicator = document.createElement('div');
-      validityIndicator.textContent = isValid ? '✅ Valid' : '❌ Invalid';
-      validityIndicator.title = isValid ? 'Valid meld - can play!' : 'Invalid meld';
-      validityIndicator.style.cssText = `
-        margin-left: auto; 
-        font-size: 12px; 
-        padding: 4px 8px; 
-        border-radius: 4px;
-        background: ${isValid ? 'rgba(39, 174, 96, 0.2)' : 'rgba(231, 76, 60, 0.2)'};
-        color: ${isValid ? '#27ae60' : '#e74c3c'};
-        font-weight: bold;
-        backdrop-filter: blur(5px);
-      `;
-      buildingZone.appendChild(validityIndicator);
-
-      // Add clear button for building area
-      const clearBtn = document.createElement('button');
-      clearBtn.textContent = '🗑️';
-      clearBtn.title = 'Clear building area (return tiles to hand)';
-      clearBtn.style.cssText = `
-        background: rgba(231, 76, 60, 0.2);
-        border: none;
-        border-radius: 4px;
-        color: #e74c3c;
-        padding: 4px 8px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: bold;
-        margin-left: 4px;
-      `;
-      clearBtn.addEventListener('click', () => this.clearBuildingMeld());
-      buildingZone.appendChild(clearBtn);
-    }
-
-    section.appendChild(buildingZone);
-
-    // Add drop handlers to building zone
-    buildingZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      buildingZone.style.borderColor = 'var(--nebula-primary)';
-      buildingZone.style.background = 'rgba(52, 152, 219, 0.3)';
-    });
-
-    buildingZone.addEventListener('dragleave', (e) => {
-      buildingZone.style.borderColor = this.state.buildingMeld.length > 0 ? 'var(--nebula-primary)' : 'rgba(255,255,255,0.3)';
-      buildingZone.style.background = 'rgba(0,0,0,0.3)';
-    });
-
-    buildingZone.addEventListener('drop', (e) => this.handleDropToBuildingMeld(e));
 
     return section;
   }
@@ -593,24 +489,20 @@ class NebulaApp_Rummikub {
       flex-wrap: wrap;
     `;
 
-    // Meld label with emoji indicator
+    // Meld label
     const label = document.createElement('span');
-    const meldData = meld.tiles ? meld : { tiles: meld, emoji: '❓', playerName: 'Unknown' }; // Backward compatibility
-    label.innerHTML = `${meldData.emoji || '❓'} M${meldIndex + 1}:`;
-    label.title = `Played by ${meldData.playerName || 'Unknown'}`;
+    label.textContent = `M${meldIndex + 1}:`;
     label.style.cssText = `
       font-weight: bold;
       color: #333;
       font-size: 12px;
       margin-right: 6px;
       flex-shrink: 0;
-      cursor: pointer;
     `;
     container.appendChild(label);
 
     // Tiles
-    const tilesToRender = meld.tiles || meld; // Handle both old and new format
-    tilesToRender.forEach(tile => {
+    meld.forEach(tile => {
       const tileElement = this.createTileElement(tile, null, false);
       tileElement.style.fontSize = '12px';
       tileElement.style.padding = '4px 8px';
@@ -620,7 +512,7 @@ class NebulaApp_Rummikub {
 
     // Score
     const scoreSpan = document.createElement('span');
-    scoreSpan.textContent = `(${this.calculateMeldScore(tilesToRender)}pts)`;
+    scoreSpan.textContent = `(${this.calculateMeldScore(meld)}pts)`;
     scoreSpan.style.cssText = `
       font-size: 10px;
       color: #666;
@@ -628,31 +520,6 @@ class NebulaApp_Rummikub {
       flex-shrink: 0;
     `;
     container.appendChild(scoreSpan);
-
-    // Click to edit functionality
-    container.addEventListener('click', (e) => {
-      if (e.target.classList.contains('tile')) {
-        // Individual tile clicked - add to building area
-        const tileId = e.target.getAttribute('data-tile-id');
-        this.moveTileFromMeldToBuilding(meldIndex, tileId);
-      } else {
-        // Meld container clicked - move entire meld to building area
-        this.moveMeldToBuilding(meldIndex);
-      }
-    });
-
-    // Add visual feedback for clickable meld
-    container.addEventListener('mouseenter', () => {
-      container.style.cursor = 'pointer';
-      container.style.borderColor = 'var(--nebula-primary)';
-      container.style.transform = 'scale(1.02)';
-    });
-
-    container.addEventListener('mouseleave', () => {
-      container.style.cursor = 'default';
-      container.style.borderColor = 'transparent';
-      container.style.transform = 'scale(1)';
-    });
 
     // Drop zone styling
     container.addEventListener('dragover', (e) => {
@@ -818,110 +685,36 @@ class NebulaApp_Rummikub {
     this.updateTabletopTransform(this.tabletopViewport, 0, 0, 1);
   }
 
-  // New method to create player hand at bottom
   createPlayerHandSection() {
     const section = document.createElement('div');
     section.style.cssText = `
       background: var(--nebula-bg-secondary);
       border-radius: 8px;
       padding: 16px;
-      margin-top: auto; /* Push to bottom */
     `;
 
-    // Single row header with Your Hand | Buttons | Points
-    const headerRow = document.createElement('div');
-    headerRow.style.cssText = `
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-      gap: 16px;
-    `;
+    const title = document.createElement('h3');
+    title.textContent = '🎮 Your Hand';
+    title.style.cssText = 'margin: 0 0 12px 0; color: var(--nebula-text-primary);';
+    section.appendChild(title);
 
-    // Left: Your Hand title
-    const handTitle = document.createElement('div');
-    handTitle.textContent = '🗂️ Your Hand';
-    handTitle.style.cssText = `
-      color: var(--nebula-text-primary);
-      font-weight: bold;
-      font-size: 16px;
-      flex-shrink: 0;
-    `;
-
-    // Center: Action buttons
-    const buttonGroup = document.createElement('div');
-    buttonGroup.style.cssText = `
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-    `;
-
-    const buttonStyle = `
-      padding: 6px 12px;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      cursor: pointer;
-      font-weight: bold;
-      transition: all 0.2s ease;
-      font-size: 12px;
-      white-space: nowrap;
-    `;
-
-    // Play Meld button (renamed from Validate Melds)
-    const playMeldBtn = document.createElement('button');
-    playMeldBtn.id = 'play-meld-btn';
-    playMeldBtn.textContent = '🎯 Play Meld';
-    playMeldBtn.style.cssText = buttonStyle + 'background: #27ae60;'; // Green for submit action
-    buttonGroup.appendChild(playMeldBtn);
-
-    // Draw Tile button
-    const drawTileBtn = document.createElement('button');
-    drawTileBtn.id = 'draw-tile-btn';
-    drawTileBtn.textContent = '🎴 Draw Tile';
-    drawTileBtn.style.cssText = buttonStyle + 'background: var(--nebula-primary);';
-    buttonGroup.appendChild(drawTileBtn);
-
-    // End Turn button
-    const endTurnBtn = document.createElement('button');
-    endTurnBtn.id = 'end-turn-btn';
-    endTurnBtn.textContent = '⏭️ End Turn';
-    endTurnBtn.style.cssText = buttonStyle + 'background: var(--nebula-primary);';
-    buttonGroup.appendChild(endTurnBtn);
-
-    // Right: Points display
-    const player = this.state.players[0];
-    const pointsDisplay = document.createElement('div');
-    pointsDisplay.style.cssText = `
-      color: var(--nebula-text-secondary);
-      font-size: 12px;
-      text-align: right;
-      flex-shrink: 0;
-    `;
-    pointsDisplay.innerHTML = `<strong>${player.hand.length}</strong> tiles | <strong>${this.calculateHandScore(player.hand)}</strong> pts`;
-
-    headerRow.appendChild(handTitle);
-    headerRow.appendChild(buttonGroup);
-    headerRow.appendChild(pointsDisplay);
-    section.appendChild(headerRow);
-
-    // 🗂️ Tile Rack Layout - centered at bottom
+    // 🗂️ Tile Rack Layout
     const tileRack = document.createElement('div');
     tileRack.id = 'player-hand';
     tileRack.style.cssText = `
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      padding: 16px;
+      gap: 6px;
+      padding: 12px;
       background: var(--nebula-bg-tertiary);
-      border-radius: 8px;
-      min-height: 70px;
+      border-radius: 6px;
+      min-height: 60px;
       align-items: center;
-      justify-content: center; /* Center the tiles */
-      max-width: 800px;
-      margin: 0 auto; /* Center the container */
+      justify-content: flex-start;
     `;
 
+    const player = this.state.players[0];
+    
     // Sort hand for better organization
     const sortedHand = [...player.hand].sort((a, b) => {
       if (a.color === 'joker' && b.color !== 'joker') return 1;
@@ -933,14 +726,16 @@ class NebulaApp_Rummikub {
     sortedHand.forEach((tile, i) => {
       const originalIndex = player.hand.findIndex(t => t.id === tile.id);
       const tileElement = this.createTileElement(tile, originalIndex, true);
-      // Make tiles bigger for readability
-      tileElement.style.fontSize = '14px';
-      tileElement.style.padding = '6px 10px';
-      tileElement.style.minWidth = '24px';
       tileRack.appendChild(tileElement);
     });
 
     section.appendChild(tileRack);
+
+    // Hand summary
+    const handSummary = document.createElement('div');
+    handSummary.style.cssText = 'margin-top: 8px; font-size: 12px; color: var(--nebula-text-secondary);';
+    handSummary.textContent = `${player.hand.length} tiles | Hand value: ${this.calculateHandScore(player.hand)} points`;
+    section.appendChild(handSummary);
 
     return section;
   }
@@ -1175,7 +970,7 @@ class NebulaApp_Rummikub {
   createGameControls() {
     const section = document.createElement('div');
     section.style.cssText = `
-      display: none; /* Hide since buttons moved to compact player section */
+      display: flex;
       gap: 12px;
       flex-wrap: wrap;
       justify-content: center;
@@ -1209,10 +1004,10 @@ class NebulaApp_Rummikub {
     drawBtn.addEventListener('click', () => this.drawTile());
     section.appendChild(drawBtn);
 
-    // Validate Melds button (hidden - auto-validation used instead)
+    // Validate Melds button
     const validateBtn = document.createElement('button');
     validateBtn.textContent = '✅ Validate Melds';
-    validateBtn.style.cssText = buttonStyle.replace('var(--nebula-primary)', '#27ae60') + ' display: none;'; // Hidden
+    validateBtn.style.cssText = buttonStyle.replace('var(--nebula-primary)', '#27ae60');
     validateBtn.addEventListener('click', () => this.validateAllMelds());
     section.appendChild(validateBtn);
 
@@ -1352,142 +1147,28 @@ class NebulaApp_Rummikub {
       return;
     }
 
-    // Add to official melds with player ownership
-    const newMeld = {
-      tiles: [...this.state.buildingMeld],
-      playedBy: 0, // Player index (0 = human player)
-      playerName: this.state.players[0].name,
-      emoji: '🙂' // Human player emoji
-    };
-    this.state.melds.push(newMeld);
+    // Add to official melds
+    this.state.melds.push([...this.state.buildingMeld]);
     const score = this.calculateMeldScore(this.state.buildingMeld);
     
     // Mark that player made a play
     this.state.playerMadePlay = true;
     
-    // Clear building meld and manipulation history
+    // Clear building meld
     this.state.buildingMeld = [];
-    this.state.manipulatedMelds = [];
     
     this.state.message = `✅ Meld committed! +${score} points. You can end your turn or play more tiles.`;
     this.refreshUI();
   }
 
   clearBuildingMeld() {
-    if (this.state.buildingMeld.length === 0) return;
+    // Return all tiles to hand
+    this.state.buildingMeld.forEach(tile => {
+      this.state.players[0].hand.push(tile);
+    });
     
-    // Check if we can restore original melds unchanged
-    if (this.state.manipulatedMelds.length > 0 && !this.hasPlayerAddedTilesToBuilding()) {
-      // Player only moved table melds to building but didn't add any hand tiles
-      // Restore the original melds to the table
-      this.state.manipulatedMelds.forEach(({originalMeld}) => {
-        this.state.melds.push(originalMeld);
-      });
-      
-      this.state.message = "🔄 Meld manipulation cancelled. Original melds restored to table.";
-    } else {
-      // Player added tiles from their hand, so separate table tiles from hand tiles
-      const handTiles = this.state.buildingMeld.filter(tile => 
-        this.wasFromPlayerHand(tile)
-      );
-      
-      // Return hand tiles to player's hand
-      handTiles.forEach(tile => {
-        this.state.players[0].hand.push(tile);
-      });
-      
-      // Restore original table melds if possible
-      this.state.manipulatedMelds.forEach(({originalMeld}) => {
-        this.state.melds.push(originalMeld);
-      });
-      
-      if (handTiles.length > 0) {
-        this.state.message = `🔄 Building cleared. ${handTiles.length} tiles returned to hand, table melds restored.`;
-      } else {
-        this.state.message = "🔄 Meld manipulation cancelled. Original melds restored to table.";
-      }
-    }
-    
-    // Clear building state
     this.state.buildingMeld = [];
-    this.state.manipulatedMelds = [];
-    this.refreshUI();
-  }
-
-  // Helper function to check if player added any of their own tiles to building
-  hasPlayerAddedTilesToBuilding() {
-    const originalTableTileIds = new Set();
-    this.state.manipulatedMelds.forEach(({originalMeld}) => {
-      const tiles = originalMeld.tiles || originalMeld;
-      tiles.forEach(tile => originalTableTileIds.add(tile.id));
-    });
-    
-    // Check if building has any tiles that weren't from the original table melds
-    return this.state.buildingMeld.some(tile => !originalTableTileIds.has(tile.id));
-  }
-
-  // Helper function to determine if a tile was originally from player's hand
-  wasFromPlayerHand(tile) {
-    const originalTableTileIds = new Set();
-    this.state.manipulatedMelds.forEach(({originalMeld}) => {
-      const tiles = originalMeld.tiles || originalMeld;
-      tiles.forEach(t => originalTableTileIds.add(t.id));
-    });
-    
-    return !originalTableTileIds.has(tile.id);
-  }
-
-  // 🎯 Meld Manipulation Functions
-  moveMeldToBuilding(meldIndex) {
-    if (!this.state.melds[meldIndex]) return;
-    
-    const meld = this.state.melds[meldIndex];
-    const tiles = meld.tiles || meld;
-    
-    // Store the original meld for potential restoration
-    this.state.manipulatedMelds.push({
-      originalMeld: JSON.parse(JSON.stringify(meld)), // Deep copy
-      originalIndex: meldIndex
-    });
-    
-    // Add all tiles from the meld to building area
-    this.state.buildingMeld.push(...tiles);
-    
-    // Remove the meld from tabletop
-    this.state.melds.splice(meldIndex, 1);
-    
-    this.state.message = `🔧 Moved meld to building area for rearrangement. ${tiles.length} tiles added.`;
-    this.refreshUI();
-  }
-
-  moveTileFromMeldToBuilding(meldIndex, tileId) {
-    if (!this.state.melds[meldIndex]) return;
-    
-    const meld = this.state.melds[meldIndex];
-    const tiles = meld.tiles || meld;
-    const tileIndex = tiles.findIndex(t => t.id === tileId);
-    
-    if (tileIndex === -1) return;
-    
-    // Store the original meld for potential restoration
-    this.state.manipulatedMelds.push({
-      originalMeld: JSON.parse(JSON.stringify(meld)), // Deep copy
-      originalIndex: meldIndex
-    });
-    
-    // Move the specific tile to building area
-    const tile = tiles.splice(tileIndex, 1)[0];
-    this.state.buildingMeld.push(tile);
-    
-    // If meld becomes too small, remove it entirely and move remaining tiles to building
-    if (tiles.length < 3) {
-      this.state.buildingMeld.push(...tiles);
-      this.state.melds.splice(meldIndex, 1);
-      this.state.message = `🔧 Meld broken apart - all ${tiles.length + 1} tiles moved to building area.`;
-    } else {
-      this.state.message = `🔧 Tile moved to building area. Remaining meld: ${tiles.length} tiles.`;
-    }
-    
+    this.state.message = "Building meld cleared. All tiles returned to hand.";
     this.refreshUI();
   }
 
@@ -1510,11 +1191,9 @@ class NebulaApp_Rummikub {
 
   // 📈 Scoring System
   calculateMeldScore(meld) {
-    // Handle both old format (array) and new format (object with tiles property)
-    const tiles = meld.tiles || meld;
-    if (!tiles || tiles.length === 0) return 0;
+    if (!meld || meld.length === 0) return 0;
     
-    return tiles.reduce((total, tile) => {
+    return meld.reduce((total, tile) => {
       if (tile.color === 'joker') return total + 30; // Jokers worth 30 points
       return total + (typeof tile.num === 'number' ? tile.num : 0);
     }, 0);
@@ -1589,18 +1268,16 @@ class NebulaApp_Rummikub {
 
   // 🃏 Enhanced Joker Logic
   isValidMeld(meld) {
-    // Handle both old format (array) and new format (object with tiles property)
-    const tiles = meld.tiles || meld;
-    if (!tiles || tiles.length < 3) return false;
+    if (!meld || meld.length < 3) return false;
     
     // Separate jokers from regular tiles
-    const jokers = tiles.filter(t => t.color === 'joker');
-    const regularTiles = tiles.filter(t => t.color !== 'joker');
+    const jokers = meld.filter(t => t.color === 'joker');
+    const regularTiles = meld.filter(t => t.color !== 'joker');
     
-    if (jokers.length === tiles.length) return false; // All jokers is not valid
+    if (jokers.length === meld.length) return false; // All jokers is not valid
     
     // Check if it's a run or a group
-    return this.isValidRun(tiles) || this.isValidGroup(tiles);
+    return this.isValidRun(meld) || this.isValidGroup(meld);
   }
 
   isValidRun(meld) {
@@ -1659,36 +1336,21 @@ class NebulaApp_Rummikub {
   }
 
   validateAllMelds() {
-    // First, try to commit the building meld if there is one
-    if (this.state.buildingMeld.length > 0) {
-      if (this.isValidMeld(this.state.buildingMeld)) {
-        this.commitBuildingMeld();
-        return true; // Successfully committed building meld
-      } else {
-        this.state.message = "❌ Cannot play invalid meld! Check your building area.";
-        this.refreshUI();
-        return false;
-      }
-    }
-
-    // If no building meld, validate all existing melds on tabletop
     let allValid = true;
     let totalScore = 0;
     
     this.state.melds.forEach((meld, index) => {
-      const isValid = this.isValidMeld(meld.tiles || meld);
+      const isValid = this.isValidMeld(meld);
       if (!isValid) {
         allValid = false;
         this.state.message = `❌ Meld ${index + 1} is invalid!`;
       } else {
-        totalScore += this.calculateMeldScore(meld.tiles || meld);
+        totalScore += this.calculateMeldScore(meld);
       }
     });
     
-    if (allValid && this.state.melds.length > 0) {
+    if (allValid) {
       this.state.message = `✅ All melds are valid! Total: ${totalScore} points.`;
-    } else if (this.state.melds.length === 0) {
-      this.state.message = "🛠️ Build a meld first, then click Play Meld to submit it!";
     }
     
     this.refreshUI();
@@ -1827,13 +1489,7 @@ class NebulaApp_Rummikub {
             // Try to find a better meld or combine with jokers
             const betterMeld = this.findInitialMeld(ai.hand);
             if (betterMeld.length >= 3 && this.calculateMeldScore(betterMeld) >= 30) {
-              const aiMeld = {
-                tiles: betterMeld,
-                playedBy: i + 1,
-                playerName: ai.name,
-                emoji: i === 0 ? '🤖' : '🛸' // Different emojis for AI players
-              };
-              this.state.melds.push(aiMeld);
+              this.state.melds.push(betterMeld);
               ai.hand = ai.hand.filter(t => !betterMeld.some(m => m.id === t.id));
               ai.initialMeld = true;
               madePlay = true;
@@ -1843,13 +1499,7 @@ class NebulaApp_Rummikub {
             }
           } else {
             // Play the meld
-            const aiMeld = {
-              tiles: meld,
-              playedBy: i + 1,
-              playerName: ai.name,
-              emoji: i === 0 ? '🤖' : '🛸' // Different emojis for AI players
-            };
-            this.state.melds.push(aiMeld);
+            this.state.melds.push(meld);
             ai.hand = ai.hand.filter(t => !meld.some(m => m.id === t.id));
             if (!ai.initialMeld) ai.initialMeld = true;
             madePlay = true;
