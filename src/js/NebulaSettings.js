@@ -2076,6 +2076,24 @@ class NebulaSettings {
                 if (result.success) {
                     this.showNotification(`✅ Updated ${result.count} filter rules`);
                     this.updateAdBlockerStatus(container);
+                    // Ensure our custom AI allowlist entries survive list refreshes
+                    try {
+                        if (window.nebula && window.nebula.terminal && window.nebula.terminal.exec) {
+                            const checker = await window.nebula.terminal.exec('node', ['tools/check-adblock-allowlist.js']);
+                            if (checker && checker.exitCode === 0) {
+                                this.showNotification('✅ Adblock allowlist verified and restored');
+                            } else {
+                                const errMsg = (checker && (checker.stderr || checker.stdout)) || 'Unknown error';
+                                this.showNotification(`⚠️ Allowlist checker failed: ${errMsg}`);
+                                console.warn('Allowlist checker result:', checker);
+                            }
+                        } else {
+                            console.warn('Terminal.exec not available; cannot run allowlist checker automatically.');
+                        }
+                    } catch (err) {
+                        console.error('Error running allowlist checker:', err);
+                        this.showNotification('⚠️ Failed to run allowlist checker after refresh');
+                    }
                 } else {
                     this.showNotification(`❌ Failed to update: ${result.error}`);
                 }

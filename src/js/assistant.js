@@ -17,6 +17,9 @@ class NebulaAssistant {
             currentAI: 'claude'
         };
 
+        // Persisted user-defined services (APIs or custom web UIs)
+        this.savedServices = {};
+
         // Full view size options
         this.fullViewSizes = {
             '25': { class: 'full-view-25', label: '25%', width: '25vw' },
@@ -77,6 +80,7 @@ class NebulaAssistant {
      */
     init() {
         this.loadConfig();
+        this.loadSavedServices();
         this.createAssistantButton();
         this.createAssistantPanel();
         this.setupEventListeners();
@@ -511,13 +515,30 @@ AI Assistant
             this.webview = null;
         }
 
-        // Create new webview
+        // Create new webview with attributes suitable for AI web services
         this.webview = document.createElement('webview');
         this.webview.className = 'assistant-webview';
         this.webview.id = 'assistantWebview';
 
+        // Use a persistent partition so logins/cookies persist across reloads
+        this.webview.setAttribute('partition', 'persist:nebula-assistant');
+
+        // Allow popups for login flows (restricting to AI services later)
+        this.webview.setAttribute('allowpopups', 'true');
+
+        // Preload script for controlled messaging (path relative to built assets)
+        this.webview.setAttribute('preload', 'src/preload.js');
+
         const currentService = this.aiServices[this.currentAI];
         this.webview.src = currentService.url;
+
+        // Set a conservative user agent to avoid some blocks (keeps desktop UA)
+        try {
+            const ua = navigator.userAgent + ' NebulaAssistant/1.0';
+            this.webview.setAttribute('useragent', ua);
+        } catch (e) {
+            console.warn('Could not set webview useragent:', e);
+        }
 
         // Set up webview event listeners
         this.setupWebviewListeners();
@@ -525,7 +546,7 @@ AI Assistant
         // Add to DOM
         content.appendChild(this.webview);
 
-        console.log(`Created webview for ${currentService.name}`);
+        console.log(`Created webview for ${currentService.name} (src=${currentService.url})`);
     }
 
     /**
@@ -552,8 +573,18 @@ AI Assistant
 
         this.webview.addEventListener('did-fail-load', (e) => {
             this.hideLoading();
+            const errMsg = `Failed to load (${e.errorCode}): ${e.errorDescription} -> ${e.validatedURL || e.url}`;
             this.updateStatus('Failed to load');
-            console.error('Webview failed to load:', e);
+            console.error('Webview failed to load:', errMsg, e);
+
+            // If the load failed due to frame embedding or CSP, offer to open externally
+            if (e.errorDescription && /blocked|frame|x-frame|refused/i.test(e.errorDescription)) {
+                const openExternal = confirm(`${errMsg}\n\nOpen in external browser instead?`);
+                if (openExternal) {
+                    const svc = this.aiServices[this.currentAI];
+                    window.open(svc.url, '_blank');
+                }
+            }
         });
 
         this.webview.addEventListener('page-title-updated', (e) => {
@@ -593,7 +624,7 @@ AI Assistant
      * Show settings modal (placeholder for now)
      */
     showSettings() {
-        // Create a simple settings modal
+        // Build a more complete settings modal that includes saved services
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed;
@@ -605,87 +636,144 @@ AI Assistant
             z-index: 2000;
         `;
 
+        // Built-in services list
+        const builtIn = Object.entries(this.aiServices).map(([key, s]) => `
+            <div class="svc-item" data-key="${key}" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--nebula-border);">
+                <div><strong>${s.icon} ${s.name}</strong><div style="font-size:11px;color:var(--nebula-text-secondary);">${s.url || ''}</div></div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <label style="font-size:11px;color:var(--nebula-text-secondary);"><input type="checkbox" data-image-capable="${key}"> Image</label>
+                </div>
+            </div>
+        `).join('');
+
+        // Saved services list
+        const savedEntries = Object.entries(this.savedServices).map(([id, s]) => `
+            <div class="svc-saved" data-id="${id}" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--nebula-border);">
+                <div><strong>${s.name}</strong><div style="font-size:11px;color:var(--nebula-text-secondary);">${s.url || ''}</div></div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button class="edit-svc" data-id="${id}">Edit</button>
+                    <button class="del-svc" data-id="${id}">Delete</button>
+                </div>
+            </div>
+        `).join('');
+
         modal.innerHTML = `
             <div style="
                 background: var(--nebula-surface);
                 border: 1px solid var(--nebula-border);
                 border-radius: var(--nebula-radius-lg);
-                padding: 24px;
-                max-width: 400px;
-                width: 90%;
+                padding: 16px;
+                max-width: 760px;
+                width: 95%;
                 color: var(--nebula-text-primary);
+                display: flex;
+                gap: 12px;
             ">
-                <h3 style="margin-bottom: 16px;">AI Assistant Settings</h3>
-                
-                <label style="display: block; margin-bottom: 12px;">
-                    Full View Size:
-                    <select id="fullViewSizeSelect" style="
-                        width: 100%;
-                        padding: 8px;
-                        margin-top: 4px;
-                        background: var(--nebula-bg-secondary);
-                        border: 1px solid var(--nebula-border);
-                        color: var(--nebula-text-primary);
-                        border-radius: 4px;
-                    ">
-                        ${Object.entries(this.fullViewSizes).map(([key, size]) => `
-                            <option value="${key}" ${key === this.config.fullViewSize ? 'selected' : ''}>
-                                ${size.label} width
-                            </option>
-                        `).join('')}
-                    </select>
-                </label>
-                
-                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
-                    <button id="cancelSettings" style="
-                        padding: 8px 16px;
-                        background: var(--nebula-surface-hover);
-                        border: 1px solid var(--nebula-border);
-                        color: var(--nebula-text-primary);
-                        border-radius: 4px;
-                        cursor: pointer;
-                    ">Cancel</button>
-                    <button id="saveSettings" style="
-                        padding: 8px 16px;
-                        background: var(--nebula-primary);
-                        border: none;
-                        color: white;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    ">Save</button>
+                <div style="flex:1; min-width: 260px;">
+                    <h4 style="margin:6px 0 8px 0;">Layout</h4>
+                    <label style="display:block;margin-bottom:12px;font-size:13px;color:var(--nebula-text-secondary);">Full View Size:
+                        <select id="fullViewSizeSelect" style="width:100%;padding:8px;margin-top:6px;background:var(--nebula-bg-secondary);border:1px solid var(--nebula-border);color:var(--nebula-text-primary);border-radius:4px;">
+                            ${Object.entries(this.fullViewSizes).map(([key, size]) => `
+                                <option value="${key}" ${key === this.config.fullViewSize ? 'selected' : ''}>${size.label} width</option>
+                            `).join('')}
+                        </select>
+                    </label>
+                    <h3 style="margin:0 0 8px 0;">AI Assistant Settings</h3>
+                    <div style="margin-bottom:12px; font-size:13px; color:var(--nebula-text-secondary);">Manage built-in and saved AI services. Mark services that can generate images as <strong>Image</strong> to surface them in OLLIE.</div>
+
+                    <div style="margin-top:8px;">
+                        <h4 style="margin:6px 0;">Built-in Services</h4>
+                        <div style="max-height:220px; overflow:auto; padding-right:8px;">${builtIn}</div>
+                    </div>
+                </div>
+
+                <div style="flex:1; min-width: 260px;">
+                    <h4 style="margin:6px 0;">Saved Services</h4>
+                    <div id="savedServicesList" style="max-height:300px; overflow:auto; padding-right:8px;">${savedEntries || '<div style="color:var(--nebula-text-secondary);">No saved services</div>'}</div>
+                    <div style="margin-top:12px; display:flex; gap:8px;">
+                        <button id="addServiceBtn" style="padding:8px 12px;">Add Service</button>
+                        <button id="closeSettingsBtn" style="padding:8px 12px; margin-left:auto;">Close</button>
+                    </div>
                 </div>
             </div>
         `;
 
         document.body.appendChild(modal);
 
-        // Event handlers
-        modal.querySelector('#cancelSettings').onclick = () => modal.remove();
-        modal.querySelector('#saveSettings').onclick = () => {
-            const newSize = modal.querySelector('#fullViewSizeSelect').value;
-            this.config.fullViewSize = newSize;
-            this.saveConfig();
+        // Hook up built-in image checkboxes
+        modal.querySelectorAll('[data-image-capable]').forEach(chk => {
+            const key = chk.getAttribute('data-image-capable');
+            // default off; user can add saved services to mark image capable
+            chk.checked = false;
+            chk.addEventListener('change', (e) => {
+                const isOn = e.target.checked;
+                // store in savedServices under special key so OLLIE can detect it
+                const metaKey = `builtin::${key}`;
+                if (isOn) {
+                    this.savedServices[metaKey] = { name: this.aiServices[key].name, url: this.aiServices[key].url, imageCapable: true };
+                } else {
+                    delete this.savedServices[metaKey];
+                }
+                this.saveSavedServices();
+            });
+        });
 
-            // Update full view button tooltip
-            const fullViewBtn = document.getElementById('fullViewBtn');
-            if (fullViewBtn && !this.isFullView) {
-                const sizeInfo = this.fullViewSizes[newSize];
-                fullViewBtn.title = `Full view (${sizeInfo.label})`;
-            }
-
-            // If currently in full view, update the class
-            if (this.isFullView) {
-                Object.values(this.fullViewSizes).forEach(size => {
-                    this.panel.classList.remove(size.class);
-                });
-                const sizeClass = this.fullViewSizes[newSize].class;
-                this.panel.classList.add(sizeClass);
-                this.updateDesktopLayout();
-            }
-
-            modal.remove();
-            console.log(`Full view size changed to ${newSize}%`);
+        // Add service button
+        modal.querySelector('#addServiceBtn').onclick = () => {
+            this.showEditServiceModal(null, modal.querySelector('#savedServicesList'));
         };
+
+        // Close settings
+        modal.querySelector('#closeSettingsBtn').onclick = () => {
+            const sel = modal.querySelector('#fullViewSizeSelect');
+            if (sel) {
+                const newSize = sel.value;
+                this.config.fullViewSize = newSize;
+                this.saveConfig();
+                // Update tooltip
+                const fullViewBtn = document.getElementById('fullViewBtn');
+                if (fullViewBtn && !this.isFullView) {
+                    const sizeInfo = this.fullViewSizes[newSize];
+                    fullViewBtn.title = `Full view (${sizeInfo.label})`;
+                }
+                // If currently in full view, apply immediately
+                if (this.isFullView) {
+                    Object.values(this.fullViewSizes).forEach(size => this.panel.classList.remove(size.class));
+                    const sizeClass = this.fullViewSizes[newSize].class;
+                    this.panel.classList.add(sizeClass);
+                    this.updateDesktopLayout();
+                }
+            }
+            modal.remove();
+        };
+
+        // Edit / delete handlers for saved services
+        modal.querySelectorAll('.edit-svc').forEach(btn => {
+            btn.onclick = (e) => {
+                const id = btn.getAttribute('data-id');
+                this.showEditServiceModal(id, modal.querySelector('#savedServicesList'));
+            };
+        });
+
+        modal.querySelectorAll('.del-svc').forEach(btn => {
+            btn.onclick = (e) => {
+                const id = btn.getAttribute('data-id');
+                if (confirm('Delete this saved service?')) {
+                    delete this.savedServices[id];
+                    this.saveSavedServices();
+                    const list = modal.querySelector('#savedServicesList');
+                    list.innerHTML = Object.entries(this.savedServices).map(([id, s]) => `
+                        <div class="svc-saved" data-id="${id}" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--nebula-border);">
+                            <div><strong>${s.name}</strong><div style="font-size:11px;color:var(--nebula-text-secondary);">${s.url || ''}</div></div>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <button class="edit-svc" data-id="${id}">Edit</button>
+                                <button class="del-svc" data-id="${id}">Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            };
+        });
 
         // Close on background click
         modal.onclick = (e) => {
@@ -710,6 +798,61 @@ AI Assistant
      */
     startNewChat() {
         this.refreshWebview();
+    }
+
+    /**
+     * Show modal to add or edit a saved service
+     */
+    showEditServiceModal(serviceId = null, insertListElement = null) {
+        const isEdit = !!serviceId;
+        const svc = isEdit ? this.savedServices[serviceId] : { name: '', url: '', imageCapable: false };
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.45); z-index:2100;
+        `;
+
+        modal.innerHTML = `
+            <div style="background:var(--nebula-surface); padding:16px; border-radius:8px; border:1px solid var(--nebula-border); width:420px; color:var(--nebula-text-primary);">
+                <h3 style="margin:0 0 8px 0;">${isEdit ? 'Edit' : 'Add'} Service</h3>
+                <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--nebula-text-secondary);">Name<input id="svcName" style="width:100%;padding:8px;margin-top:6px;background:var(--nebula-bg-secondary);border:1px solid var(--nebula-border);color:var(--nebula-text-primary);border-radius:4px;" value="${svc.name||''}"></label>
+                <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--nebula-text-secondary);">URL<input id="svcUrl" style="width:100%;padding:8px;margin-top:6px;background:var(--nebula-bg-secondary);border:1px solid var(--nebula-border);color:var(--nebula-text-primary);border-radius:4px;" value="${svc.url||''}"></label>
+                <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--nebula-text-secondary);"><input type="checkbox" id="svcImageCap" ${svc.imageCapable ? 'checked' : ''}> Can generate images</label>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                    <button id="cancelSvc" style="padding:8px 12px;">Cancel</button>
+                    <button id="saveSvc" style="padding:8px 12px;background:var(--nebula-primary);color:white;border:none;border-radius:4px;">Save</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cancelSvc').onclick = () => modal.remove();
+        modal.querySelector('#saveSvc').onclick = () => {
+            const name = modal.querySelector('#svcName').value.trim();
+            const url = modal.querySelector('#svcUrl').value.trim();
+            const imageCap = !!modal.querySelector('#svcImageCap').checked;
+            if (!name || !url) return alert('Name and URL are required');
+
+            const id = isEdit ? serviceId : `svc_${Math.random().toString(36).substr(2,9)}`;
+            this.savedServices[id] = { name, url, imageCapable: imageCap };
+            this.saveSavedServices();
+
+            // Update list if provided
+            if (insertListElement) {
+                insertListElement.innerHTML = Object.entries(this.savedServices).map(([id, s]) => `
+                    <div class="svc-saved" data-id="${id}" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--nebula-border);">
+                        <div><strong>${s.name}</strong><div style="font-size:11px;color:var(--nebula-text-secondary);">${s.url || ''}</div></div>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <button class="edit-svc" data-id="${id}">Edit</button>
+                            <button class="del-svc" data-id="${id}">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            modal.remove();
+        };
     }
 
     /**
@@ -752,6 +895,32 @@ AI Assistant
             }
         } catch (error) {
             console.warn('Could not load assistant config:', error);
+        }
+    }
+
+    /**
+     * Load saved AI services from localStorage
+     */
+    loadSavedServices() {
+        try {
+            const saved = localStorage.getItem('nebula-assistant-services');
+            if (saved) {
+                this.savedServices = JSON.parse(saved) || {};
+            }
+        } catch (e) {
+            console.warn('Could not load saved services:', e);
+            this.savedServices = {};
+        }
+    }
+
+    /**
+     * Save the user-defined services to localStorage
+     */
+    saveSavedServices() {
+        try {
+            localStorage.setItem('nebula-assistant-services', JSON.stringify(this.savedServices));
+        } catch (e) {
+            console.warn('Could not save services:', e);
         }
     }
 

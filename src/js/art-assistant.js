@@ -376,6 +376,24 @@ class NebulaArtAssistant {
         // Show notification (could enhance this)
         console.log(`Added "${prompt}" to gallery for ${imageData.service}`);
     }
+
+    /**
+     * (Bridge) Register a generated image data URL into localStorage for other apps to consume
+     * This helper can be called by the real generation pipeline when an image is available.
+     */
+    publishGeneratedImage(dataURL, meta = {}) {
+        try {
+            const payload = {
+                id: Date.now(),
+                dataURL,
+                meta
+            };
+            localStorage.setItem('nebula-art-last', JSON.stringify(payload));
+            console.log('Published generated image to localStorage');
+        } catch (e) {
+            console.error('Failed to publish generated image:', e);
+        }
+    }
     
     /**
      * Toggle between webview and gallery

@@ -1,5 +1,16 @@
 {
   "filters": [
+    "@@||claude.ai^",
+    "@@||chat.openai.com^",
+    "@@||chat.openai.com^$popup",
+    "@@||manus.im^",
+    "@@||perplexity.ai^",
+    "@@||copilot.microsoft.com^",
+    "@@||copilot.microsoft.com^$popup",
+    "@@||gemini.google.com^",
+    "@@||bolt.new^",
+    "@@||poe.com^",
+    "@@||llmstudio.ai^",
     "-ad-sidebar.$image",
     "-ad.jpg.pagespeed.$image",
     "-contrib-ads.$~stylesheet",
