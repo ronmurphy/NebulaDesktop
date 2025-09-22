@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebula Image Editor Pro - Fixed Demo</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <style>
+        :root {
+            --nebula-primary: #3b82f6;
+            --nebula-primary-hover: #2563eb;
+            --nebula-primary-rgb: 59, 130, 246;
+            --nebula-bg-primary: #0f172a;
+            --nebula-bg-secondary: #1e293b;
+            --nebula-surface: #334155;
+            --nebula-surface-hover: #475569;
+            --nebula-text-primary: #f8fafc;
+            --nebula-text-secondary: #cbd5e1;
+            --nebula-border: #475569;
+            --nebula-border-hover: #64748b;
+            --nebula-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--nebula-font-family);
+            background: var(--nebula-bg-primary);
+            color: var(--nebula-text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .demo-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container" id="demo-container">
+        <!-- The fixed image editor will be rendered here -->
+    </div>
+
+    <script>
+        // Core classes needed for the image editor
+        
+        class EventManager {
+            constructor() {
+                this.listeners = new Map();
+            }
+            
+            on(event, callback) {
+                if (!this.listeners.has(event)) {
+                    this.listeners.set(event, []);
+                }
+                this.listeners.get(event).push(callback);
+            }
+            
+            emit(event, data) {
+                if (this.listeners.has(event)) {
+                    this.listeners.get(event).forEach(callback => callback(data));
+                }
+            }
+            
+            off(event, callback) {
+                if (this.listeners.has(event)) {
+                    const callbacks = this.listeners.get(event);
+                    const index = callbacks.indexOf(callback);
+                    if (index > -1) {
+                        callbacks.splice(index, 1);
+                    }
+                }
+            }
+            
+            cleanup() {
+                this.listeners.clear();
+            }
+        }
+        
+        class Layer {
+            constructor(options = {}) {
+                this.id = options.id || 'layer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                this.name = options.name || 'Layer';
+                this.visible = options.visible !== undefined ? options.visible : true;
+                this.locked = options.locked !== undefined ? options.locked : false;
+                this.opacity = options.opacity !== undefined ? options.opacity : 1.0;
+                this.blendMode = options.blendMode || 'normal';
+                
+                // Create canvas for this layer
+                this.canvas = document.createElement('canvas');
+                this.context = this.canvas.getContext('2d');
+                this.setSize(800, 600); // Default size
+            }
+            
+            setSize(width, height) {
+                this.canvas.width = width;
+                this.canvas.height = height;
+                
+                // Fill with transparent background
+                this.context.clearRect(0, 0, width, height);
+            }
+            
+            clear() {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+            
+            getImageData() {
+                return this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            }
+            
+            putImageData(imageData, x = 0, y = 0) {
+                this.context.putImageData(imageData, x, y);
+            }
+        }
+        
+        class LayerManager {
+            constructor(eventManager) {
+                this.eventManager = eventManager;
+                this.layers = [];
+                this.activeLayerId = null;
+                this.canvas = null;
+                this.context = null;
+            }
+            
+            setCanvas(canvas) {
+                this.canvas = canvas;
+                this.context = canvas.getContext('2d');
+            }
+            
+            setDocument(document) {
+                this.document = document;
+            }
+            
+            addLayer(layer) {
+                this.layers.push(layer);
+                this.setActiveLayer(layer.id);
+                this.render();
+                this.eventManager.emit('layerAdded', layer);
+            }
+            
+            removeLayer(layerId) {
+                const index = this.layers.findIndex(layer => layer.id === layerId);
+                if (index > -1) {
+                    const layer = this.layers[index];
+                    this.layers.splice(index, 1);
+                    
+                    // Set new active layer
+                    if (this.activeLayerId === layerId) {
+                        const newActiveIndex = Math.min(index, this.layers.length - 1);
+                        if (newActiveIndex >= 0) {
+                            this.setActiveLayer(this.layers[newActiveIndex].id);
+                        } else {
+                            this.activeLayerId = null;
+                        }
+                    }
+                    
+                    this.render();
+                    this.eventManager.emit('layerRemoved', layer);
+                }
+            }
+            
+            getLayer(layerId) {
+                return this.layers.find(layer => layer.id === layerId);
+            }
+            
+            getActiveLayer() {
+                return this.getLayer(this.activeLayerId);
+            }
+            
+            setActiveLayer(layerId) {
+                this.activeLayerId = layerId;
+                this.eventManager.emit('activeLayerChanged', layerId);
+            }
+            
+            setLayerProperty(layerId, property, value) {
+                const layer = this.getLayer(layerId);
+                if (layer) {
+                    layer[property] = value;
+                    this.render();
+                    this.eventManager.emit('layerPropertyChanged', { layerId, property, value });
+                }
+            }
+            
+            render() {
+                if (!this.context) return;
+                
+                // Clear main canvas
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Fill with white background
+                this.context.fillStyle = 'white';
+                this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Render layers from bottom to top
+                this.layers.forEach(layer => {
+                    if (!layer.visible) return;
+                    
+                    this.context.save();
+                    this.context.globalAlpha = layer.opacity;
+                    this.context.globalCompositeOperation = this.getCompositeOperation(layer.blendMode);
+                    this.context.drawImage(layer.canvas, 0, 0);
+                    this.context.restore();
+                });
+            }
+            
+            getCompositeOperation(blendMode) {
+                const blendModes = {
+                    'normal': 'source-over',
+                    'multiply': 'multiply',
+                    'screen': 'screen',
+                    'overlay': 'overlay',
+                    'darken': 'darken',
+                    'lighten': 'lighten'
+                };
+                return blendModes[blendMode] || 'source-over';
+            }
+        }
+        
+        class Tool {
+            constructor(name, eventManager) {
+                this.name = name;
+                this.eventManager = eventManager;
+                this.isDrawing = false;
+                this.lastX = 0;
+                this.lastY = 0;
+                this.properties = {
+                    size: 10,
+                    opacity: 1.0,
+                    color: '#000000'
+                };
+            }
+            
+            setProperty(name, value) {
+                this.properties[name] = value;
+            }
+            
+            onMouseDown(data) {
+                this.isDrawing = true;
+                this.lastX = data.x;
+                this.lastY = data.y;
+            }
+            
+            onMouseMove(data) {
+                if (!this.isDrawing) return;
+            }
+            
+            onMouseUp(data) {
+                this.isDrawing = false;
+            }
+        }
+        
+        class BrushTool extends Tool {
+            constructor(eventManager) {
+                super('brush', eventManager);
+            }
+            
+            onMouseDown(data) {
+                super.onMouseDown(data);
+                const layer = window.fixedImageEditor?.layerManager?.getActiveLayer();
+                if (layer && !layer.locked) {
+                    this.drawDot(layer.context, data.x, data.y);
+                    window.fixedImageEditor.layerManager.render();
+                }
+            }
+            
+            onMouseMove(data) {
+                if (!this.isDrawing) return;
+                
+                const layer = window.fixedImageEditor?.layerManager?.getActiveLayer();
+                if (layer && !layer.locked) {
+                    this.drawLine(layer.context, this.lastX, this.lastY, data.x, data.y);
+                    window.fixedImageEditor.layerManager.render();
+                }
+                
+                this.lastX = data.x;
+                this.lastY = data.y;
+            }
+            
+            drawDot(context, x, y) {
+                context.save();
+                context.globalAlpha = this.properties.opacity;
+                context.fillStyle = this.properties.color;
+                context.beginPath();
+                context.arc(x, y, this.properties.size / 2, 0, Math.PI * 2);
+                context.fill();
+                context.restore();
+            }
+            
+            drawLine(context, x1, y1, x2, y2) {
+                context.save();
+                context.globalAlpha = this.properties.opacity;
+                context.strokeStyle = this.properties.color;
+                context.lineWidth = this.properties.size;
+                context.lineCap = 'round';
+                context.lineJoin = 'round';
+                context.beginPath();
+                context.moveTo(x1, y1);
+                context.lineTo(x2, y2);
+                context.stroke();
+                context.restore();
+            }
+        }
+        
+        class PencilTool extends Tool {
+            constructor(eventManager) {
+                super('pencil', eventManager);
+            }
+            
+            onMouseDown(data) {
+                super.onMouseDown(data);
+                const layer = window.fixedImageEditor?.layerManager?.getActiveLayer();
+                if (layer && !layer.locked) {
+                    this.drawDot(layer.context, data.x, data.y);
+                    window.fixedImageEditor.layerManager.render();
+                }
+            }
+            
+            onMouseMove(data) {
+                if (!this.isDrawing) return;
+                
+                const layer = window.fixedImageEditor?.layerManager?.getActiveLayer();
+                if (layer && !layer.locked) {
+                    this.drawLine(layer.context, this.lastX, this.lastY, data.x, data.y);
+                    window.fixedImageEditor.layerManager.render();
+                }
+                
+                this.lastX = data.x;
+                this.lastY = data.y;
+            }
+            
+            drawDot(context, x, y) {
+                context.save();
+                context.globalAlpha = this.properties.opacity;
+                context.fillStyle = this.properties.color;
+                context.fillRect(x - 0.5, y - 0.5, 1, 1);
+                context.restore();
+            }
+            
+            drawLine(context, x1, y1, x2, y2) {
+                context.save();
+                context.globalAlpha = this.properties.opacity;
+                context.strokeStyle = this.properties.color;
+                context.lineWidth = 1;
+                context.lineCap = 'square';
+                context.beginPath();
+                context.moveTo(x1, y1);
+                context.lineTo(x2, y2);
+                context.stroke();
+                context.restore();
+            }
+        }
+        
+        class EraserTool extends Tool {
+            constructor(eventManager) {
+                super('eraser', eventManager);
+            }
+            
+            onMouseDown(data) {
+                super.onMouseDown(data);
+                const layer = window.fixedImageEditor?.layerManager?.getActiveLayer();
+                if (layer && !layer.locked) {
+                    this.erase(layer.context, data.x, data.y);
+                    window.fixedImageEditor.layerManager.render();
+                }
+            }
+            
+            onMouseMove(data) {
+                if (!this.isDrawing) return;
+                
+                const layer = window.fixedImageEditor?.layerManager?.getActiveLayer();
+                if (layer && !layer.locked) {
+                    this.eraseLine(layer.context, this.lastX, this.lastY, data.x, data.y);
+                    window.fixedImageEditor.layerManager.render();
+                }
+                
+                this.lastX = data.x;
+                this.lastY = data.y;
+            }
+            
+            erase(context, x, y) {
+                context.save();
+                context.globalCompositeOperation = 'destination-out';
+                context.beginPath();
+                context.arc(x, y, this.properties.size / 2, 0, Math.PI * 2);
+                context.fill();
+                context.restore();
+            }
+            
+            eraseLine(context, x1, y1, x2, y2) {
+                context.save();
+                context.globalCompositeOperation = 'destination-out';
+                context.lineWidth = this.properties.size;
+                context.lineCap = 'round';
+                context.lineJoin = 'round';
+                context.beginPath();
+                context.moveTo(x1, y1);
+                context.lineTo(x2, y2);
+                context.stroke();
+                context.restore();
+            }
+        }
+        
+        class ToolManager {
+            constructor(eventManager) {
+                this.eventManager = eventManager;
+                this.tools = new Map();
+                this.activeTool = null;
+                this.initializeTools();
+            }
+            
+            initializeTools() {
+                this.tools.set('brush', new BrushTool(this.eventManager));
+                this.tools.set('pencil', new PencilTool(this.eventManager));
+                this.tools.set('eraser', new EraserTool(this.eventManager));
+                
+                // Set default tool
+                this.setActiveTool('brush');
+            }
+            
+            setActiveTool(toolName) {
+                if (this.tools.has(toolName)) {
+                    this.activeTool = this.tools.get(toolName);
+                    this.eventManager.emit('toolChanged', toolName);
+                }
+            }
+            
+            setProperty(name, value) {
+                if (this.activeTool) {
+                    this.activeTool.setProperty(name, value);
+                }
+            }
+            
+            handleMouseDown(data) {
+                if (this.activeTool) {
+                    this.activeTool.onMouseDown(data);
+                }
+            }
+            
+            handleMouseMove(data) {
+                if (this.activeTool) {
+                    this.activeTool.onMouseMove(data);
+                }
+            }
+            
+            handleMouseUp(data) {
+                if (this.activeTool) {
+                    this.activeTool.onMouseUp(data);
+                }
+            }
+        }
+        
+        class Document {
+            constructor(width, height) {
+                this.width = width;
+                this.height = height;
+                this.name = 'Untitled';
+                this.created = new Date();
+                this.modified = new Date();
+            }
+        }
+        
+        class AdjustmentPanel {
+            constructor(editor) {
+                this.editor = editor;
+            }
+            
+            createPanel() {
+                const panel = document.createElement('div');
+                panel.className = 'adjustment-panel';
+                panel.setAttribute('data-panel-content', 'adjustments');
+                panel.style.cssText = `
+                    padding: 20px;
+                    display: none;
+                `;
+                
+                panel.innerHTML = `
+                    <div class="panel-header">
+                        <h3 class="panel-title">Adjustments</h3>
+                    </div>
+                    
+                    <div class="adjustment-group">
+                        <h4 class="adjustment-title">Basic Adjustments</h4>
+                        
+                        <div class="property-group">
+                            <label class="property-label">Brightness</label>
+                            <div class="property-control">
+                                <input type="range" id="brightness-slider" min="-100" max="100" value="0" class="enhanced-slider">
+                                <span id="brightness-value" class="property-value">0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="property-group">
+                            <label class="property-label">Contrast</label>
+                            <div class="property-control">
+                                <input type="range" id="contrast-slider" min="-100" max="100" value="0" class="enhanced-slider">
+                                <span id="contrast-value" class="property-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="adjustment-group">
+                        <h4 class="adjustment-title">Filters</h4>
+                        <div class="filter-buttons">
+                            <button class="enhanced-btn filter-btn" data-filter="grayscale">Grayscale</button>
+                            <button class="enhanced-btn filter-btn" data-filter="sepia">Sepia</button>
+                            <button class="enhanced-btn filter-btn" data-filter="invert">Invert</button>
+                        </div>
+                        
+                        <div class="filter-actions">
+                            <button class="enhanced-btn" id="reset-adjustments">Reset</button>
+                            <button class="enhanced-btn primary" id="apply-adjustments">Apply</button>
+                        </div>
+                    </div>
+                `;
+                
+                return panel;
+            }
+        }
+        
+        // Mock WindowManager for standalone demo
+        window.windowManager = {
+            createWindow: function(options) {
+                return 'demo-window';
+            },
+            loadApp: function(windowId, app) {
+                const container = document.getElementById('demo-container');
+                const appElement = app.render();
+                container.appendChild(appElement);
+            }
+        };
+    </script>
+
+    <!-- Load the fixed image editor -->
+    <script src="fixed-image-editor.js"></script>
+
+    <script>
+        // Initialize the demo
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Fixed Image Editor Demo loaded');
+        });
+    </script>
+</body>
+</html>
+

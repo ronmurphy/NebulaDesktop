@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebula Image Editor Pro - Complete Demo</title>
+    
+    <!-- Google Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <style>
+        :root {
+            --nebula-background: #1a1a1a;
+            --nebula-surface: #2d2d2d;
+            --nebula-border: #404040;
+            --nebula-text: #ffffff;
+            --nebula-text-secondary: #b0b0b0;
+            --nebula-accent: #4a9eff;
+            --nebula-accent-hover: #3d8ce6;
+            --nebula-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--nebula-font);
+            background: var(--nebula-background);
+            color: var(--nebula-text);
+            overflow: hidden;
+        }
+        
+        /* Enhanced UI Components */
+        .enhanced-btn {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .enhanced-btn:hover {
+            background: var(--nebula-border);
+            border-color: var(--nebula-accent);
+        }
+        
+        .enhanced-btn.primary {
+            background: var(--nebula-accent);
+            border-color: var(--nebula-accent);
+            color: white;
+        }
+        
+        .enhanced-btn.primary:hover {
+            background: var(--nebula-accent-hover);
+        }
+        
+        .enhanced-slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--nebula-border);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .enhanced-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--nebula-accent);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .enhanced-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--nebula-accent);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .enhanced-select {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            width: 100%;
+        }
+        
+        .enhanced-color-picker {
+            width: 40px;
+            height: 30px;
+            border: 1px solid var(--nebula-border);
+            border-radius: 4px;
+            background: none;
+            cursor: pointer;
+        }
+        
+        /* Toolbar Styles */
+        .toolbar-btn {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 44px;
+            justify-content: center;
+        }
+        
+        .toolbar-btn:hover {
+            background: var(--nebula-border);
+            border-color: var(--nebula-accent);
+        }
+        
+        .toolbar-btn.active {
+            background: var(--nebula-accent);
+            border-color: var(--nebula-accent);
+            color: white;
+        }
+        
+        .toolbar-separator {
+            width: 1px;
+            height: 30px;
+            background: var(--nebula-border);
+            margin: 0 10px;
+        }
+        
+        .zoom-display {
+            font-size: 12px;
+            color: var(--nebula-text-secondary);
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        /* Panel Styles */
+        .panel-tab {
+            background: none;
+            border: none;
+            color: var(--nebula-text-secondary);
+            padding: 12px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            justify-content: center;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .panel-tab:hover {
+            color: var(--nebula-text);
+            background: var(--nebula-border);
+        }
+        
+        .panel-tab.active {
+            color: var(--nebula-accent);
+            border-bottom-color: var(--nebula-accent);
+        }
+        
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--nebula-text);
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 20px 0 12px 0;
+            color: var(--nebula-text);
+        }
+        
+        .subsection-title {
+            font-size: 12px;
+            font-weight: 500;
+            margin: 12px 0 8px 0;
+            color: var(--nebula-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .property-group {
+            margin-bottom: 16px;
+        }
+        
+        .property-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--nebula-text-secondary);
+        }
+        
+        .property-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .property-value {
+            font-size: 11px;
+            color: var(--nebula-text-secondary);
+            min-width: 40px;
+            text-align: right;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--nebula-accent);
+        }
+        
+        /* Specific Component Styles */
+        .brush-type-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .brush-type-btn {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 12px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .brush-type-btn:hover {
+            background: var(--nebula-border);
+            border-color: var(--nebula-accent);
+        }
+        
+        .brush-type-btn.active {
+            background: var(--nebula-accent);
+            border-color: var(--nebula-accent);
+            color: white;
+        }
+        
+        .selection-tool-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .selection-tool-btn {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 12px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .selection-tool-btn:hover {
+            background: var(--nebula-border);
+            border-color: var(--nebula-accent);
+        }
+        
+        .selection-tool-btn.active {
+            background: var(--nebula-accent);
+            border-color: var(--nebula-accent);
+            color: white;
+        }
+        
+        .xyz-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .xyz-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .xyz-control label {
+            width: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .xyz-control input {
+            flex: 1;
+        }
+        
+        .xyz-control span {
+            width: 40px;
+            text-align: right;
+            font-size: 11px;
+            color: var(--nebula-text-secondary);
+        }
+        
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            margin-top: 8px;
+        }
+        
+        .preset-model-btn {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 8px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        
+        .preset-model-btn:hover {
+            background: var(--nebula-border);
+            border-color: var(--nebula-accent);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--nebula-border);
+            font-size: 13px;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: var(--nebula-text-secondary);
+        }
+        
+        .info-value {
+            color: var(--nebula-text);
+            font-weight: 500;
+        }
+        
+        .layer-item {
+            transition: all 0.2s ease;
+        }
+        
+        .layer-item:hover {
+            background: var(--nebula-border);
+        }
+        
+        .layer-item.active {
+            background: var(--nebula-accent);
+            color: white;
+        }
+        
+        .layer-controls {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .layer-visibility-btn,
+        .layer-lock-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .layer-visibility-btn:hover,
+        .layer-lock-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .history-item {
+            transition: all 0.2s ease;
+        }
+        
+        .history-item:hover {
+            background: var(--nebula-border);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f44336;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: var(--nebula-text-secondary);
+        }
+        
+        /* Viewport Controls */
+        .viewport-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .viewport-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: var(--nebula-accent);
+        }
+        
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--nebula-background);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--nebula-border);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--nebula-accent);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .left-panel,
+            .right-panel {
+                width: 250px;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .toolbar-group {
+                gap: 4px;
+            }
+            
+            .toolbar-btn {
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+            
+            .left-panel,
+            .right-panel {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container"></div>
+    
+    <!-- Load all required scripts -->
+    <script src="NebulaApp-Single.js"></script>
+    <script src="enhanced-image-editor.js"></script>
+    <script src="image-filters.js"></script>
+    <script src="advanced-drawing-tools.js"></script>
+    <script src="advanced-selection-tools.js"></script>
+    <script src="gradient-fill-tools.js"></script>
+    <script src="stylus-tablet-support.js"></script>
+    <script src="threejs-3d-reference.js"></script>
+    <script src="NebulaImageEditorPro.js"></script>
+    
+    <script>
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Initializing Nebula Image Editor Pro...');
+            
+            // Check if all required classes are available
+            const requiredClasses = [
+                'NebulaApp',
+                'EventManager',
+                'LayerManager',
+                'AdvancedToolManager',
+                'SelectionToolManager',
+                'GradientManager',
+                'StylusTabletManager',
+                'ThreeJSReferenceButton'
+            ];
+            
+            const missingClasses = requiredClasses.filter(className => typeof window[className] === 'undefined');
+            
+            if (missingClasses.length > 0) {
+                console.error('Missing required classes:', missingClasses);
+                document.body.innerHTML = `
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100vh;
+                        background: var(--nebula-background);
+                        color: var(--nebula-text);
+                        font-family: var(--nebula-font);
+                        text-align: center;
+                    ">
+                        <div>
+                            <h1>Loading Error</h1>
+                            <p>Some required components failed to load:</p>
+                            <ul style="text-align: left; margin: 20px 0;">
+                                ${missingClasses.map(cls => `<li>${cls}</li>`).join('')}
+                            </ul>
+                            <p>Please refresh the page to try again.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Initialize the image editor
+            try {
+                const editor = new NebulaImageEditorPro();
+                const container = document.getElementById('app-container');
+                
+                if (container) {
+                    container.appendChild(editor.element);
+                    console.log('Nebula Image Editor Pro initialized successfully!');
+                    
+                    // Set global reference
+                    window.fixedImageEditor = editor;
+                    
+                    // Show welcome message
+                    setTimeout(() => {
+                        if (editor.updateStatus) {
+                            editor.updateStatus('Welcome to Nebula Image Editor Pro! Press B for Brush, M for Select, G for Gradient.');
+                        }
+                    }, 1000);
+                } else {
+                    console.error('App container not found');
+                }
+            } catch (error) {
+                console.error('Failed to initialize image editor:', error);
+                document.body.innerHTML = `
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100vh;
+                        background: var(--nebula-background);
+                        color: var(--nebula-text);
+                        font-family: var(--nebula-font);
+                        text-align: center;
+                    ">
+                        <div>
+                            <h1>Initialization Error</h1>
+                            <p>Failed to initialize the image editor:</p>
+                            <pre style="
+                                background: var(--nebula-surface);
+                                padding: 20px;
+                                border-radius: 8px;
+                                margin: 20px 0;
+                                text-align: left;
+                                overflow: auto;
+                            ">${error.message}</pre>
+                            <p>Please check the console for more details and refresh the page.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        // Global error handler
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+        });
+        
+        // Prevent context menu on canvas
+        document.addEventListener('contextmenu', (e) => {
+            if (e.target.tagName === 'CANVAS') {
+                e.preventDefault();
+            }
+        });
+        
+        // Keyboard shortcuts info
+        console.log(`
+🎨 Nebula Image Editor Pro - Keyboard Shortcuts:
+
+Drawing Tools:
+• B - Brush Tool
+• P - Pencil Tool  
+• E - Eraser Tool
+• G - Gradient Fill Tool
+
+Selection Tools:
+• M - Rectangle Select
+• Escape - Clear Selection
+
+Navigation:
+• Ctrl+Z - Undo
+• Ctrl+Y / Ctrl+Shift+Z - Redo
+• Ctrl+S - Save Project
+• Ctrl+O - Open Project
+• Ctrl+N - New Project
+
+Features:
+✓ Advanced brush system with pressure sensitivity
+✓ Layer management with blend modes
+✓ Professional selection tools
+✓ Gradient fills with directional control
+✓ Stylus/tablet support with stabilization
+✓ 3D reference modal with Three.js
+✓ Complete history system
+✓ Image adjustments and filters
+
+Enjoy creating! 🚀
+        `);
+    </script>
+</body>
+</html>
+
