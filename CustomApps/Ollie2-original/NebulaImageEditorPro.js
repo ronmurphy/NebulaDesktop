@@ -67,7 +67,8 @@ class NebulaImageEditorPro {
         this.selectionToolManager = new SelectionToolManager(this.eventManager);
         this.gradientManager = new GradientManager(this.eventManager);
         this.stylusTabletManager = new StylusTabletManager(this.eventManager);
-        this.threejsReference = new ThreeJSReferenceButton(this.eventManager);
+        // Move ThreeJSReferenceButton to afterRender to avoid TDZ
+        // this.threejsReference = new ThreeJSReferenceButton(this.eventManager);
 
         // Setup canvas
         this.setupCanvas();
@@ -85,7 +86,8 @@ class NebulaImageEditorPro {
     }
 
     setupCanvas() {
-        this.layerManager.setCanvasSize(this.canvasWidth, this.canvasHeight);
+        // Canvas size is set in the DOM creation, not here
+        // this.layerManager.setCanvasSize(this.canvasWidth, this.canvasHeight);
 
         // Setup selection canvas
         if (this.selectionToolManager) {
@@ -204,6 +206,9 @@ class NebulaImageEditorPro {
             overflow: hidden;
             font-family: var(--nebula-font-family);
         `;
+
+        // Set the element reference
+        this.element = container;
 
         // Create main sections
         const toolbar = this.createToolbar();
@@ -500,8 +505,6 @@ class NebulaImageEditorPro {
     }
 
     afterRender() {
-        super.afterRender();
-        
         // Setup main canvas
         this.setupMainCanvas();
         
@@ -510,6 +513,9 @@ class NebulaImageEditorPro {
         
         // Initialize panels
         this.initializePanels();
+        
+        // Initialize ThreeJS reference button after everything is set up
+        this.threejsReference = new ThreeJSReferenceButton(this.eventManager);
         
         // Add 3D reference button
         this.add3DReferenceButton();
@@ -523,7 +529,7 @@ class NebulaImageEditorPro {
         if (!canvas) return;
         
         // Set up layer manager with the main canvas
-        this.layerManager.setMainCanvas(canvas);
+        this.layerManager.setCanvas(canvas);
         
         // Set up selection overlay
         const selectionOverlay = this.element.querySelector('#selection-overlay');
@@ -1418,9 +1424,13 @@ class NebulaImageEditorPro {
 window.NebulaImageEditorPro = NebulaImageEditorPro;
 window.fixedImageEditor = null;
 
-// Auto-initialize when DOM is ready
+// Initialize immediately in code assistant environment
+window.fixedImageEditor = new NebulaImageEditorPro();
+window.fixedImageEditor.render();
+
+// Also listen for DOMContentLoaded for compatibility
 document.addEventListener('DOMContentLoaded', () => {
-    if (typeof NebulaApp !== 'undefined') {
+    if (!window.fixedImageEditor) {
         window.fixedImageEditor = new NebulaImageEditorPro();
         window.fixedImageEditor.render();
     }

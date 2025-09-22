@@ -49,6 +49,18 @@ class NebulaCodeAssistant {
         // this.chatWidth = '400px'; // Default width
         this.chatWidthPercent = 33; // Default 33%
 
+        // NEW: Stub environment for testing
+        this.stubEnvironmentEnabled = false;
+        this.stubEnvironmentSettings = {
+            injectWindowManager: true,
+            injectNebulaApp: true,
+            injectFileSystem: true,
+            showWarnings: true
+        };
+
+        // Load stub environment settings from localStorage
+        this.loadStubEnvironmentSettings();
+
         // Available templates for loading - NEW FEATURE
         this.templates = {
             'single-app': {
@@ -293,6 +305,9 @@ class NebulaCodeAssistant {
             this.setupErrorDetection(); // NEW: Add error detection
             this.createNewTab(); // Initialize with first tab
             this.updateWindowTitle(); // Set initial window title and status
+
+            // Update stub environment button state
+            this.updateStubEnvironmentButtonState();
         }, 0);
 
         // Apply saved layout after creation
@@ -436,6 +451,11 @@ class NebulaCodeAssistant {
                 <span class="material-symbols-outlined">bug_report</span>
             </button>
             
+            <button id="stubEnvBtn-${this.windowId}" class="code-toolbar-btn ${this.stubEnvironmentEnabled ? 'active' : ''}" title="Stub Environment Settings">
+                <span class="material-symbols-outlined">settings</span>
+                <span>Stub Env</span>
+            </button>
+            
             <button id="toggleOutputBtn-${this.windowId}" class="code-toolbar-btn title="Toggle Output Panel">
                 <span class="material-symbols-outlined">terminal</span>
             </button>
@@ -567,15 +587,28 @@ class NebulaCodeAssistant {
                 color: var(--nebula-text-primary);
             ">
                 <span>🖥️ JavaScript Output</span>
-                <button id="clearOutputBtn-${this.windowId}" style="
-                    background: none;
-                    border: none;
-                    color: var(--nebula-text-secondary);
-                    cursor: pointer;
-                    padding: 4px;
-                ">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">clear</span>
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button id="copyOutputBtn-${this.windowId}" style="
+                        background: none;
+                        border: none;
+                        color: var(--nebula-text-secondary);
+                        cursor: pointer;
+                        padding: 4px;
+                        title="Copy output to clipboard";
+                    ">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                    </button>
+                    <button id="clearOutputBtn-${this.windowId}" style="
+                        background: none;
+                        border: none;
+                        color: var(--nebula-text-secondary);
+                        cursor: pointer;
+                        padding: 4px;
+                        title="Clear output";
+                    ">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">clear</span>
+                    </button>
+                </div>
             </div>
             <div id="outputContent-${this.windowId}" style="
                 flex: 1;
@@ -588,6 +621,11 @@ class NebulaCodeAssistant {
                 white-space: pre-wrap;
             ">Ready to run JavaScript code... 🚀</div>
         `;
+
+        // Show welcome message after a short delay to ensure UI is ready
+        setTimeout(() => {
+            this.showWelcomeMessage();
+        }, 500);
 
         editorContainer.appendChild(monacoContainer);
         editorContainer.appendChild(outputPanel);
@@ -813,6 +851,10 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
             this.clearOutput();
         });
 
+        document.getElementById(`copyOutputBtn-${this.windowId}`)?.addEventListener('click', () => {
+            this.copyOutputToClipboard();
+        });
+
         // Code operations (original)
         document.getElementById(`formatBtn-${this.windowId}`)?.addEventListener('click', () => {
             this.formatCode();
@@ -926,6 +968,11 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
             }
         });
 
+        // 🆕 NEW: Stub Environment button
+        document.getElementById(`stubEnvBtn-${this.windowId}`)?.addEventListener('click', () => {
+            this.showStubEnvironmentSettings();
+        });
+
         // Add CSS for button styles
         this.addToolbarStyles();
     }
@@ -955,7 +1002,22 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
     }
 
     executeJS(code) {
+        // NEW: Combine all open files for execution context
+        const combinedCode = this.combineOpenFilesForExecution();
+        const executionCode = combinedCode || code;
+
         this.writeOutput(`> Running JavaScript...\n`, 'info');
+
+        if (combinedCode) {
+            const fileCount = this.openFiles.size;
+            this.writeOutput(`📦 Executing ${fileCount} file${fileCount > 1 ? 's' : ''} in combined context`, 'info');
+        }
+
+        // NEW: Inject stub environment if enabled
+        let finalCode = executionCode;
+        if (this.stubEnvironmentEnabled) {
+            finalCode = this.injectStubEnvironment(executionCode);
+        }
 
         try {
             // Capture console output (from Terminal's executeJS method)
@@ -978,11 +1040,11 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
             let result;
             try {
                 // First try as a full script (for function definitions, multiple statements)
-                result = Function('"use strict"; ' + code)();
+                result = Function('"use strict"; ' + finalCode)();
             } catch (firstError) {
                 try {
                     // If that fails, try as an expression (for simple returns)
-                    result = Function('"use strict"; return (' + code + ')')();
+                    result = Function('"use strict"; return (' + finalCode + ')')();
                 } catch (secondError) {
                     // If both fail, throw the original error
                     throw firstError;
@@ -1014,7 +1076,335 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
 
         } catch (error) {
             this.writeOutput(`❌ JavaScript Error: ${error.message}\n`, 'error');
+
+            // NEW: Try to provide helpful error context
+            if (error.stack) {
+                this.writeOutput('Stack trace:', 'error');
+                this.writeOutput(error.stack, 'error');
+            }
         }
+    }
+
+    // NEW: Inject stub environment for testing NebulaDesktop apps
+    injectStubEnvironment(code) {
+        let stubCode = '';
+
+        if (this.stubEnvironmentSettings.showWarnings) {
+            stubCode += `
+// ⚠️ STUB ENVIRONMENT ACTIVE ⚠️
+// This code is running with injected stub implementations
+// These may not behave exactly like the real NebulaDesktop environment
+console.warn('🧪 Stub environment active - some features may not work as expected');
+`;
+        }
+
+        // Inject WindowManager stub - only if real implementation doesn't exist
+        if (this.stubEnvironmentSettings.injectWindowManager) {
+            stubCode += `
+// Injected WindowManager stub
+if (typeof window.windowManager === 'undefined') {
+    window.windowManager = {
+        createWindow: function(config) {
+            const windowId = 'stub-window-' + Date.now();
+            console.log('🪟 Stub WindowManager: Created window', windowId, 'with config:', config);
+            console.log('✅ Window created:', windowId, config);
+            return windowId;
+        },
+        loadApp: function(windowId, app) {
+            console.log('📦 Stub WindowManager: Loading app into window', windowId);
+            // Simulate async loading
+            setTimeout(() => {
+                if (app && typeof app.render === 'function') {
+                    const container = app.render();
+                    console.log('🎨 Stub WindowManager: App rendered, container:', container);
+                    if (app.afterRender) {
+                        app.afterRender();
+                    }
+                }
+            }, 0);
+        }
+    };
+    ${this.stubEnvironmentSettings.showWarnings ? 'console.log(\'🔧 Injected stub: window.windowManager\');' : ''}
+}
+`;
+        }
+
+        // Inject NebulaApp stub - only if real implementation doesn't exist
+        if (this.stubEnvironmentSettings.injectNebulaApp) {
+            stubCode += `
+// Injected NebulaApp stub
+if (typeof NebulaApp === 'undefined') {
+    window.NebulaApp = class NebulaApp {
+        constructor() {
+            console.log('📱 Stub NebulaApp: Created app instance');
+        }
+    };
+    ${this.stubEnvironmentSettings.showWarnings ? 'console.log(\'🔧 Injected stub: NebulaApp\');' : ''}
+}
+`;
+        }
+
+        // Inject file system stub - only if real implementation doesn't exist
+        if (this.stubEnvironmentSettings.injectFileSystem) {
+            stubCode += `
+// Injected file system stub
+if (typeof window.nebula === 'undefined') {
+    window.nebula = {
+        fs: {
+            readFile: async function(path) {
+                console.log('📁 Stub FS: Reading file', path);
+                throw new Error('Stub FS: File reading not implemented - use real NebulaDesktop for file operations');
+            },
+            writeFile: async function(path, content) {
+                console.log('📁 Stub FS: Writing file', path);
+                throw new Error('Stub FS: File writing not implemented - use real NebulaDesktop for file operations');
+            },
+            exists: async function(path) {
+                console.log('📁 Stub FS: Checking if exists', path);
+                return false; // Stub always returns false
+            },
+            getHomeDir: function() {
+                console.log('📁 Stub FS: Getting home directory');
+                return '/stub/home';
+            }
+        }
+    };
+    ${this.stubEnvironmentSettings.showWarnings ? 'console.log(\'🔧 Injected stub: window.nebula.fs\');' : ''}
+}
+`;
+
+        }
+
+        return stubCode + '\n' + code;
+    }
+
+    // 🆕 NEW: Show stub environment settings modal
+    showStubEnvironmentSettings() {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content stub-env-modal">
+                <div class="modal-header">
+                    <h3>🧪 Stub Environment Settings</h3>
+                    <button class="close-btn" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-description">
+                        Configure stub implementations for testing NebulaDesktop apps without the full environment.
+                        These stubs provide basic functionality for development and testing.
+                    </p>
+
+                    <div class="setting-group">
+                        <label class="setting-toggle">
+                            <input type="checkbox" id="stubEnvEnabled-${this.windowId}"
+                                   ${this.stubEnvironmentEnabled ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                            Enable Stub Environment
+                        </label>
+                        <p class="setting-description">
+                            When enabled, stub implementations will be injected before code execution.
+                        </p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="setting-toggle">
+                            <input type="checkbox" id="injectWindowManager-${this.windowId}"
+                                   ${this.stubEnvironmentSettings.injectWindowManager ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                            Inject WindowManager Stub
+                        </label>
+                        <p class="setting-description">
+                            Provides window.windowManager.createWindow() and loadApp() methods.
+                        </p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="setting-toggle">
+                            <input type="checkbox" id="injectNebulaApp-${this.windowId}"
+                                   ${this.stubEnvironmentSettings.injectNebulaApp ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                            Inject NebulaApp Stub
+                        </label>
+                        <p class="setting-description">
+                            Provides the NebulaApp base class for app development.
+                        </p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="setting-toggle">
+                            <input type="checkbox" id="injectFileSystem-${this.windowId}"
+                                   ${this.stubEnvironmentSettings.injectFileSystem ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                            Inject File System Stub
+                        </label>
+                        <p class="setting-description">
+                            Provides window.nebula.fs with basic file operations (throws errors for safety).
+                        </p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="setting-toggle">
+                            <input type="checkbox" id="showWarnings-${this.windowId}"
+                                   ${this.stubEnvironmentSettings.showWarnings ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                            Show Stub Warnings
+                        </label>
+                        <p class="setting-description">
+                            Display console warnings when stubs are active to remind you of the test environment.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                    <button class="btn-primary" id="saveStubSettings-${this.windowId}">Save Settings</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add event listeners
+        document.getElementById(`saveStubSettings-${this.windowId}`)?.addEventListener('click', () => {
+            this.saveStubEnvironmentSettings();
+            modal.remove();
+        });
+
+        // Update button state based on enabled setting
+        const enabledCheckbox = document.getElementById(`stubEnvEnabled-${this.windowId}`);
+        const updateButtonState = () => {
+            const btn = document.getElementById(`stubEnvBtn-${this.windowId}`);
+            if (btn) {
+                btn.classList.toggle('active', enabledCheckbox.checked);
+            }
+        };
+        enabledCheckbox.addEventListener('change', updateButtonState);
+        updateButtonState();
+    }
+
+    // 🆕 NEW: Save stub environment settings
+    saveStubEnvironmentSettings() {
+        this.stubEnvironmentEnabled = document.getElementById(`stubEnvEnabled-${this.windowId}`).checked;
+        this.stubEnvironmentSettings.injectWindowManager = document.getElementById(`injectWindowManager-${this.windowId}`).checked;
+        this.stubEnvironmentSettings.injectNebulaApp = document.getElementById(`injectNebulaApp-${this.windowId}`).checked;
+        this.stubEnvironmentSettings.injectFileSystem = document.getElementById(`injectFileSystem-${this.windowId}`).checked;
+        this.stubEnvironmentSettings.showWarnings = document.getElementById(`showWarnings-${this.windowId}`).checked;
+
+        // Update button visual state
+        const btn = document.getElementById(`stubEnvBtn-${this.windowId}`);
+        if (btn) {
+            btn.classList.toggle('active', this.stubEnvironmentEnabled);
+        }
+
+        // Save to localStorage
+        localStorage.setItem(`stubEnvEnabled-${this.windowId}`, this.stubEnvironmentEnabled);
+        localStorage.setItem(`stubEnvSettings-${this.windowId}`, JSON.stringify(this.stubEnvironmentSettings));
+
+        this.writeOutput('🧪 Stub environment settings saved', 'success');
+    }
+
+    // 🆕 NEW: Update stub environment button visual state
+    updateStubEnvironmentButtonState() {
+        const btn = document.getElementById(`stubEnvBtn-${this.windowId}`);
+        if (btn) {
+            btn.classList.toggle('active', this.stubEnvironmentEnabled);
+        }
+    }
+
+    // 🆕 NEW: Load stub environment settings from localStorage
+    loadStubEnvironmentSettings() {
+        try {
+            const enabled = localStorage.getItem(`stubEnvEnabled-${this.windowId}`);
+            const settings = localStorage.getItem(`stubEnvSettings-${this.windowId}`);
+
+            if (enabled !== null) {
+                this.stubEnvironmentEnabled = enabled === 'true';
+            }
+
+            if (settings) {
+                const parsedSettings = JSON.parse(settings);
+                this.stubEnvironmentSettings = { ...this.stubEnvironmentSettings, ...parsedSettings };
+            }
+        } catch (error) {
+            console.warn('Failed to load stub environment settings:', error);
+        }
+    }
+
+    // NEW: Combine all open JavaScript files for execution
+    combineOpenFilesForExecution() {
+        if (this.openFiles.size <= 1) return null;
+
+        const jsFiles = [];
+        const otherFiles = [];
+
+        // Separate JS files from other files
+        for (const [fileId, fileData] of this.openFiles) {
+            if (fileData.path && fileData.path.endsWith('.js')) {
+                jsFiles.push({
+                    name: fileData.name,
+                    path: fileData.path,
+                    content: fileData.content,
+                    isActive: fileId === this.activeFileId
+                });
+            } else {
+                otherFiles.push(fileData);
+            }
+        }
+
+        if (jsFiles.length <= 1) return null;
+
+        // Sort files: ensure base classes come first, then dependencies, then active file
+        jsFiles.sort((a, b) => {
+            if (a.isActive) return 1;  // Active file last
+            if (b.isActive) return -1;
+
+            // Priority order: base classes first, then dependent classes
+            const baseClasses = ['Tool', 'EventManager', 'LayerManager'];
+            const dependentClasses = [
+                'AdvancedToolManager', 'SelectionToolManager', 'GradientManager',
+                'StylusTabletManager', 'ThreeJSReferenceButton', 'AdvancedBrushPanel',
+                'SelectionToolsPanel', 'GradientFillPanel', 'StylusTabletPanel',
+                'TabletInputManager', 'AdvancedStabilizer', 'PressureProcessor', 'TiltProcessor'
+            ];
+
+            const aHasBase = baseClasses.some(cls => a.content.includes(`class ${cls}`));
+            const bHasBase = baseClasses.some(cls => b.content.includes(`class ${cls}`));
+            const aHasDependent = dependentClasses.some(cls => a.content.includes(`class ${cls}`));
+            const bHasDependent = dependentClasses.some(cls => b.content.includes(`class ${cls}`));
+
+            // Base classes first
+            if (aHasBase && !bHasBase) return -1;
+            if (bHasBase && !aHasBase) return 1;
+
+            // Then dependent classes
+            if (aHasDependent && !bHasDependent) return -1;
+            if (bHasDependent && !aHasDependent) return 1;
+
+            return a.name.localeCompare(b.name); // Alphabetical fallback
+        });
+
+        // Combine all JS files with clear separation
+        let combinedCode = `// 🌟 Combined Execution Context\n`;
+        combinedCode += `// 📦 Loading ${jsFiles.length} JavaScript files:\n`;
+
+        jsFiles.forEach((file, index) => {
+            combinedCode += `// ${index + 1}. ${file.name}${file.isActive ? ' (ACTIVE)' : ''}\n`;
+        });
+
+        combinedCode += `// File execution order:\n`;
+        jsFiles.forEach((file, index) => {
+            combinedCode += `// ${index + 1}: ${file.name}\n`;
+        });
+        combinedCode += `\n`;
+
+        // Add each file's content with source mapping comments
+        jsFiles.forEach((file, index) => {
+            combinedCode += `// ===== START: ${file.name} =====\n`;
+            combinedCode += `// File: ${file.path}\n`;
+            combinedCode += `${file.content}\n`;
+            combinedCode += `// ===== END: ${file.name} =====\n\n`;
+        });
+
+        return combinedCode;
     }
 
     // ⚡ NEW: Output Panel Management
@@ -1046,16 +1436,112 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
             info: '#61dafb',
             success: '#4ade80',
             error: '#ef4444',
+            warning: '#f59e0b',
             result: '#fbbf24',
-            output: '#d4d4d4'
+            output: '#d4d4d4',
+            debug: '#8b5cf6'
+        };
+
+        // Add icons for different message types
+        const icons = {
+            info: 'ℹ️',
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            result: '📊',
+            output: '💬',
+            debug: '🔍'
         };
 
         const span = document.createElement('span');
         span.style.color = colors[type] || colors.output;
-        span.textContent = text + '\n';
+
+        // Add timestamp for important messages
+        const timestamp = type === 'error' || type === 'success' ? `[${new Date().toLocaleTimeString()}] ` : '';
+
+        // Add icon for certain message types
+        const icon = (type === 'error' || type === 'success' || type === 'warning' || type === 'info') ? `${icons[type]} ` : '';
+
+        span.textContent = `${timestamp}${icon}${text}\n`;
 
         outputContent.appendChild(span);
         outputContent.scrollTop = outputContent.scrollHeight;
+    }
+
+    // NEW: Clear console output
+    clearOutput() {
+        const outputContent = document.getElementById(`outputContent-${this.windowId}`);
+        if (outputContent) {
+            outputContent.innerHTML = '';
+            this.writeOutput('🧹 Console cleared', 'info');
+        }
+    }
+
+    // NEW: Copy output to clipboard
+    copyOutputToClipboard() {
+        const outputContent = document.getElementById(`outputContent-${this.windowId}`);
+        if (!outputContent) return;
+
+        // Get all text content from the output
+        const textToCopy = outputContent.textContent || outputContent.innerText || '';
+
+        // Use the Clipboard API if available, fallback to execCommand
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                this.writeOutput('📋 Output copied to clipboard!', 'success');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                this.fallbackCopyTextToClipboard(textToCopy);
+            });
+        } else {
+            this.fallbackCopyTextToClipboard(textToCopy);
+        }
+    }
+
+    // Fallback method for older browsers
+    fallbackCopyTextToClipboard(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                this.writeOutput('📋 Output copied to clipboard!', 'success');
+            } else {
+                this.writeOutput('❌ Failed to copy output to clipboard', 'error');
+            }
+        } catch (err) {
+            this.writeOutput('❌ Failed to copy output to clipboard', 'error');
+        }
+
+        document.body.removeChild(textArea);
+    }
+
+    // NEW: Show welcome message with current status
+    showWelcomeMessage() {
+        this.clearOutput();
+        this.writeOutput('🚀 Nebula Code Assistant Ready!', 'success');
+        this.writeOutput(`📂 Open files: ${this.openFiles.size}`, 'info');
+
+        if (this.openFiles.size > 0) {
+            this.writeOutput('📋 Current files:', 'info');
+            for (const [fileId, fileData] of this.openFiles) {
+                const active = fileId === this.activeFileId ? ' (ACTIVE)' : '';
+                this.writeOutput(`  • ${fileData.name}${active}`, 'output');
+            }
+        }
+
+        this.writeOutput('💡 Tips:', 'info');
+        this.writeOutput('  • Dependencies are automatically loaded when opening JS files', 'output');
+        this.writeOutput('  • All open JS files are combined for execution', 'output');
+        this.writeOutput('  • Use Ctrl+O to open files, Ctrl+S to save', 'output');
+        this.writeOutput('', 'output');
     }
 
     // ⚡ NEW: Multi-File Tab Management System
@@ -3278,6 +3764,196 @@ function createAmazingApp() {
         }
 
         this.writeOutput(`✅ File opened successfully!`, 'success');
+
+        // NEW: Check for dependencies and load them automatically
+        await this.detectAndLoadDependencies(filePath, content);
+    }
+
+    // NEW: Dependency Detection and Loading System
+    async detectAndLoadDependencies(mainFilePath, content) {
+        if (!content || typeof content !== 'string') return;
+
+        this.writeOutput(`🔍 Analyzing dependencies for ${mainFilePath}...`, 'info');
+
+        // Extract potential dependencies from JavaScript code
+        const result = this.extractDependencies(content);
+        const dependencies = result.dependencies;
+        const inFileClasses = result.inFileClasses;
+
+        // Report in-file classes
+        if (inFileClasses.length > 0) {
+            inFileClasses.forEach(className => {
+                this.writeOutput(`📄 In-file class found: ${className}`, 'info');
+            });
+        }
+
+        if (dependencies.length === 0) {
+            this.writeOutput(`✅ No external dependencies found.`, 'success');
+            return;
+        }
+
+        this.writeOutput(`📦 Found ${dependencies.length} potential dependencies: ${dependencies.join(', ')}`, 'info');
+
+        // Get directory of main file
+        const dirPath = mainFilePath.substring(0, mainFilePath.lastIndexOf('/'));
+        const loadedDeps = [];
+
+        // Try to find and load each dependency
+        for (const dep of dependencies) {
+            let depPath = null;
+            let foundFile = null;
+
+            // First try exact match: ClassName.js
+            const exactPath = `${dirPath}/${dep}.js`;
+            if (await window.nebula.fs.exists(exactPath)) {
+                depPath = exactPath;
+                foundFile = `${dep}.js`;
+            } else {
+                // If exact match doesn't exist, scan directory for JS files that might contain the class
+                try {
+                    const files = await window.nebula.fs.readDir(dirPath);
+                    this.writeOutput(`🔍 Scanning ${files.length} files in ${dirPath} for ${dep}`, 'info');
+                    for (const file of files) {
+                        if (file.endsWith('.js') && file !== mainFilePath.split('/').pop()) {
+                            const filePath = `${dirPath}/${file}`;
+                            try {
+                                const fileContent = await window.nebula.fs.readFile(filePath);
+                                // Check if file contains class definition
+                                if (fileContent.includes(`class ${dep}`) || fileContent.includes(`function ${dep}`)) {
+                                    depPath = filePath;
+                                    foundFile = file;
+                                    this.writeOutput(`✅ Found ${dep} in ${file}`, 'success');
+                                    break;
+                                }
+                            } catch (error) {
+                                this.writeOutput(`⚠️  Could not read ${file}: ${error.message}`, 'warning');
+                                continue;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    this.writeOutput(`❌ Directory scan failed for ${dirPath}: ${error.message}`, 'error');
+                }
+            }
+
+            if (depPath) {
+                // Check if already loaded
+                const alreadyLoaded = Array.from(this.openFiles.values()).some(file =>
+                    file.path === depPath
+                );
+
+                if (!alreadyLoaded) {
+                    this.writeOutput(`📂 Loading dependency: ${foundFile}`, 'info');
+                    try {
+                        const depContent = await window.nebula.fs.readFile(depPath);
+                        this.createNewTab(depPath, depContent);
+                        loadedDeps.push(foundFile);
+                        this.writeOutput(`✅ Loaded ${foundFile}`, 'success');
+                    } catch (error) {
+                        this.writeOutput(`❌ Failed to load ${foundFile}: ${error.message}`, 'error');
+                    }
+                } else {
+                    this.writeOutput(`ℹ️  ${foundFile} already loaded`, 'info');
+                }
+            } else {
+                this.writeOutput(`⚠️  Dependency ${dep} not found in ${dirPath}`, 'warning');
+            }
+        }
+
+        if (loadedDeps.length > 0) {
+            this.writeOutput(`🎉 Successfully loaded ${loadedDeps.length} dependencies: ${loadedDeps.join(', ')}`, 'success');
+        }
+    }
+
+    // Extract potential class/function dependencies from JavaScript code
+    extractDependencies(code) {
+        const dependencies = new Set();
+        const inFileClasses = new Set();
+
+        // First, find all classes defined in this file to exclude them
+        const definedClasses = new Set();
+        const classDeclarations = code.match(/class\s+([A-Z][a-zA-Z0-9_]*)/g);
+        if (classDeclarations) {
+            classDeclarations.forEach(match => {
+                const className = match.match(/class\s+([A-Z][a-zA-Z0-9_]*)/)[1];
+                definedClasses.add(className);
+                inFileClasses.add(className);
+            });
+        }
+
+        // Also check for function declarations that might be constructors
+        const functionDeclarations = code.match(/function\s+([A-Z][a-zA-Z0-9_]*)\s*\(/g);
+        if (functionDeclarations) {
+            functionDeclarations.forEach(match => {
+                const funcName = match.match(/function\s+([A-Z][a-zA-Z0-9_]*)/)[1];
+                definedClasses.add(funcName);
+                inFileClasses.add(funcName);
+            });
+        }
+
+        // Expanded list of built-in JavaScript classes and globals to exclude
+        const builtIns = new Set([
+            'Array', 'Object', 'String', 'Number', 'Boolean', 'Date', 'RegExp', 'Error', 'Promise',
+            'Map', 'Set', 'WeakMap', 'WeakSet', 'Symbol', 'BigInt', 'Math', 'JSON', 'URL', 'URLSearchParams',
+            'FormData', 'Blob', 'File', 'FileReader', 'Image', 'ImageData', 'Canvas', 'Audio', 'Video',
+            'MouseEvent', 'KeyboardEvent', 'TouchEvent', 'Event', 'CustomEvent', 'HTMLElement', 'Element',
+            'Node', 'Document', 'Window', 'Navigator', 'Location', 'History', 'Storage', 'XMLHttpRequest',
+            'WebSocket', 'Worker', 'SharedWorker', 'ServiceWorker', 'Notification', 'Geolocation',
+            'MediaQueryList', 'CSSStyleDeclaration', 'DOMParser', 'XMLSerializer', 'TextEncoder', 'TextDecoder'
+        ]);
+
+        // Match class instantiations: new ClassName(
+        const classMatches = code.match(/new\s+([A-Z][a-zA-Z0-9_]*)\s*\(/g);
+        if (classMatches) {
+            classMatches.forEach(match => {
+                const className = match.match(/new\s+([A-Z][a-zA-Z0-9_]*)/)[1];
+                // Skip built-ins and locally defined classes
+                if (!builtIns.has(className) && !definedClasses.has(className)) {
+                    dependencies.add(className);
+                }
+            });
+        }
+
+        // Match extends clauses: class Child extends Parent
+        const extendsMatches = code.match(/extends\s+([A-Z][a-zA-Z0-9_]*)/g);
+        if (extendsMatches) {
+            extendsMatches.forEach(match => {
+                const parentClass = match.match(/extends\s+([A-Z][a-zA-Z0-9_]*)/)[1];
+                if (!builtIns.has(parentClass) && !definedClasses.has(parentClass)) {
+                    dependencies.add(parentClass);
+                }
+            });
+        }
+
+        // More selective pattern matching - only match clear class references
+        // Look for patterns like: this.manager = new SomeClass()
+        // or: const manager = new SomeClass()
+        const selectivePatterns = [
+            // Assignment with new: const/let/var x = new ClassName
+            /(?:const|let|var)\s+\w+\s*=\s*new\s+([A-Z][a-zA-Z0-9_]*)\s*\(/g,
+            // Property assignment: this.prop = new ClassName
+            /this\.\w+\s*=\s*new\s+([A-Z][a-zA-Z0-9_]*)\s*\(/g
+            // Removed problematic pattern that was matching CSS classes and property names
+        ];
+
+        selectivePatterns.forEach(pattern => {
+            let match;
+            while ((match = pattern.exec(code)) !== null) {
+                const className = match[1];
+                if (className && !builtIns.has(className) && !definedClasses.has(className)) {
+                    // Additional heuristic: only include if it looks like a custom class name
+                    // (longer than 3 chars, or contains multiple capital letters suggesting CamelCase)
+                    if (className.length > 3 || (className.match(/[A-Z]/g) || []).length > 1) {
+                        dependencies.add(className);
+                    }
+                }
+            }
+        });
+
+        return {
+            dependencies: Array.from(dependencies),
+            inFileClasses: Array.from(inFileClasses)
+        };
     }
 
     // ENHANCED: Save using NATIVE dialog
@@ -5307,6 +5983,183 @@ closeModal(modal) {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
+}
+
+/* 🆕 NEW: Stub Environment Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-content {
+    background: var(--nebula-bg-primary);
+    border-radius: var(--nebula-radius-md);
+    box-shadow: var(--nebula-shadow-xl);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    border: 1px solid var(--nebula-border);
+}
+
+.modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--nebula-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header .close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--nebula-text-secondary);
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--nebula-radius-sm);
+}
+
+.modal-header .close-btn:hover {
+    background: var(--nebula-surface-hover);
+    color: var(--nebula-text-primary);
+}
+
+.modal-body {
+    padding: 20px 24px;
+}
+
+.modal-footer {
+    padding: 16px 24px 20px;
+    border-top: 1px solid var(--nebula-border);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 8px 16px;
+    border-radius: var(--nebula-radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: var(--nebula-transition-fast);
+    border: none;
+}
+
+.btn-primary {
+    background: var(--nebula-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--nebula-primary-hover);
+}
+
+.btn-secondary {
+    background: var(--nebula-surface-hover);
+    border: 1px solid var(--nebula-border);
+    color: var(--nebula-text-primary);
+}
+
+.btn-secondary:hover {
+    background: var(--nebula-surface-active);
+}
+
+.stub-env-modal .modal-header h3 {
+    color: var(--nebula-primary);
+    margin: 0;
+    font-size: 18px;
+}
+
+.stub-env-modal .modal-description {
+    color: var(--nebula-text-secondary);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.stub-env-modal .setting-group {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--nebula-surface);
+    border-radius: var(--nebula-radius-sm);
+    border: 1px solid var(--nebula-border);
+}
+
+.stub-env-modal .setting-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--nebula-text-primary);
+    margin-bottom: 8px;
+}
+
+.stub-env-modal .setting-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.stub-env-modal .toggle-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--nebula-surface-hover);
+    border-radius: 12px;
+    transition: var(--nebula-transition-fast);
+}
+
+.stub-env-modal .toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: var(--nebula-transition-fast);
+    box-shadow: var(--nebula-shadow-sm);
+}
+
+.stub-env-modal .setting-toggle input:checked + .toggle-slider {
+    background: var(--nebula-primary);
+}
+
+.stub-env-modal .setting-toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.stub-env-modal .setting-description {
+    color: var(--nebula-text-secondary);
+    font-size: 12px;
+    margin: 0;
+    margin-left: 56px;
+    line-height: 1.4;
+}
+
+/* Stub Environment Button Styles */
+.code-toolbar-btn.active {
+    background: var(--nebula-warning) !important;
+    border-color: var(--nebula-warning) !important;
+    color: white !important;
+}
+
+.code-toolbar-btn.active:hover {
+    background: var(--nebula-warning-hover) !important;
 }
         `;
         document.head.appendChild(style);

@@ -1302,6 +1302,6 @@ class Document {
 window.NebulaImageEditor = NebulaImageEditor;
 window.imageEditor = null;
 
-// Register the app with WindowManager
-window.imageEditor = new NebulaImageEditor();
+// Auto-initialization disabled when Pro version is loaded
+// window.imageEditor = new NebulaImageEditor();
 
