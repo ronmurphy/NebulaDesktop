@@ -6,7 +6,7 @@
   "scripts": {
     "start": "GTK_MODULES='' electron . --disable-gpu-vsync",
     "dev": "GTK_MODULES='' electron . --dev",
-  "check-allowlist": "node ./tools/check-adblock-allowlist.js",
+    "check-allowlist": "node ./tools/check-adblock-allowlist.js",
     "build": "electron-builder",
     "dist": "electron-builder -wl",
     "dist:linux": "electron-builder -l",
@@ -55,5 +55,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
+  },
+  "dependencies": {
+    "diff-match-patch": "^1.0.5"
   }
 }

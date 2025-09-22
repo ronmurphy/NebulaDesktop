@@ -1,0 +1,390 @@
+--- a/code-assistant.js
++++ b/code-assistant.js
+@@ class NebulaCodeAssistant {
+-        // Load stub environment settings from localStorage
+-        this.loadStubEnvironmentSettings();
++        // Bound handlers for lifecycle-managed listeners
++        this._onResize = this.handleWindowResize.bind(this);
++        this._onKeyDown = this._handleKeyDown.bind(this);
+@@ class NebulaCodeAssistant {
++    // Safe fetch with timeout fallback
++    async fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
++        const controller = new AbortController();
++        const id = setTimeout(() => controller.abort(), timeoutMs);
++        try {
++            const resp = await fetch(url, { ...options, signal: controller.signal });
++            return resp;
++        } finally {
++            clearTimeout(id);
++        }
++    }
+@@ class NebulaCodeAssistant {
+-        toolbar.innerHTML = `
++        toolbar.innerHTML = `
+             <!-- Language & Template Section - ENHANCED -->
+             <select id="languageSelect-${this.windowId}" style="
+                 padding: 6px 12px;
+                 border: 1px solid var(--nebula-border);
+                 border-radius: var(--nebula-radius-sm);
+                 background: var(--nebula-bg-primary);
+                 color: var(--nebula-text-primary);
+             ">
+                 <option value="javascript">JavaScript</option>
+                 <option value="typescript">TypeScript</option>
+                 <option value="python">Python</option>
+                 <option value="html">HTML</option>
+                 <option value="css">CSS</option>
+                 <option value="json">JSON</option>
+                 <option value="markdown">Markdown</option>
+             </select>
+             
+             <!-- NEW: Template Selector -->
+             <select id="templateSelect-${this.windowId}" style="
+                 padding: 6px 12px;
+                 border: 1px solid var(--nebula-border);
+                 border-radius: var(--nebula-radius-sm);
+                 background: var(--nebula-bg-primary);
+                 color: var(--nebula-text-primary);
+             ">
+                 <option value="">📋 Load Template...</option>
+                 <option value="single-app">🎯 Single Window App</option>
+                 <option value="tabbed-app">📑 Tabbed Window App</option>
+                 <option value="PWA-app">🌐 Progressive Web App</option>
+             </select>
+             
+             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
+             
+             <!-- File Operations - ENHANCED -->
+             <button id="newFileBtn-${this.windowId}" class="code-toolbar-btn" title="New File (Ctrl+N)">
+                 <span class="material-symbols-outlined">note_add</span>
+             </button>
+             
+             <button id="openFileBtn-${this.windowId}" class="code-toolbar-btn" title="Open File (Ctrl+O)">
+                 <span class="material-symbols-outlined">folder_open</span>
+             </button>
+             
+             <button id="saveBtn-${this.windowId}" class="code-toolbar-btn" title="Save File (Ctrl+S)">
+                 <span class="material-symbols-outlined">save</span>
+             </button>
+             
+-            <button id="saveAsBtn-${this.windowId}" class="code-toolbar-btn title="Save As (Ctrl+Shift+S)">
++            <button id="saveAsBtn-${this.windowId}" class="code-toolbar-btn" title="Save As (Ctrl+Shift+S)">
+                 <span class="material-symbols-outlined">save_as</span>
+             </button>
+@@ class NebulaCodeAssistant {
+-            <select id="symbolSelect-${this.windowId}" class="code-toolbar-btn title="Go to Symbol" style="
++            <select id="symbolSelect-${this.windowId}" class="code-toolbar-btn" title="Go to Symbol" style="
+@@ class NebulaCodeAssistant {
+-            <button id="debugBtn-${this.windowId}" class="code-toolbar-btn title="Debug Mode">
++            <button id="debugBtn-${this.windowId}" class="code-toolbar-btn" title="Debug Mode">
+@@ class NebulaCodeAssistant {
+-            <button id="toggleOutputBtn-${this.windowId}" class="code-toolbar-btn title="Toggle Output Panel">
++            <button id="toggleOutputBtn-${this.windowId}" class="code-toolbar-btn" title="Toggle Output Panel">
+@@ class NebulaCodeAssistant {
+-            <button id="formatBtn-${this.windowId}" class="code-toolbar-btn title="Format Code">
++            <button id="formatBtn-${this.windowId}" class="code-toolbar-btn" title="Format Code">
+@@ class NebulaCodeAssistant {
+-            <button id="copyAllBtn-${this.windowId}" class="code-toolbar-btn title="Copy All Code">
++            <button id="copyAllBtn-${this.windowId}" class="code-toolbar-btn" title="Copy All Code">
+@@ class NebulaCodeAssistant {
+-            <button id="insertToFileBtn-${this.windowId}" class="code-toolbar-btn title="Insert Code to File">
++            <button id="insertToFileBtn-${this.windowId}" class="code-toolbar-btn" title="Insert Code to File">
+@@ class NebulaCodeAssistant {
+-        window.addEventListener('resize', () => {
+-            this.handleWindowResize();
+-        });
+-
+-
+-        document.addEventListener('keydown', (e) => {
+-            if (!this.isWindowActive()) return;
+-            // ...existing code...
+-        });
++        window.addEventListener('resize', this._onResize);
++        document.addEventListener('keydown', this._onKeyDown);
+@@ class NebulaCodeAssistant {
++    // Lifecycle-managed keydown handler
++    _handleKeyDown(e) {
++        if (!this.isWindowActive()) return;
++        // ...existing code from previous keydown handler...
++    }
+@@ class NebulaCodeAssistant {
+-        if (this.monacoEditor && monaco) {
+-            if (!fileData.monacoModel) {
+-                fileData.monacoModel = monaco.editor.createModel(
+-                    fileData.content,
+-                    fileData.language
+-                );
+-            }
+-            this.monacoEditor.setModel(fileData.monacoModel);
+-        } else if (this.monacoEditor) {
+-            // Fallback editor
+-            this.monacoEditor.setValue(fileData.content);
+-        }
++        if (this.monacoEditor && monaco) {
++            if (!fileData.monacoModel) {
++                fileData.monacoModel = monaco.editor.createModel(
++                    fileData.content,
++                    fileData.language
++                );
++                // Track created model for disposal
++                try { this.monacoModels.set(fileData.id, fileData.monacoModel); } catch(e){/*ignore*/ }
++            }
++            this.monacoEditor.setModel(fileData.monacoModel);
++        } else if (this.monacoEditor) {
++            // Fallback editor
++            this.monacoEditor.setValue(fileData.content);
++        }
+@@ class NebulaCodeAssistant {
+-    clearOutput() {
+-        const outputContent = document.getElementById(`outputContent-${this.windowId}`);
+-        if (outputContent) {
+-            outputContent.innerHTML = 'Output cleared... 🧹\n';
+-        }
+-    }
++    // Clear console output (single definitive implementation)
++    clearOutput() {
++        const outputContent = document.getElementById(`outputContent-${this.windowId}`);
++        if (outputContent) {
++            outputContent.innerHTML = '';
++            this.writeOutput('🧹 Console cleared', 'info');
++        }
++    }
+@@ class NebulaCodeAssistant {
+-    isWindowActive() {
+-        const windowElement = document.getElementById(this.windowId);
+-        return windowElement && windowElement.contains(document.activeElement);
+-    }
++    isWindowActive() {
++        // Prefer data-window-id container lookup (more robust in NebulaDesktop)
++        const windowElement = document.querySelector(`[data-window-id="${this.windowId}"]`);
++        return !!(windowElement && windowElement.contains(document.activeElement));
++    }
+@@ class NebulaCodeAssistant {
+-    cleanup() {
+-        // Check for unsaved changes before closing
+-        if (this.hasUnsavedChanges) {
+-            if (confirm('You have unsaved changes. Close anyway?')) {
+-                // User confirmed, proceed with cleanup
+-            } else {
+-                // User cancelled, prevent close
+-                return false;
+-            }
+-        }
+-
+-        if (this.monacoEditor) {
+-            this.monacoEditor.dispose();
+-            this.monacoEditor = null;
+-        }
+-        console.log('Code Assistant cleanup');
+-        return true;
+-    }
++    cleanup() {
++        // Check for unsaved changes before closing
++        if (this.hasUnsavedChanges) {
++            if (confirm('You have unsaved changes. Close anyway?')) {
++                // User confirmed, proceed with cleanup
++            } else {
++                // User cancelled, prevent close
++                return false;
++            }
++        }
++        // Remove lifecycle-managed listeners
++        try {
++            window.removeEventListener('resize', this._onResize);
++            document.removeEventListener('keydown', this._onKeyDown);
++        } catch (e) { /* ignore */ }
++        // Dispose tracked Monaco models
++        try {
++            for (const [, model] of this.monacoModels) {
++                if (model && typeof model.dispose === 'function') model.dispose();
++            }
++            this.monacoModels.clear();
++        } catch (e) { console.warn('Error disposing monacoModels', e); }
++        if (this.monacoEditor) {
++            try { this.monacoEditor.dispose(); } catch (e) { /* ignore */ }
++            this.monacoEditor = null;
++        }
++        console.log('Code Assistant cleanup');
++        return true;
++    }
+@@ class NebulaCodeAssistant {
+-        try {
+-            // Send to LM Studio
+-            const response = await fetch(`${this.lmStudioConfig.baseUrl}/v1/chat/completions`, {
+-                method: 'POST',
+-                headers: { 'Content-Type': 'application/json' },
+-                signal: AbortSignal.timeout(30000),
+-                body: JSON.stringify({
+-                    model: this.lmStudioConfig.model,
+-                    messages: [
+-                        {
+-                            role: 'system',
+-                            content: 'You are a helpful AI assistant specializing in coding and development. Provide clear, concise, and helpful responses. When provided with file context, analyze the code carefully and provide specific suggestions.'
+-                        },
+-                        { role: 'user', content: contextualMessage }
+-                    ],
+-                    temperature: this.lmStudioConfig.temperature,
+-                    max_tokens: this.lmStudioConfig.maxTokens
+-                })
+-            });
+-
+-            if (!response.ok) throw new Error(`API error: ${response.status}`);
+-
+-            const result = await response.json();
+-            const aiResponse = result.choices[0]?.message?.content || 'No response received';
+-            
+-            // Remove typing indicator and add AI response
+-            this.removeTypingIndicator(typingId);
+-            this.addChatMessage(aiResponse, 'assistant');
+-            
+-        } catch (error) {
+-            console.error('❌ LM Studio chat error:', error);
+-            this.removeTypingIndicator(typingId);
+-            this.addChatMessage('❌ Sorry, I encountered an error. Please check your LM Studio connection.', 'error');
+-        }
++        try {
++            // Send to LM Studio (with timeout fallback)
++            const response = await this.fetchWithTimeout(`${this.lmStudioConfig.baseUrl}/v1/chat/completions`, {
++                method: 'POST',
++                headers: { 'Content-Type': 'application/json' },
++                body: JSON.stringify({
++                    model: this.lmStudioConfig.model,
++                    messages: [
++                        {
++                            role: 'system',
++                            content: 'You are a helpful AI assistant specializing in coding and development. Provide clear, concise, and helpful responses. When provided with file context, analyze the code carefully and provide specific suggestions.'
++                        },
++                        { role: 'user', content: contextualMessage }
++                    ],
++                    temperature: this.lmStudioConfig.temperature,
++                    max_tokens: this.lmStudioConfig.maxTokens
++                })
++            }, 30000);
++
++            if (!response.ok) throw new Error(`API error: ${response.status}`);
++
++            const result = await response.json();
++            const aiResponse = result.choices[0]?.message?.content || 'No response received';
++            
++            // Remove typing indicator and add AI response
++            this.removeTypingIndicator(typingId);
++            this.addChatMessage(aiResponse, 'assistant');
++            
++        } catch (error) {
++            console.error('❌ LM Studio chat error:', error);
++            this.removeTypingIndicator(typingId);
++            this.addChatMessage('❌ Sorry, I encountered an error. Please check your LM Studio connection.', 'error');
++        }
+@@ class NebulaCodeAssistant {
+-        try {
+-            const response = await fetch(`${this.lmStudioConfig.baseUrl}/v1/models`, {
+-                method: 'GET',
+-                signal: AbortSignal.timeout(3000) // 3 second timeout
+-            });
+-
+-            if (response.ok) {
+-                statusElement.textContent = 'Connected ✅';
+-                statusElement.style.color = '#4ade80';
+-                console.log('✅ LM Studio connection successful');
+-            } else {
+-                throw new Error(`HTTP ${response.status}`);
+-            }
+-        } catch (error) {
+-            statusElement.textContent = 'Disconnected ❌';
+-            statusElement.style.color = '#ef4444';
+-            console.log('❌ LM Studio connection failed:', error.message);
+-        }
++        try {
++            const response = await this.fetchWithTimeout(`${this.lmStudioConfig.baseUrl}/v1/models`, { method: 'GET' }, 3000);
++            if (response.ok) {
++                statusElement.textContent = 'Connected ✅';
++                statusElement.style.color = '#4ade80';
++                console.log('✅ LM Studio connection successful');
++            } else {
++                throw new Error(`HTTP ${response.status}`);
++            }
++        } catch (error) {
++            statusElement.textContent = 'Disconnected ❌';
++            statusElement.style.color = '#ef4444';
++            console.log('❌ LM Studio connection failed:', error.message);
++        }
+@@ class NebulaCodeAssistant {
+-            try {
+-                const response = await fetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(5000) });
+-                btn.textContent = response.ok ? 'Connected ✅' : 'Failed ❌';
+-                btn.style.background = response.ok ? '#4ade80' : '#ef4444';
+-            } catch (error) {
+-                btn.textContent = 'Failed ❌';
+-                btn.style.background = '#ef4444';
+-            }
++            try {
++                const response = await this.fetchWithTimeout(`${baseUrl}/v1/models`, { method: 'GET' }, 5000);
++                btn.textContent = response.ok ? 'Connected ✅' : 'Failed ❌';
++                btn.style.background = response.ok ? '#4ade80' : '#ef4444';
++            } catch (error) {
++                btn.textContent = 'Failed ❌';
++                btn.style.background = '#ef4444';
++            }
+@@ class NebulaCodeAssistant {
+-        try {
+-            console.log('🚀 Sending request to LM Studio...');
+-            
+-            const response = await fetch(`${this.lmStudioConfig.baseUrl}/v1/chat/completions`, {
+-                method: 'POST',
+-                headers: { 'Content-Type': 'application/json' },
+-                signal: AbortSignal.timeout(30000),
+-                body: JSON.stringify({
+-                    model: this.lmStudioConfig.model,
+-                    messages: [
+-                        {
+-                            role: 'system',
+-                            content: 'You are a helpful coding assistant. When optimizing code, provide the complete improved code in a code block.'
+-                        },
+-                        { role: 'user', content: prompt }
+-                    ],
+-                    temperature: this.lmStudioConfig.temperature,
+-                    max_tokens: this.lmStudioConfig.maxTokens
+-                })
+-            });
+-
+-            if (!response.ok) throw new Error(`API error: ${response.status}`);
+-
+-            const result = await response.json();
+-            const aiResponse = result.choices[0]?.message?.content || 'No response received';
+-            
+-            console.log('✅ LM Studio response received');
+-            this.showAIResponse(aiResponse, action);
+-            
+-        } catch (error) {
+-            console.error('❌ LM Studio error:', error);
+-            navigator.clipboard.writeText(prompt);
+-            alert(`❌ LM Studio connection failed.\n\n📋 Prompt copied to clipboard as fallback.`);
+-        }
++        try {
++            console.log('🚀 Sending request to LM Studio...');
++            const response = await this.fetchWithTimeout(`${this.lmStudioConfig.baseUrl}/v1/chat/completions`, {
++                method: 'POST',
++                headers: { 'Content-Type': 'application/json' },
++                body: JSON.stringify({
++                    model: this.lmStudioConfig.model,
++                    messages: [
++                        {
++                            role: 'system',
++                            content: 'You are a helpful coding assistant. When optimizing code, provide the complete improved code in a code block.'
++                        },
++                        { role: 'user', content: prompt }
++                    ],
++                    temperature: this.lmStudioConfig.temperature,
++                    max_tokens: this.lmStudioConfig.maxTokens
++                })
++            }, 30000);
++            if (!response.ok) throw new Error(`API error: ${response.status}`);
++            const result = await response.json();
++            const aiResponse = result.choices[0]?.message?.content || 'No response received';
++            console.log('✅ LM Studio response received');
++            this.showAIResponse(aiResponse, action);
++        } catch (error) {
++            console.error('❌ LM Studio error:', error);
++            navigator.clipboard.writeText(prompt);
++            alert(`❌ LM Studio connection failed.\n\n📋 Prompt copied to clipboard as fallback.`);
++        }

@@ -1930,6 +1930,60 @@ Please provide specific fixes for each error.`;
     }
 }
 
+// --- Diff/Patch Merge using diff-match-patch ---
+async diffMerge(sourceContent, patchContent) {
+    // Import diff-match-patch (works in Electron/Node)
+    let DiffMatchPatch;
+    try {
+        DiffMatchPatch = (window.diff_match_patch) ? window.diff_match_patch : require('diff-match-patch');
+    } catch (e) {
+        this.writeOutput('❌ diff-match-patch library not found. Please install with npm install diff-match-patch', 'error');
+        throw new Error('diff-match-patch not available');
+    }
+
+    const dmp = new DiffMatchPatch();
+
+    // Parse the patch (unified diff format)
+    let patches;
+    try {
+        patches = dmp.patch_fromText(patchContent);
+    } catch (err) {
+        this.writeOutput('❌ Failed to parse patch/diff file: ' + err.message, 'error');
+        throw err;
+    }
+
+    // Apply the patch
+    const [mergedText, results] = dmp.patch_apply(patches, sourceContent);
+
+    // Check for failed patches
+    if (results.some(r => !r)) {
+        this.writeOutput('⚠️ Some hunks in the patch did not apply cleanly.', 'warning');
+    }
+
+    return mergedText;
+}
+
+// --- Console command: Merge two Monaco tabs by filename ---
+async consoleDiffMerge(sourceTabName, patchTabName) {
+    // Find tabs by filename
+    const sourceFile = Array.from(this.openFiles.values()).find(f => f.name === sourceTabName);
+    const patchFile = Array.from(this.openFiles.values()).find(f => f.name === patchTabName);
+
+    if (!sourceFile || !patchFile) {
+        this.writeOutput('❌ Tab not found for diff merge', 'error');
+        return;
+    }
+
+    try {
+        const merged = await this.diffMerge(sourceFile.content, patchFile.content);
+        // Open merged result in a new tab
+        this.createNewTab(`${sourceFile.name}.merged.js`, merged);
+        this.writeOutput('✅ Diff merge completed and opened in new tab', 'success');
+    } catch (err) {
+        this.writeOutput('❌ Diff merge failed: ' + err.message, 'error');
+    }
+}
+
     // Update existing methods to work with tabs
     getCurrentFileData() {
         return this.openFiles.get(this.activeFileId);
