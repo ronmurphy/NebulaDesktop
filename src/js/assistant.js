@@ -85,6 +85,379 @@ class NebulaAssistant {
         this.createAssistantPanel();
         this.setupEventListeners();
         this.applyConfig();
+        // Listen for requests from webviews (test webview) asking the host to proxy an online generation
+        window.addEventListener('message', async (e) => {
+            try {
+                const msg = e.data;
+                if (!msg || !msg.type) return;
+                if (msg.type === 'nebula-request-image') {
+                    // Expect options: { prompt, url, apiKey, width, height, method, contentType }
+                    const opts = msg.options || {};
+                    const url = opts.url;
+                    if (!url) {
+                        // respond with error
+                        window.postMessage({ type: 'nebula-generated-image', error: 'No URL provided' }, '*');
+                        return;
+                    }
+
+                    // Build proxy request
+                    const headers = { 'Content-Type': opts.contentType || 'application/json' };
+                    if (opts.apiKey) headers['Authorization'] = opts.apiKey.startsWith('Bearer') ? opts.apiKey : `Bearer ${opts.apiKey}`;
+
+                    try {
+                        if (!(window.nebula && window.nebula.assistant && typeof window.nebula.assistant.proxyFetch === 'function')) {
+                            window.postMessage({ type: 'nebula-generated-image', error: 'proxyFetch not available' }, '*');
+                            return;
+                        }
+
+                        const proxyRes = await window.nebula.assistant.proxyFetch({ url, options: { method: opts.method || 'POST', headers, body: opts.contentType === 'application/x-www-form-urlencoded' ? new URLSearchParams({ prompt: opts.prompt || '' }) : JSON.stringify({ prompt: opts.prompt || '' }) }});
+
+                        if (!proxyRes.ok) {
+                            window.postMessage({ type: 'nebula-generated-image', error: proxyRes.error || 'proxy failed' }, '*');
+                            return;
+                        }
+
+                        // Normalize responses
+                        let dataURL = null;
+                        let meta = { source: 'proxy', url };
+
+                        if (proxyRes.type === 'dataURL') {
+                            dataURL = proxyRes.dataURL;
+                        } else if (proxyRes.type === 'json') {
+                            const body = proxyRes.data || {};
+                            if (body.data && Array.isArray(body.data) && body.data[0] && body.data[0].b64_json) {
+                                dataURL = 'data:image/png;base64,' + body.data[0].b64_json;
+                                meta.response = body;
+                            } else if (body.images && Array.isArray(body.images) && body.images[0]) {
+                                const first = body.images[0];
+                                if (first.startsWith('data:')) dataURL = first;
+                                else if (first.startsWith('http')) {
+                                    // fetch via proxy to get dataURL
+                                    const fetched = await window.nebula.assistant.proxyFetch({ url: first, options: { method: 'GET' } });
+                                    if (fetched.ok && fetched.type === 'dataURL') dataURL = fetched.dataURL;
+                                }
+                            } else if (body.result && typeof body.result === 'string') {
+                                const maybe = body.result;
+                                if (maybe.startsWith('data:')) dataURL = maybe;
+                                else dataURL = 'data:image/png;base64,' + maybe;
+                            }
+                        } else if (proxyRes.type === 'text') {
+                            const txt = (proxyRes.data || '').trim();
+                            if (txt.startsWith('data:')) dataURL = txt;
+                            else if (txt.startsWith('http')) {
+                                const fetched = await window.nebula.assistant.proxyFetch({ url: txt, options: { method: 'GET' } });
+                                if (fetched.ok && fetched.type === 'dataURL') dataURL = fetched.dataURL;
+                            }
+                        }
+
+                        if (dataURL) {
+                            // Post back to host listeners
+                            window.postMessage({ type: 'nebula-generated-image', dataURL, meta }, '*');
+
+                            // Also try to notify the originating webview content for its UI via executeJavaScript
+                            try {
+                                if (this.testWebview && this.testWebview.executeJavaScript) {
+                                    const payload = { type: 'nebula-generated-image', dataURL, meta };
+                                    this.testWebview.executeJavaScript(`window.postMessage(${JSON.stringify(payload)}, '*')`).catch(()=>{});
+                                }
+                            } catch (x) { /* ignore */ }
+                        } else {
+                            window.postMessage({ type: 'nebula-generated-image', error: 'Could not extract image from proxy response' }, '*');
+                        }
+                    } catch (err) {
+                        window.postMessage({ type: 'nebula-generated-image', error: String(err) }, '*');
+                    }
+                }
+                if (msg.type === 'nebula-webview-action') {
+                    // Instruct the assistant to inject JS into the loaded test webview to set prompt, submit, and capture image
+                    const opts = msg.options || {};
+                    if (!this.testWebview || !this.testWebview.executeJavaScript) {
+                        window.postMessage({ type: 'nebula-generated-image', error: 'No test webview available' }, '*');
+                        return;
+                    }
+
+                    const script = `(async function(){
+                        try {
+                            const prompt = ${JSON.stringify(opts.prompt || '')};
+                            const inputSelector = ${JSON.stringify(opts.inputSelector || '')} || '';
+                            const submitSelector = ${JSON.stringify(opts.submitSelector || '')} || '';
+                            const imageSelector = ${JSON.stringify(opts.imageSelector || '')} || 'img.result, img.generated, img';
+
+                            // helper: find contenteditable or textarea/input
+                            const findInput = ()=>{
+                                if (inputSelector) return document.querySelector(inputSelector);
+                                // common OpenAI chat input: contenteditable ProseMirror with id 'prompt-textarea'
+                                const byId = document.getElementById('prompt-textarea');
+                                if (byId) return byId;
+                                const pm = document.querySelector('.ProseMirror[contenteditable]');
+                                if (pm) return pm;
+                                const ta = document.querySelector('textarea[name="prompt-textarea"], textarea');
+                                if (ta) return ta;
+                                const txt = document.querySelector('input[type="search"], input[type="text"]');
+                                if (txt) return txt;
+                                return null;
+                            };
+
+                            function dispatchInput(el, value){
+                                try { el.focus && el.focus(); } catch(e){}
+                                if (el.isContentEditable) {
+                                    // replace HTML with a paragraph to mimic user input
+                                    el.innerHTML = '<p>' + (value || '') + '</p>';
+                                    el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                } else if (el.tagName && el.tagName.toLowerCase() === 'textarea' || (el.tagName && el.tagName.toLowerCase() === 'input')) {
+                                    el.value = value || '';
+                                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                } else {
+                                    try { el.textContent = value || ''; } catch(e){}
+                                }
+                            }
+
+                            const input = findInput();
+                            if (!input) return { ok:false, error:'Could not find input element' };
+                            const fullPrompt = (prompt || '') + (window.__nebula_prompt_suffix__ || '');
+                            // accept promptSuffix passed via options by temporarily setting a global
+                            try { window.__nebula_prompt_suffix__ = ${JSON.stringify(opts.promptSuffix || '')}; } catch(e){}
+                            dispatchInput(input, (prompt || '') + ( ${JSON.stringify(opts.promptSuffix || '')} || '' ));
+
+                            // Try to find a submit/send button
+                            const findSubmit = ()=>{
+                                if (submitSelector) return document.querySelector(submitSelector);
+                                // common candidates
+                                const candidates = Array.from(document.querySelectorAll('button, [role="button"]'));
+                                for (const c of candidates) {
+                                    const txt = (c.innerText || c.getAttribute('aria-label') || c.title || '').trim().toLowerCase();
+                                    if (!txt) continue;
+                                    if (txt.includes('send') || txt.includes('generate') || txt.includes('submit') || txt.includes('create') || txt.includes('generate image')) return c;
+                                }
+                                // try specific OpenAI send button structure
+                                const btn = document.querySelector('button[type="submit"]');
+                                if (btn) return btn;
+                                return null;
+                            };
+
+                            // Prefer OpenAI's composer submit button if present
+                            const oaBtn = document.querySelector('#composer-submit-button');
+                            const submitBtn = oaBtn || findSubmit();
+                            if (submitBtn) {
+                                try { submitBtn.click(); } catch(e) { /* ignore */ }
+                            } else {
+                                // fallback: emulate Enter / Ctrl+Enter
+                                try {
+                                    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+                                    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true }));
+                                    // Ctrl+Enter
+                                    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', ctrlKey: true, bubbles: true }));
+                                    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', ctrlKey: true, bubbles: true }));
+                                } catch(e){}
+                            }
+
+                            // helper: query across shadow roots
+                            function queryAllDeep(selector) {
+                                const result = [];
+                                const traverse = (root) => {
+                                    try {
+                                        const nodes = root.querySelectorAll(selector || '*');
+                                        nodes.forEach(n=>result.push(n));
+                                    } catch(e){}
+                                    const children = root.children || [];
+                                    for (const c of children) {
+                                        if (c.shadowRoot) traverse(c.shadowRoot);
+                                        try { traverse(c); } catch(e){}
+                                    }
+                                };
+                                traverse(document);
+                                return result;
+                            }
+
+                            const waitForImage = async (sel, timeoutMs=30000) => {
+                                const start = Date.now();
+                                while (Date.now() - start < timeoutMs) {
+                                    // try normal query
+                                    let el = document.querySelector(sel);
+                                    if (el) return el;
+                                    // try deep search
+                                    const deep = queryAllDeep(sel);
+                                    if (deep && deep.length) return deep[0];
+                                    await new Promise(r=>setTimeout(r, 400));
+                                }
+                                return null;
+                            };
+
+                            // Wait longer for some UIs that take more time
+                            const img = await waitForImage(imageSelector, 30000);
+                            if (!img) {
+                                // try canvas elements
+                                const canv = document.querySelector('canvas');
+                                if (canv) {
+                                    try {
+                                        const dataURL = canv.toDataURL('image/png');
+                                        return { ok:true, dataURL };
+                                    } catch(e) {
+                                        // ignore and continue to bg checks
+                                    }
+                                }
+
+                                // try background-image detection
+                                const bgEl = Array.from(document.querySelectorAll('*')).find(el=>{
+                                    try { const s = window.getComputedStyle(el); return s && s.backgroundImage && s.backgroundImage !== 'none' && s.backgroundImage.includes('url('); } catch(e){ return false }
+                                });
+                                if (bgEl) {
+                                    try {
+                                        const bg = window.getComputedStyle(bgEl).backgroundImage;
+                                        const m = bg.match(/url\(["']?([^\)"']+)["']?\)/);
+                                        if (m && m[1]) {
+                                            const url = m[1];
+                                            const fetched = await fetch(url);
+                                            const blob = await fetched.blob();
+                                            const reader = new FileReader();
+                                            const dataURL = await new Promise((resolve, reject) => {
+                                                reader.onloadend = () => resolve(reader.result);
+                                                reader.onerror = reject;
+                                                reader.readAsDataURL(blob);
+                                            });
+                                            return { ok:true, dataURL };
+                                        }
+                                    } catch(e) { /* ignore */ }
+                                }
+
+                                // gather diagnostics if nothing found
+                                const imgs = Array.from(queryAllDeep('img')).slice(0,40).map(i=>({ src: i.currentSrc||i.src||i.getAttribute('src')||'', alt: i.alt||'', outer: (i.outerHTML||'').slice(0,300) }));
+                                const withBg = Array.from(queryAllDeep('*')).filter(el=>{
+                                    try { const s = window.getComputedStyle(el); return s && s.backgroundImage && s.backgroundImage !== 'none'; } catch(e){ return false }
+                                }).slice(0,40).map(el=>({ tag: el.tagName, bg: (window.getComputedStyle(el).backgroundImage||'').slice(0,200), outer: (el.outerHTML||'').slice(0,200) }));
+                                // find anchor download links / filenames
+                                const anchors = Array.from(queryAllDeep('a')).slice(0,60).map(a=>({ href: a.href||a.getAttribute('href')||'', text: a.innerText||'', outer: (a.outerHTML||'').slice(0,300) }));
+                                const snippet = (document.querySelector('main') && document.querySelector('main').innerText) || document.body.innerText || '';
+                                return { ok:false, error:'Timed out waiting for generated image', diag: { imgs, withBg, anchors, snippet: snippet.slice(0,2000) } };
+                            }
+
+                            const src = img.currentSrc || img.src || img.getAttribute && img.getAttribute('src');
+                            if (!src) return { ok:false, error:'Image has no src' };
+                            if (src.startsWith('data:')) return { ok:true, dataURL: src };
+
+                            // attempt to fetch via page context
+                            try {
+                                const resp = await fetch(src);
+                                const blob = await resp.blob();
+                                const reader = new FileReader();
+                                const dataURL = await new Promise((resolve, reject) => {
+                                    reader.onloadend = () => resolve(reader.result);
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(blob);
+                                });
+                                return { ok:true, dataURL };
+                            } catch (e) {
+                                return { ok:false, error: 'Failed to fetch image: ' + e.message };
+                            }
+                        } catch (err) { return { ok:false, error: String(err) } }
+                    })()`;
+
+                    try {
+                        const res = await this.testWebview.executeJavaScript(script, true);
+                        if (res && res.ok && res.dataURL) {
+                            window.postMessage({ type: 'nebula-generated-image', dataURL: res.dataURL, meta: { source: 'webview-inject' } }, '*');
+                        } else {
+                            // If injection timed out or returned diagnostics, try automatic fallback:
+                            // look for anchors/img candidates in res.diag.anchors or res.diag.imgs and proxy-fetch them
+                            const diag = (res && res.diag) || {};
+                            const candidates = [];
+                            try {
+                                const marker = (diag && diag.snippet && typeof diag.snippet === 'string') ? (diag.snippet.match(/\[nebula-generated-image\]/) ? '[nebula-generated-image]' : null) : null;
+                                const copilotRegex = /copilot[_-][0-9a-zA-Z._-]+/i;
+                                const extRegex = /\.(png|jpe?g|svg|gif|webp)(?:$|[?#])/i;
+
+                                const extractFromSrcset = (outer) => {
+                                    if (!outer || typeof outer !== 'string') return [];
+                                    const urls = [];
+                                    // crude src/srcset url extraction
+                                    const re = /https?:\/\/[\w\-._~:\/?#\[\]@!$&'()*+,;=%]+/g;
+                                    const m = outer.match(re);
+                                    if (m && m.length) return m;
+                                    return urls;
+                                };
+
+                                // collect anchors
+                                if (diag.anchors && Array.isArray(diag.anchors)) {
+                                    for (const a of diag.anchors) {
+                                        const href = (a && (a.href || a.url || a.hrefRaw || a.getAttribute && a.getAttribute('href'))) || '';
+                                        if (!href) continue;
+                                        let candidate = href;
+                                        // strip fragment and keep query for proxy but test ext without query
+                                        const testPath = (candidate.split('#')[0] || '').split('?')[0] || '';
+                                        const lower = testPath.toLowerCase();
+                                        const outer = (a && a.outer) || (a && a.outerHTML) || '';
+                                        // include if matches copilot pattern, marker or has image extension
+                                        if (copilotRegex.test(candidate) || (marker && candidate.includes(marker)) || extRegex.test(candidate) || copilotRegex.test(outer) || extRegex.test(outer)) {
+                                            candidates.push(candidate);
+                                        } else {
+                                            // also consider anchor text as filename
+                                            const text = (a && a.text) || '';
+                                            if (copilotRegex.test(text) || extRegex.test(text)) candidates.push(candidate);
+                                        }
+                                    }
+                                }
+
+                                // collect imgs
+                                if (diag.imgs && Array.isArray(diag.imgs)) {
+                                    for (const i of diag.imgs) {
+                                        const src = (i && (i.src || i.currentSrc || i.srcset)) || '';
+                                        const outer = (i && i.outer) || '';
+                                        if (!src && !outer) continue;
+                                        // if srcset present, extract URLs
+                                        const candidatesFromSrcset = [];
+                                        if (typeof src === 'string' && src.includes(',')) {
+                                            // common srcset with commas
+                                            const parts = src.split(',').map(s=>s.trim().split(' ')[0]).filter(Boolean);
+                                            parts.forEach(p=>candidatesFromSrcset.push(p));
+                                        }
+                                        // also inspect outer HTML for urls
+                                        const extracted = extractFromSrcset(outer || '');
+                                        extracted.forEach(u=>candidatesFromSrcset.push(u));
+                                        // push direct src too
+                                        if (src) candidatesFromSrcset.push(src);
+
+                                        for (const cand of candidatesFromSrcset) {
+                                            if (!cand) continue;
+                                            const testPath = (cand.split('#')[0] || '').split('?')[0] || '';
+                                            if (copilotRegex.test(cand) || copilotRegex.test(outer) || (marker && cand.includes(marker)) || extRegex.test(testPath) || extRegex.test(outer)) {
+                                                candidates.push(cand);
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (x) { /* ignore diag parsing errors */ }
+
+                            // dedupe
+                            const uniq = Array.from(new Set(candidates)).slice(0, 12);
+                            let found = false;
+                            for (const url of uniq) {
+                                try {
+                                    if (!(window.nebula && window.nebula.assistant && typeof window.nebula.assistant.proxyFetch === 'function')) break;
+                                    const fetched = await window.nebula.assistant.proxyFetch({ url, options: { method: 'GET' } });
+                                    if (fetched && fetched.ok && fetched.type === 'dataURL' && fetched.dataURL) {
+                                        window.postMessage({ type: 'nebula-generated-image', dataURL: fetched.dataURL, meta: { source: 'webview-anchor-proxy', url } }, '*');
+                                        found = true;
+                                        break;
+                                    }
+                                } catch (e) {
+                                    // continue to next candidate
+                                }
+                            }
+
+                            if (!found) {
+                                window.postMessage({ type: 'nebula-generated-image', error: (res && res.error) || 'webview injection failed (and anchor fallback found nothing)', meta: res || {} }, '*');
+                            }
+                        }
+                    } catch (err) {
+                        window.postMessage({ type: 'nebula-generated-image', error: String(err) }, '*');
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+        });
 
         console.log('NebulaAssistant initialized with full height design');
     }
@@ -132,8 +505,11 @@ class NebulaAssistant {
 AI Assistant
 <!-- Tool buttons -->
 <div class="assistant-tools">
-    <button class="tool-btn" id="artToolBtn" title="Open Art Assistant">
-        🎨
+    <button class="tool-btn" id="artToolBtn" title="Open OLLIE (Image Editor)">
+        🖼️
+    </button>
+    <button class="tool-btn" id="testWebviewBtn" title="Open Test Webview (debug)">
+        🧪
     </button>
     <button class="tool-btn" id="codeToolBtn" title="Open Code Assistant">  
         📝
@@ -202,6 +578,11 @@ AI Assistant
         const artToolBtn = document.getElementById('artToolBtn');
         artToolBtn?.addEventListener('click', () => {
             this.launchArtAssistant();
+        });
+
+        const testWebviewBtn = document.getElementById('testWebviewBtn');
+        testWebviewBtn?.addEventListener('click', () => {
+            this.launchTestWebviewModal();
         });
 
         const codeToolBtn = document.getElementById('codeToolBtn');
@@ -284,16 +665,76 @@ AI Assistant
     }
 
     /**
-     * Launch Art Assistant
+     * Launch OLLIE (NebulaImageEditor) instead of the separate Art Assistant
      */
     launchArtAssistant() {
         try {
-            const artAssistant = new NebulaArtAssistant();
-            this.updateStatus('Art Assistant launched');
-            console.log('Art Assistant launched successfully');
+            const launchOLLIE = () => {
+                try {
+                    // If an OLLIE window is already open, bring it to front
+                    if (window.windowManager && window.windowManager.windows) {
+                        const wm = window.windowManager;
+                        for (const [id, win] of wm.windows) {
+                            if (win && win.app && win.app instanceof NebulaImageEditor) {
+                                if (typeof wm.bringToFront === 'function') {
+                                    wm.bringToFront(id);
+                                } else if (typeof wm.focusWindow === 'function') {
+                                    wm.focusWindow(id);
+                                } else if (typeof wm.restoreWindow === 'function') {
+                                    wm.restoreWindow(id);
+                                }
+                                this.updateStatus('OLLIE brought to front');
+                                return true;
+                            }
+                        }
+                    }
+
+                    // Otherwise instantiate
+                    const ollie = new NebulaImageEditor();
+                    this.updateStatus('OLLIE launched');
+                    console.log('OLLIE (NebulaImageEditor) launched successfully');
+                    return true;
+                } catch (e) {
+                    console.error('Failed to instantiate OLLIE after load:', e);
+                    return false;
+                }
+            };
+
+            if (window.NebulaImageEditor) {
+                launchOLLIE();
+            } else {
+                // Attempt to dynamically load the OLLIE script
+                const scriptPath = '../CustomApps/OLLIE/OLLIE-tabs.js';
+                const existing = Array.from(document.getElementsByTagName('script')).find(s => s.src && s.src.endsWith('OLLIE.js'));
+                if (!existing) {
+                    const script = document.createElement('script');
+                    script.src = scriptPath;
+                    script.onload = () => {
+                        console.log('Loaded OLLIE script dynamically');
+                        if (window.NebulaImageEditor) {
+                            launchOLLIE();
+                        } else {
+                            console.error('OLLIE script loaded but NebulaImageEditor not defined');
+                            // fallback
+                            if (window.NebulaArtAssistant) new NebulaArtAssistant();
+                        }
+                    };
+                    script.onerror = () => {
+                        console.error('Failed to load OLLIE script:', scriptPath);
+                        if (window.NebulaArtAssistant) new NebulaArtAssistant();
+                    };
+                    document.body.appendChild(script);
+                } else {
+                    // Script tag exists but class not ready - try again shortly
+                    setTimeout(() => {
+                        if (window.NebulaImageEditor) launchOLLIE();
+                        else if (window.NebulaArtAssistant) new NebulaArtAssistant();
+                    }, 300);
+                }
+            }
         } catch (error) {
-            console.error('Failed to launch Art Assistant:', error);
-            this.updateStatus('Art Assistant failed to launch');
+            console.error('Failed to launch OLLIE/Art Assistant:', error);
+            this.updateStatus('Failed to launch art assistant');
         }
     }
 
@@ -651,6 +1092,7 @@ AI Assistant
             <div class="svc-saved" data-id="${id}" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--nebula-border);">
                 <div><strong>${s.name}</strong><div style="font-size:11px;color:var(--nebula-text-secondary);">${s.url || ''}</div></div>
                 <div style="display:flex;gap:8px;align-items:center;">
+                    <button class="test-svc" data-id="${id}">Test</button>
                     <button class="edit-svc" data-id="${id}">Edit</button>
                     <button class="del-svc" data-id="${id}">Delete</button>
                 </div>
@@ -755,6 +1197,47 @@ AI Assistant
             };
         });
 
+        // Test handlers for saved services
+        modal.querySelectorAll('.test-svc').forEach(btn => {
+            btn.onclick = async (e) => {
+                const id = btn.getAttribute('data-id');
+                const svc = this.savedServices[id];
+                if (!svc) return alert('Service not found');
+
+                const previewModal = document.createElement('div');
+                previewModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2600;';
+                const box = document.createElement('div');
+                box.style.cssText = 'width:760px;max-width:95%;max-height:80%;background:var(--nebula-surface);padding:12px;border-radius:8px;overflow:auto;color:var(--nebula-text-primary);';
+                box.innerHTML = `<h3 style="margin:0 0 8px 0;">Test Service: ${svc.name}</h3><div id="svcTestResult">Running test...</div><div style="margin-top:8px;text-align:right;"><button id="closePreview">Close</button></div>`;
+                previewModal.appendChild(box);
+                document.body.appendChild(previewModal);
+                previewModal.querySelector('#closePreview').onclick = () => previewModal.remove();
+
+                try {
+                    // Use proxy if available to avoid renderer adblock interference
+                    if (window.nebula && window.nebula.assistant && typeof window.nebula.assistant.proxyFetch === 'function') {
+                        const proxyRes = await window.nebula.assistant.proxyFetch({ url: svc.url, options: { method: svc.method || 'POST', headers: { 'Content-Type': svc.contentType || 'application/json', ...(svc.apiKey ? { 'Authorization': svc.apiKey.startsWith('Bearer') ? svc.apiKey : `Bearer ${svc.apiKey}` } : {}) }, body: svc.contentType === 'application/x-www-form-urlencoded' ? new URLSearchParams({ prompt: 'test' }) : JSON.stringify({ prompt: 'test' }) }});
+                        const container = previewModal.querySelector('#svcTestResult');
+                        if (!proxyRes.ok) {
+                            container.innerText = 'Proxy fetch failed: ' + (proxyRes.error || 'unknown');
+                        } else if (proxyRes.type === 'json') {
+                            container.innerHTML = `<pre style="white-space:pre-wrap;max-height:60vh;overflow:auto">${JSON.stringify(proxyRes.data, null, 2)}</pre>`;
+                        } else if (proxyRes.type === 'dataURL') {
+                            container.innerHTML = `<img src="${proxyRes.dataURL}" style="max-width:100%;height:auto;border:1px solid var(--nebula-border)"><div style="font-size:12px;color:var(--nebula-text-secondary)">Returned image (via proxy)</div>`;
+                        } else {
+                            container.innerHTML = `<pre style="white-space:pre-wrap;max-height:60vh;overflow:auto">${String(proxyRes.data).slice(0,2000)}</pre>`;
+                        }
+                    } else {
+                        alert('Proxy fetch not available.');
+                        previewModal.remove();
+                    }
+                } catch (err) {
+                    const container = previewModal.querySelector('#svcTestResult');
+                    container.innerText = 'Test failed: ' + (err.message || String(err));
+                }
+            };
+        });
+
         modal.querySelectorAll('.del-svc').forEach(btn => {
             btn.onclick = (e) => {
                 const id = btn.getAttribute('data-id');
@@ -817,6 +1300,7 @@ AI Assistant
                 <h3 style="margin:0 0 8px 0;">${isEdit ? 'Edit' : 'Add'} Service</h3>
                 <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--nebula-text-secondary);">Name<input id="svcName" style="width:100%;padding:8px;margin-top:6px;background:var(--nebula-bg-secondary);border:1px solid var(--nebula-border);color:var(--nebula-text-primary);border-radius:4px;" value="${svc.name||''}"></label>
                 <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--nebula-text-secondary);">URL<input id="svcUrl" style="width:100%;padding:8px;margin-top:6px;background:var(--nebula-bg-secondary);border:1px solid var(--nebula-border);color:var(--nebula-text-primary);border-radius:4px;" value="${svc.url||''}"></label>
+                <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--nebula-text-secondary);">API Key (optional)<input id="svcApiKey" placeholder="Bearer ... or raw key" style="width:100%;padding:8px;margin-top:6px;background:var(--nebula-bg-secondary);border:1px solid var(--nebula-border);color:var(--nebula-text-primary);border-radius:4px;" value="${svc.apiKey||''}"></label>
                 <label style="display:block;margin-bottom:8px;font-size:13px;color:var(--nebula-text-secondary);"><input type="checkbox" id="svcImageCap" ${svc.imageCapable ? 'checked' : ''}> Can generate images</label>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
                     <button id="cancelSvc" style="padding:8px 12px;">Cancel</button>
@@ -831,11 +1315,12 @@ AI Assistant
         modal.querySelector('#saveSvc').onclick = () => {
             const name = modal.querySelector('#svcName').value.trim();
             const url = modal.querySelector('#svcUrl').value.trim();
+            const apiKey = modal.querySelector('#svcApiKey')?.value.trim() || null;
             const imageCap = !!modal.querySelector('#svcImageCap').checked;
             if (!name || !url) return alert('Name and URL are required');
 
             const id = isEdit ? serviceId : `svc_${Math.random().toString(36).substr(2,9)}`;
-            this.savedServices[id] = { name, url, imageCapable: imageCap };
+            this.savedServices[id] = { name, url, apiKey, imageCapable: imageCap };
             this.saveSavedServices();
 
             // Update list if provided
@@ -877,6 +1362,448 @@ AI Assistant
         const statusElement = document.getElementById('assistantStatus');
         if (statusElement) {
             statusElement.textContent = status;
+        }
+    }
+
+    /**
+     * High-level image generation helper.
+     * Tries to use a configured saved service (or builtin) and normalizes common
+     * response shapes into a dataURL. Publishes the result via publishGeneratedImage().
+     */
+    async generateImage(serviceKey = null, options = {}) {
+        // Build canonical payload used for caching and for API/webview calls
+        const payload = {
+            prompt: options.prompt || '',
+            width: options.width || 800,
+            height: options.height || 600,
+            transparent: !!options.transparent,
+            model: options.model || null
+        };
+
+        const cacheKeyFor = (p) => {
+            try {
+                const s = JSON.stringify({ prompt: p.prompt || '', width: p.width || 0, height: p.height || 0, model: p.model || null });
+                return 'nebula-gen-' + btoa(unescape(encodeURIComponent(s)));
+            } catch (e) {
+                return 'nebula-gen-' + Math.abs((p.prompt || '').split('').reduce((a,c)=>a+ c.charCodeAt(0),0));
+            }
+        };
+
+        const cacheKey = cacheKeyFor(payload);
+
+        // If not forcing regeneration, return cache when available to avoid burning requests
+        if (!options.force) {
+            const cached = this._getCacheEntry(cacheKey);
+            if (cached && cached.dataURL) {
+                // Publish again so consumers can react
+                this.publishGeneratedImage(cached.dataURL, cached.meta || { cached: true });
+                return { dataURL: cached.dataURL, meta: cached.meta || { cached: true } };
+            }
+        }
+
+        // If the dedicated test webview is present, prefer driving it first.
+        // Avoid attempting to control third-party AI web UIs (they often block or ignore messages).
+        if (this.testWebview) {
+            try {
+                const res = await this.generateImageViaWebview(payload);
+                if (res && res.dataURL) {
+                    this._saveCacheEntry(cacheKey, { dataURL: res.dataURL, meta: res.meta });
+                    return res;
+                }
+            } catch (e) {
+                console.warn('generateImageViaWebview failed, falling back to API path:', e);
+            }
+        }
+
+        // Lightweight wrapper that delegates to saved services or builtins.
+        try {
+            // Use existing savedServices marked imageCapable (or explicit key)
+            let svc = null;
+            if (serviceKey && this.savedServices && this.savedServices[serviceKey]) {
+                svc = this.savedServices[serviceKey];
+            }
+
+            if (!svc && this.savedServices) {
+                for (const [id, s] of Object.entries(this.savedServices)) {
+                    if (s.imageCapable) { svc = { ...s, id }; break; }
+                }
+            }
+
+            // Also accept builtin:: entries created from settings checkboxes
+            if (!svc && this.savedServices) {
+                for (const [id, s] of Object.entries(this.savedServices)) {
+                    if (id.startsWith('builtin::')) { svc = { ...s, id }; break; }
+                }
+            }
+
+            if (!svc) throw new Error('No image-capable service configured');
+
+            const url = svc.url;
+            const apiKey = svc.apiKey || svc.key || null;
+
+            console.log('Assistant.generateImage ->', url, payload);
+
+            let resp = null;
+            try {
+                resp = await fetch(url, {
+                    method: svc.method || 'POST',
+                    headers: {
+                        'Content-Type': svc.contentType || 'application/json',
+                        ...(apiKey ? { 'Authorization': apiKey.startsWith('Bearer') ? apiKey : `Bearer ${apiKey}` } : {})
+                    },
+                    body: svc.contentType === 'application/x-www-form-urlencoded' ? new URLSearchParams(payload) : JSON.stringify(payload)
+                });
+            } catch (fetchErr) {
+                console.warn('Renderer fetch failed, attempting main-process proxy fetch:', fetchErr);
+                // If preload bridge is available, try proxying via main process
+                try {
+                    if (window.nebula && window.nebula.assistant && typeof window.nebula.assistant.proxyFetch === 'function') {
+                        const proxyRes = await window.nebula.assistant.proxyFetch({ url, options: {
+                            method: svc.method || 'POST',
+                            headers: {
+                                'Content-Type': svc.contentType || 'application/json',
+                                ...(apiKey ? { 'Authorization': apiKey.startsWith('Bearer') ? apiKey : `Bearer ${apiKey}` } : {})
+                            },
+                            body: svc.contentType === 'application/x-www-form-urlencoded' ? new URLSearchParams(payload) : JSON.stringify(payload)
+                        }});
+                        if (!proxyRes.ok) throw new Error(proxyRes.error || 'proxy fetch failed');
+                        // Reconstruct a minimal response-like object for downstream logic
+                        if (proxyRes.type === 'json') {
+                            resp = { ok: true, headers: { get: (k) => k === 'content-type' ? 'application/json' : '' }, json: async () => proxyRes.data, status: proxyRes.status };
+                        } else if (proxyRes.type === 'dataURL') {
+                            // return a fake resp that our code can handle later
+                            resp = { ok: true, headers: { get: (k) => proxyRes.contentType }, blob: async () => { const bin = atob(proxyRes.dataURL.split(',')[1]); const len = bin.length; const u8 = new Uint8Array(len); for (let i=0;i<len;i++) u8[i]=bin.charCodeAt(i); return new Blob([u8], { type: proxyRes.contentType }); }, status: proxyRes.status };
+                        } else {
+                            resp = { ok: true, headers: { get: (k) => proxyRes.contentType || '' }, text: async () => proxyRes.data, status: proxyRes.status };
+                        }
+                    } else {
+                        throw fetchErr;
+                    }
+                } catch (proxyErr) {
+                    console.error('Proxy fetch failed or unavailable:', proxyErr);
+                    throw fetchErr;
+                }
+            }
+
+            if (!resp.ok) {
+                const txt = await resp.text().catch(() => '');
+                throw new Error(`Service responded ${resp.status}: ${txt}`);
+            }
+
+            const contentType = resp.headers.get('content-type') || '';
+
+            if (contentType.includes('application/json')) {
+                const body = await resp.json();
+
+                // Common shapes
+                if (body.data && Array.isArray(body.data) && body.data[0] && body.data[0].b64_json) {
+                    const b64 = body.data[0].b64_json;
+                    const dataURL = 'data:image/png;base64,' + b64;
+                    const meta = { service: svc.name || svc.id, response: body, prompt: payload.prompt };
+                    this.publishGeneratedImage(dataURL, meta);
+                    this._saveCacheEntry(cacheKey, { dataURL, meta });
+                    return { dataURL, meta };
+                }
+
+                if (body.images && Array.isArray(body.images) && body.images[0]) {
+                    const first = body.images[0];
+                    if (first.startsWith('data:')) {
+                        const dataURL = first;
+                        const meta = { service: svc.name || svc.id, response: body };
+                        this.publishGeneratedImage(dataURL, meta);
+                        this._saveCacheEntry(cacheKey, { dataURL, meta });
+                        return { dataURL, meta };
+                    }
+                    const fetched = await fetch(first);
+                    const blob = await fetched.blob();
+                    const dataURL = await this._blobToDataURL(blob);
+                    const meta = { service: svc.name || svc.id, response: body };
+                    this.publishGeneratedImage(dataURL, meta);
+                    this._saveCacheEntry(cacheKey, { dataURL, meta });
+                    return { dataURL, meta };
+                }
+
+                if (body.result && typeof body.result === 'string') {
+                    const maybe = body.result;
+                    if (maybe.startsWith('data:')) {
+                        const dataURL = maybe;
+                        const meta = { service: svc.name || svc.id, response: body };
+                        this.publishGeneratedImage(dataURL, meta);
+                        this._saveCacheEntry(cacheKey, { dataURL, meta });
+                        return { dataURL, meta };
+                    }
+                    const dataURL = 'data:image/png;base64,' + maybe;
+                    const meta = { service: svc.name || svc.id, response: body };
+                    this.publishGeneratedImage(dataURL, meta);
+                    this._saveCacheEntry(cacheKey, { dataURL, meta });
+                    return { dataURL, meta };
+                }
+
+                if (body.urls && Array.isArray(body.urls) && body.urls[0]) {
+                    const first = body.urls[0];
+                    const fetched = await fetch(first);
+                    const blob = await fetched.blob();
+                    const dataURL = await this._blobToDataURL(blob);
+                    const meta = { service: svc.name || svc.id, response: body };
+                    this.publishGeneratedImage(dataURL, meta);
+                    this._saveCacheEntry(cacheKey, { dataURL, meta });
+                    return { dataURL, meta };
+                }
+
+                throw new Error('Unknown JSON response shape');
+            }
+
+            if (contentType.startsWith('image/')) {
+                const blob = await resp.blob();
+                const dataURL = await this._blobToDataURL(blob);
+                const meta = { service: svc.name || svc.id };
+                this.publishGeneratedImage(dataURL, meta);
+                this._saveCacheEntry(cacheKey, { dataURL, meta });
+                return { dataURL, meta };
+            }
+
+            const txt = await resp.text().catch(() => '');
+                // Trim and inspect textual responses. If the service returned HTML (login page, blocked page),
+                // provide a clearer error message and include a small preview to aid debugging.
+                const trimmed = (txt || '').trim();
+                if (trimmed.startsWith('<')) {
+                    console.error('Assistant.generateImage: service returned HTML (likely login/blocked page). Preview:', trimmed.slice(0,200));
+                    throw new Error('Service returned HTML (likely login or blocked page). Check saved-service URL and authentication. Preview: ' + trimmed.slice(0,200));
+                }
+                if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:'))) {
+                if (txt.startsWith('data:')) {
+                    const dataURL = txt;
+                    const meta = { service: svc.name || svc.id };
+                    this.publishGeneratedImage(dataURL, meta);
+                    this._saveCacheEntry(cacheKey, { dataURL, meta });
+                    return { dataURL, meta };
+                }
+                const fetched = await fetch(txt);
+                const blob = await fetched.blob();
+                const dataURL = await this._blobToDataURL(blob);
+                const meta = { service: svc.name || svc.id };
+                this.publishGeneratedImage(dataURL, meta);
+                this._saveCacheEntry(cacheKey, { dataURL, meta });
+                return { dataURL, meta };
+            }
+
+            // If we reached here, the response couldn't be parsed into an image.
+            console.error('Assistant.generateImage: could not parse response; content-type=', contentType, 'textPreview=', (typeof txt === 'string' ? txt.slice(0,200) : '[binary]'));
+            throw new Error('Could not parse image response — see console for details. Service may be returning HTML or an unexpected payload.');
+        } catch (err) {
+            console.error('Assistant.generateImage failed:', err);
+            throw err;
+        }
+    }
+
+    async _blobToDataURL(blob) {
+        return await new Promise((resolve, reject) => {
+            try {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            } catch (e) { reject(e); }
+        });
+    }
+
+    /**
+     * Try to drive the currently loaded webview (AI web UI) by posting a message
+     * with generation parameters. The webview's page must implement a listener
+     * that performs generation and posts back { type: 'nebula-generated-image', dataURL }
+     * This is best-effort — many public AI web UIs won't accept programmatic control,
+     * but custom saved service pages can implement the bridge.
+     */
+    async generateImageViaWebview(options = {}) {
+        // prefer a dedicated test webview when present
+        const targetWebview = this.testWebview || this.webview;
+        if (!targetWebview) throw new Error('No assistant webview available');
+
+        const message = { type: 'nebula-generate-image', options };
+
+        const waitForResponse = (timeout = 20000) => new Promise((resolve, reject) => {
+            let settled = false;
+            const onMessage = (e) => {
+                try {
+                    const msg = e.data;
+                    if (!msg || msg.type !== 'nebula-generated-image') return;
+                    settled = true;
+                    window.removeEventListener('message', onMessage);
+                    resolve({ dataURL: msg.dataURL, meta: msg.meta || {} });
+                } catch (err) {
+                    // ignore
+                }
+            };
+
+            window.addEventListener('message', onMessage);
+
+            // Timeout
+            const to = setTimeout(() => {
+                if (settled) return;
+                window.removeEventListener('message', onMessage);
+                reject(new Error('Timed out waiting for webview response'));
+            }, timeout);
+        });
+
+        // Ensure test webview is ready (if using it)
+        if (targetWebview === this.testWebview && this.testWebviewReady) {
+            try { await this.testWebviewReady; } catch (e) { /* ignore */ }
+        }
+
+        // Post message to webview
+        try {
+            targetWebview.send && targetWebview.send('nebula-message', message);
+            // As a secondary channel, execute a window.postMessage inside the webview
+            try { await targetWebview.executeJavaScript(`window.postMessage(${JSON.stringify(message)}, '*')`); } catch (ex) { /* ignore */ }
+        } catch (e) {
+            // Fallback: try contentWindow.postMessage via executeJavaScript
+            try {
+                await targetWebview.executeJavaScript(`window.postMessage(${JSON.stringify(message)}, '*')`);
+            } catch (ex) {
+                console.warn('Could not post message to webview', ex);
+            }
+        }
+
+        const res = await waitForResponse();
+        if (res && res.dataURL) {
+            this.publishGeneratedImage(res.dataURL, { service: this.aiServices[this.currentAI]?.name || 'webview', ...res.meta });
+            return { dataURL: res.dataURL, meta: { service: this.aiServices[this.currentAI]?.name || 'webview', ...res.meta } };
+        }
+        throw new Error('Webview did not return an image');
+    }
+
+    /**
+     * Open a temporary modal containing a webview that loads the local test generator.
+     * This provides a short-lived visible webview for debugging and will set `this.testWebview`.
+     */
+    launchTestWebviewModal() {
+        try {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2500;';
+
+            const box = document.createElement('div');
+            box.style.cssText = 'width:880px;height:640px;background:var(--nebula-surface);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;';
+
+            const header = document.createElement('div');
+            header.style.cssText = 'padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--nebula-border);';
+            header.innerHTML = `<div style="display:flex;gap:8px;align-items:center;">
+                <strong>Test Webview (debug)</strong>
+            </div>`;
+
+            // address input + load
+            const addrWrap = document.createElement('div');
+            addrWrap.style.cssText = 'display:flex;gap:6px;align-items:center;margin-left:12px;flex:1;';
+            const urlInput = document.createElement('input');
+            urlInput.type = 'text';
+            urlInput.placeholder = 'https://example.com (load target site here)';
+            urlInput.style.cssText = 'flex:1;padding:6px;border-radius:6px;border:1px solid var(--nebula-border);background:transparent;color:var(--nebula-text)';
+            urlInput.value = 'https://chat.openai.com';
+            const loadBtn2 = document.createElement('button');
+            loadBtn2.textContent = 'Load';
+            loadBtn2.style.cssText = 'padding:6px 8px;margin-left:6px;';
+            addrWrap.appendChild(urlInput);
+            addrWrap.appendChild(loadBtn2);
+            header.appendChild(addrWrap);
+
+            // prompt input + inject button
+            const promptWrap = document.createElement('div');
+            promptWrap.style.cssText = 'display:flex;gap:6px;align-items:center;margin-left:12px;';
+            const promptInput = document.createElement('input');
+            promptInput.type = 'text';
+            promptInput.placeholder = 'Prompt to inject into webview';
+            promptInput.style.cssText = 'width:360px;padding:6px;border-radius:6px;border:1px solid var(--nebula-border);background:transparent;color:var(--nebula-text)';
+            // selector inputs
+            const inputSelectorInput = document.createElement('input');
+            inputSelectorInput.type = 'text';
+            inputSelectorInput.placeholder = 'Input selector (optional)';
+            inputSelectorInput.style.cssText = 'width:220px;padding:6px;border-radius:6px;border:1px solid var(--nebula-border);background:transparent;color:var(--nebula-text);margin-left:6px';
+            const submitSelectorInput = document.createElement('input');
+            submitSelectorInput.type = 'text';
+            submitSelectorInput.placeholder = 'Submit selector (optional)';
+            submitSelectorInput.style.cssText = 'width:220px;padding:6px;border-radius:6px;border:1px solid var(--nebula-border);background:transparent;color:var(--nebula-text);margin-left:6px';
+            const imageSelectorInput = document.createElement('input');
+            imageSelectorInput.type = 'text';
+            imageSelectorInput.placeholder = 'Image selector (optional)';
+            imageSelectorInput.style.cssText = 'width:220px;padding:6px;border-radius:6px;border:1px solid var(--nebula-border);background:transparent;color:var(--nebula-text);margin-left:6px';
+            const markerWrap = document.createElement('label');
+            markerWrap.style.cssText = 'display:flex;gap:6px;align-items:center;color:var(--nebula-text);font-size:12px;margin-left:6px;';
+            const markerCheckbox = document.createElement('input');
+            markerCheckbox.type = 'checkbox';
+            markerCheckbox.title = 'Append capture marker to the prompt';
+            const markerLabel = document.createElement('span');
+            markerLabel.textContent = 'Append marker';
+            markerWrap.appendChild(markerCheckbox);
+            markerWrap.appendChild(markerLabel);
+            const injectBtn = document.createElement('button');
+            injectBtn.textContent = 'Inject Prompt';
+            injectBtn.style.cssText = 'padding:6px 8px;';
+            promptWrap.appendChild(promptInput);
+            promptWrap.appendChild(inputSelectorInput);
+            promptWrap.appendChild(submitSelectorInput);
+            promptWrap.appendChild(imageSelectorInput);
+            promptWrap.appendChild(markerWrap);
+            promptWrap.appendChild(injectBtn);
+            header.appendChild(promptWrap);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = 'Close';
+            closeBtn.style.cssText = 'padding:6px 10px;margin-left:12px;';
+            header.appendChild(closeBtn);
+
+            const webview = document.createElement('webview');
+            webview.style.cssText = 'flex:1;border:0;';
+            webview.setAttribute('partition', 'persist:nebula-assistant-test');
+            webview.setAttribute('allowpopups', 'true');
+            webview.setAttribute('preload', 'src/preload.js');
+            // load the test generator (DO NOT use explicit src path)
+            webview.src = 'tools/test-webview-generator.html';
+
+            box.appendChild(header);
+            box.appendChild(webview);
+            modal.appendChild(box);
+            document.body.appendChild(modal);
+
+            // store ref so generateImageViaWebview can use it
+            this.testWebview = webview;
+
+            // expose a readiness promise so callers can await dom-ready
+            this.testWebviewReady = new Promise((resolve) => {
+                webview.addEventListener('dom-ready', () => {
+                    console.log('Test webview ready');
+                    resolve();
+                });
+            });
+
+            // load button behavior
+            loadBtn2.onclick = () => {
+                const val = urlInput.value && urlInput.value.trim();
+                if (!val) return;
+                try { webview.src = val; } catch (e) { console.warn('Failed to load URL in webview', e); }
+            };
+
+            // Inject prompt behavior: send a nebula-webview-action message to the host listener
+            injectBtn.onclick = () => {
+                const p = promptInput.value || '';
+                const suffix = markerCheckbox.checked ? '\n\n[nebula-generated-image]' : '';
+                // Options can include custom selectors from the header inputs
+                const inputSel = (inputSelectorInput && inputSelectorInput.value) ? inputSelectorInput.value : '';
+                const submitSel = (submitSelectorInput && submitSelectorInput.value) ? submitSelectorInput.value : '';
+                const imageSel = (imageSelectorInput && imageSelectorInput.value) ? imageSelectorInput.value : '';
+                window.postMessage({ type: 'nebula-webview-action', options: { prompt: p, promptSuffix: suffix, inputSelector: inputSel, submitSelector: submitSel, imageSelector: imageSel } }, '*');
+                // provide UI feedback
+                promptInput.disabled = true;
+                injectBtn.disabled = true;
+                markerCheckbox.disabled = true;
+                setTimeout(() => { promptInput.disabled = false; injectBtn.disabled = false; markerCheckbox.disabled = false; }, 12000);
+            };
+
+            // on close, remove and clear ref
+            closeBtn.onclick = () => {
+                try { modal.remove(); } catch (e) {}
+                try { this.testWebview = null; this.testWebviewReady = null; } catch (e) {}
+            };
+        } catch (err) {
+            console.error('Failed to open test webview modal', err);
         }
     }
 
@@ -932,6 +1859,28 @@ AI Assistant
             localStorage.setItem('nebula-assistant-config', JSON.stringify(this.config));
         } catch (error) {
             console.warn('Could not save assistant config:', error);
+        }
+    }
+
+    /**
+     * Save a generated image to the assistant cache (localStorage)
+     */
+    _saveCacheEntry(key, entry) {
+        try {
+            const store = JSON.parse(localStorage.getItem('nebula-assistant-gen-cache') || '{}');
+            store[key] = { ...entry, ts: Date.now() };
+            localStorage.setItem('nebula-assistant-gen-cache', JSON.stringify(store));
+        } catch (e) {
+            console.warn('Failed to save cache entry', e);
+        }
+    }
+
+    _getCacheEntry(key) {
+        try {
+            const store = JSON.parse(localStorage.getItem('nebula-assistant-gen-cache') || '{}');
+            return store[key] || null;
+        } catch (e) {
+            return null;
         }
     }
 

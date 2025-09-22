@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Nebula Webview Test Generator</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin:0; padding:12px; background: #0f1720; color: #e6eef8; }
+    .panel { max-width:980px; margin:0 auto; }
+    .controls { display:flex; gap:8px; margin-bottom:12px; }
+    input, textarea { width:100%; padding:8px; border-radius:6px; border:1px solid #233042; background:#07101a; color:#dbeffb }
+    button { padding:8px 12px; border-radius:6px; border:0; background:#1f6feb; color:white }
+    img.preview { display:block; margin-top:12px; border:1px solid #233042; max-width:100%; height:auto }
+    .meta { margin-top:8px; font-size:12px; color:#9fb7d9 }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h2>Nebula Test Webview Generator</h2>
+    <div class="controls">
+      <label>Provider URL: <input id="providerUrl" type="text" style="width:60%" placeholder="https://api.openai.com/v1/images/generations" /></label>
+      <label>Size: <input id="size" placeholder="Width x Height (e.g. 512x512)" value="800x600" style="width:160px; margin-left:8px"></label>
+    </div>
+    <div class="controls">
+      <label>API Key: <input id="apiKey" type="text" style="width:60%" placeholder="sk-... or Bearer ..." /></label>
+    </div>
+    <div class="controls">
+      <label>Prompt: <input id="prompt" type="text" style="width:60%" placeholder="A scenic painting of a nebula in space" /></label>
+    </div>
+    <div class="controls">
+      <label>Input Selector: <input id="inputSelector" type="text" style="width:60%" placeholder="e.g. .ProseMirror[contenteditable], #prompt-textarea" /></label>
+    </div>
+    <div class="controls">
+      <label>Submit Selector: <input id="submitSelector" type="text" style="width:60%" placeholder="e.g. #composer-submit-button, button[type=submit]" /></label>
+    </div>
+    <div class="controls">
+      <label>Image Selector: <input id="imageSelector" type="text" style="width:60%" placeholder="e.g. img.result, picture img" /></label>
+    </div>
+    <div class="controls" style="margin-top:8px;">
+      <button id="genOnline">Generate (online)</button>
+      <button id="injectToWebview">Inject Into Webview</button>
+      <button id="demo">Generate (demo)</button>
+    </div>
+    <div>
+      <canvas id="cv" style="display:none"></canvas>
+      <img id="preview" class="preview" src="" alt="preview">
+      <div class="meta" id="meta"></div>
+    </div>
+    <div>
+      <canvas id="cv" style="display:none"></canvas>
+      <img id="preview" class="preview" src="" alt="preview">
+      <div class="meta" id="meta"></div>
+    </div>
+    <p style="margin-top:14px;color:#9fb7d9">This page listens for <code>window.postMessage({type:'nebula-generate-image', options})</code> and responds with <code>window.postMessage({type:'nebula-generated-image', dataURL, meta})</code>.</p>
+  </div>
+
+  <script>
+    function makeTestImage(prompt, width, height) {
+      const canvas = document.getElementById('cv');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      // simple background gradient
+      const g = ctx.createLinearGradient(0,0,width,height);
+      g.addColorStop(0, '#07203a');
+      g.addColorStop(1, '#0b1220');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,width,height);
+
+      // random circles
+      for (let i=0;i<8;i++){
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(${(i*30)%255}, ${(i*60)%255}, ${(i*90)%255}, 0.12)`;
+        const r = Math.max(40, Math.min(width, height) * (0.05 + Math.random()*0.18));
+        ctx.arc(Math.random()*width, Math.random()*height, r, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // overlay text
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.font = Math.max(12, Math.floor(width/24)) + 'px sans-serif';
+      ctx.fillText(prompt || 'Nebula Test', 12, Math.min(48, Math.floor(height/10)));
+
+      // small footer
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.font = '12px sans-serif';
+      const now = new Date().toLocaleString();
+      ctx.fillText('Nebula local test — ' + now, 12, height - 12);
+
+      return canvas.toDataURL('image/png');
+    }
+
+    function parseSize(str) {
+      const m = (str||'').match(/(\d+)\s*[x,\*]\s*(\d+)/i);
+      if (!m) return [800,600];
+      return [parseInt(m[1],10)||800, parseInt(m[2],10)||600];
+    }
+
+    // Triggered by UI button for convenience (local demo)
+    document.getElementById('demo').addEventListener('click', () => {
+      const prompt = document.getElementById('prompt').value;
+      const [w,h] = parseSize(document.getElementById('size').value);
+      const dataURL = makeTestImage(prompt, w, h);
+      document.getElementById('preview').src = dataURL;
+      document.getElementById('meta').textContent = `size=${w}x${h} prompt=${prompt} (demo)`;
+    });
+
+    // Online generate -> send request to embedder to proxy
+    document.getElementById('genOnline').addEventListener('click', () => {
+      const url = document.getElementById('providerUrl').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const prompt = document.getElementById('prompt').value.trim();
+      const size = document.getElementById('size').value.trim();
+      if (!url) return alert('Provide a provider URL');
+      // post to parent (embedder) to perform proxy fetch
+      window.postMessage({ type: 'nebula-request-image', options: { url, apiKey, prompt, contentType: 'application/json', size } }, '*');
+      document.getElementById('meta').textContent = 'Requesting online image...';
+    });
+
+    // Trigger webview injection via embedder listener
+    document.getElementById('injectToWebview').addEventListener('click', () => {
+      const prompt = document.getElementById('prompt').value.trim();
+      const inputSelector = document.getElementById('inputSelector').value.trim();
+      const submitSelector = document.getElementById('submitSelector').value.trim();
+      const imageSelector = document.getElementById('imageSelector').value.trim();
+      const promptSuffix = '[nebula-generated-image]';
+      window.postMessage({ type: 'nebula-webview-action', options: { prompt, promptSuffix, inputSelector, submitSelector, imageSelector } }, '*');
+      document.getElementById('meta').textContent = 'Requested injection into test webview...';
+    });
+
+    // Listen for messages from the embedder
+    window.addEventListener('message', (e) => {
+      try {
+        const msg = e.data;
+        if (!msg || !msg.type) return;
+        if (msg.type === 'nebula-generate-image') {
+          const opts = msg.options || {};
+          const prompt = opts.prompt || opts.promptText || 'Nebula test';
+          const width = parseInt(opts.width || opts.w || 800, 10) || 800;
+          const height = parseInt(opts.height || opts.h || 600, 10) || 600;
+          // generate image (simulate async)
+          setTimeout(() => {
+            const dataURL = makeTestImage(prompt, width, height);
+            // post back to parent window
+            window.postMessage({ type: 'nebula-generated-image', dataURL: dataURL, meta: { source: 'local-test', prompt, width, height } }, '*');
+            // also update UI
+            document.getElementById('preview').src = dataURL;
+            document.getElementById('meta').textContent = `returned size=${width}x${height} prompt=${prompt}`;
+          }, 450);
+        }
+        if (msg.type === 'nebula-generated-image') {
+          // Response from embedder proxy
+          const container = document.getElementById('preview');
+          if (msg.dataURL) {
+            document.getElementById('preview').src = msg.dataURL;
+            document.getElementById('meta').textContent = `online result — ${msg.meta && msg.meta.url ? msg.meta.url : ''}`;
+          } else if (msg.error) {
+            document.getElementById('meta').textContent = 'Error: ' + msg.error + (msg.meta && msg.meta.response ? '\n' + JSON.stringify(msg.meta.response).slice(0,400) : '');
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    });
+
+    // For quick manual testing, generate one immediately when loaded
+    window.addEventListener('load', () => {
+      const [w,h] = parseSize(document.getElementById('size').value);
+      const dataURL = makeTestImage(document.getElementById('prompt').value, w, h);
+      document.getElementById('preview').src = dataURL;
+      document.getElementById('meta').textContent = 'Ready — preview generated locally';
+    });
+  </script>
+</body>
+</html>

@@ -153,6 +153,9 @@ class NebulaImageEditor {
             <div class="toolbar-title" style="margin-left: auto; font-weight: 500; color: var(--nebula-text-primary);">
                 Online Layered Light & Image Editor
             </div>
+            <button class="toolbar-btn" id="generate-btn" title="Generate Image with AI" style="margin-left:12px;">
+                <span class="material-symbols-outlined">auto_awesome</span>
+            </button>
         `;
         
         this.addToolbarStyles();
@@ -285,7 +288,301 @@ class NebulaImageEditor {
             </div>
         `;
         
+        // Add Generate button handler if present
+        setTimeout(() => {
+            const gen = document.getElementById('generate-btn');
+            gen?.addEventListener('click', () => this.showGenerateModal());
+        }, 0);
+
         return panel;
+    }
+
+    /**
+     * Open the Art Assistant and pass current document size for generation
+     */
+    openArtAssistant() {
+        try {
+            // Launch the Art Assistant window
+            const art = new NebulaArtAssistant();
+
+            // After it's created, try to set the prompt area and communicate preferred size
+            setTimeout(() => {
+                // Find the prompt input in the newly created Art Assistant window
+                const instances = Array.from(document.querySelectorAll('.art-assistant-container'));
+                const inst = instances[instances.length - 1];
+                if (!inst) return;
+
+                // Fill a helpful prompt with canvas size
+                const promptInput = inst.querySelector('input[type="text"]');
+                if (promptInput) {
+                    promptInput.value = `A ${this.canvas.width}x${this.canvas.height} PNG with transparent background of a fantasy landscape`;
+                }
+
+                // Poll localStorage for published generated images by the Art Assistant
+                let lastSeenId = null;
+                const poll = setInterval(() => {
+                    try {
+                        const raw = localStorage.getItem('nebula-art-last');
+                        if (!raw) return;
+                        const payload = JSON.parse(raw);
+                        if (!payload || !payload.id || payload.id === lastSeenId) return;
+                        lastSeenId = payload.id;
+
+                        // Insert into editor
+                        if (payload.dataURL) {
+                            this.insertGeneratedImage(payload.dataURL, payload.meta?.name || `Generated ${payload.id}`);
+                        }
+
+                        // Optionally clear or leave for further consumers
+                        // localStorage.removeItem('nebula-art-last');
+                    } catch (e) {
+                        console.error('Error polling for generated images:', e);
+                    }
+                }, 1000);
+
+                // Stop polling when the Art Assistant window is closed
+                const winId = inst.closest('.nebula-window')?.id;
+                if (winId && window.windowManager && window.windowManager.windows) {
+                    const intervalChecker = setInterval(() => {
+                        if (!window.windowManager.windows.has(winId)) {
+                            clearInterval(poll);
+                            clearInterval(intervalChecker);
+                        }
+                    }, 1000);
+                }
+            }, 400);
+        } catch (error) {
+            console.error('Failed to open Art Assistant:', error);
+        }
+    }
+
+    /**
+     * Insert a dataURL image into a new layer and add to LayerManager
+     */
+    insertGeneratedImage(dataURL, name = 'Generated Image') {
+        try {
+            const img = new Image();
+            img.onload = () => {
+                const layer = new Layer({ name, type: 'raster' });
+                layer.setSize(this.canvas.width, this.canvas.height);
+
+                // Draw the generated image centered
+                const ctx = layer.context;
+                ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+
+                // If generated image size differs, draw it centered at 0,0
+                ctx.drawImage(img, 0, 0, img.width, img.height);
+
+                this.layerManager.addLayer(layer);
+                this.layerManager.setActiveLayer(layer.id);
+                this.layerManager.render();
+                this.updateStatus('Inserted generated image as new layer');
+            };
+            img.onerror = (e) => console.error('Failed to load generated image dataURL:', e);
+            img.src = dataURL;
+        } catch (error) {
+            console.error('insertGeneratedImage error:', error);
+        }
+    }
+
+    // ================= ART ASSISTANT MVP =================
+    showGenerateModal() {
+        // Build modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:2200;`;
+
+        modal.innerHTML = `
+            <div style="width:720px;max-width:95%;background:var(--nebula-surface);border:1px solid var(--nebula-border);border-radius:10px;padding:16px;color:var(--nebula-text-primary);">
+                <h3 style="margin:0 0 8px 0;">OLLIE — Generate Image</h3>
+                <div style="display:grid;grid-template-columns:1fr 160px;gap:8px;align-items:start;">
+                    <div>
+                        <label style="font-size:13px;color:var(--nebula-text-secondary);display:block;margin-bottom:6px;">Prompt</label>
+                        <textarea id="ollie-prompt" style="width:100%;height:96px;padding:8px;background:var(--nebula-bg-primary);border:1px solid var(--nebula-border);color:var(--nebula-text-primary);border-radius:6px;">A ${this.canvas.width}x${this.canvas.height} PNG with transparent background, high detail, fantasy landscape</textarea>
+                    </div>
+                    <div>
+                        <label style="font-size:13px;color:var(--nebula-text-secondary);display:block;margin-bottom:6px;">Size</label>
+                        <div style="display:flex;gap:6px;margin-bottom:8px;">
+                            <input id="ollie-width" type="number" value="${this.canvas.width}" style="width:72px;padding:8px;border:1px solid var(--nebula-border);border-radius:6px;background:var(--nebula-bg-primary);color:var(--nebula-text-primary);"> 
+                            <input id="ollie-height" type="number" value="${this.canvas.height}" style="width:72px;padding:8px;border:1px solid var(--nebula-border);border-radius:6px;background:var(--nebula-bg-primary);color:var(--nebula-text-primary);">
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--nebula-text-secondary);margin-bottom:8px;"><input id="ollie-transparent" type="checkbox" checked> Transparent PNG</label>
+                        <label style="display:block;font-size:13px;color:var(--nebula-text-secondary);margin-bottom:8px;">Model</label>
+                        <select id="ollie-model" style="width:100%;padding:8px;border:1px solid var(--nebula-border);border-radius:6px;background:var(--nebula-bg-primary);color:var(--nebula-text-primary);">
+                            <option value="sd">Stable Diffusion</option>
+                            <option value="dalle">DALL·E</option>
+                            <option value="mid">Midjourney</option>
+                        </select>
+                        <div style="margin-top:12px;display:flex;gap:8px;">
+                            <button id="ollie-gen-cancel" style="flex:1;padding:8px;border-radius:6px;background:var(--nebula-surface-hover);border:1px solid var(--nebula-border);">Cancel</button>
+                            <button id="ollie-gen-go" style="flex:1;padding:8px;border-radius:6px;background:var(--nebula-primary);color:white;border:none;">Generate</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="ollie-gen-status" style="margin-top:12px;color:var(--nebula-text-secondary);font-size:13px;display:none;">Queued...</div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('#ollie-gen-cancel').onclick = () => modal.remove();
+        modal.querySelector('#ollie-gen-go').onclick = async () => {
+            const prompt = modal.querySelector('#ollie-prompt').value.trim();
+            const w = parseInt(modal.querySelector('#ollie-width').value, 10) || this.canvas.width;
+            const h = parseInt(modal.querySelector('#ollie-height').value, 10) || this.canvas.height;
+            const transparent = !!modal.querySelector('#ollie-transparent').checked;
+            const model = modal.querySelector('#ollie-model').value;
+
+            modal.querySelector('#ollie-gen-status').style.display = 'block';
+            modal.querySelector('#ollie-gen-status').textContent = 'Queued';
+
+            // Enqueue job
+            const job = { id: Date.now(), prompt, width: w, height: h, transparent, model, status: 'queued' };
+            this.enqueueArtJob(job, modal);
+        };
+    }
+
+    enqueueArtJob(job, modal) {
+        if (!this.artJobs) this.artJobs = [];
+        this.artJobs.unshift(job);
+        // Start processing (simulate)
+        this.processArtJob(job, modal);
+    }
+
+    async processArtJob(job, modal) {
+        try {
+            job.status = 'processing';
+            modal.querySelector('#ollie-gen-status').textContent = 'Processing...';
+            // First try to use the Assistant's configured image services (if available)
+            // Prefer the central Assistant pipeline if available
+            try {
+                // Ensure nebulaDesktop.assistant exists; renderer typically creates it on startup
+                if (!window.nebulaDesktop) window.nebulaDesktop = window.nebulaDesktop || {};
+                if (!window.nebulaDesktop.assistant && window.NebulaAssistant) {
+                    // instantiate assistant hidden (it will create its panel when needed)
+                    try { window.nebulaDesktop.assistant = new NebulaAssistant(); } catch (e) { console.warn('Could not auto-instantiate assistant:', e); }
+                }
+
+                const assistant = window.nebulaDesktop && window.nebulaDesktop.assistant;
+                if (assistant && typeof assistant.generateImage === 'function') {
+                    const res = await assistant.generateImage(null, { prompt: job.prompt, width: job.width, height: job.height, transparent: job.transparent, model: job.model });
+                    if (res && res.dataURL) {
+                        job.status = 'done';
+                        job.result = { dataURL: res.dataURL };
+                        // capture which service generated it if provided
+                        job.result.meta = res.meta || {};
+                        this.addGeneratedToGallery(job);
+                        modal.querySelector('#ollie-gen-status').textContent = 'Done — added to Gallery';
+                        setTimeout(() => modal.remove(), 900);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Assistant.generateImage failed or assistant not available, falling back to local generator:', e);
+            }
+
+            // Fallback: Simulate generation delay and create a dummy image matching requested size
+            await new Promise(res => setTimeout(res, 1800 + Math.random() * 1600));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = job.width;
+            canvas.height = job.height;
+            const ctx = canvas.getContext('2d');
+
+            // Simple placeholder visual: gradient + text
+            const g = ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+            g.addColorStop(0, '#7f7fd5'); g.addColorStop(1, '#86a8e7');
+            ctx.fillStyle = g; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = `${Math.max(14, Math.floor(canvas.width/24))}px sans-serif`;
+            ctx.fillText('Generated by OLLIE (local fallback)', 12, 28);
+            ctx.fillText(job.prompt.slice(0,60), 12, 56);
+
+            const dataURL = canvas.toDataURL('image/png');
+
+            job.status = 'done';
+            job.result = { dataURL };
+
+            // Add to OLLIE gallery
+            this.addGeneratedToGallery(job);
+
+            modal.querySelector('#ollie-gen-status').textContent = 'Done — added to Gallery (fallback)';
+            setTimeout(() => modal.remove(), 900);
+        } catch (e) {
+            console.error('Art job failed:', e);
+            job.status = 'error';
+            if (modal) modal.querySelector('#ollie-gen-status').textContent = 'Failed';
+        }
+    }
+
+    addGeneratedToGallery(job) {
+        if (!this.generatedImages) this.generatedImages = [];
+        const svc = job.result && job.result.meta && job.result.meta.service ? job.result.meta.service : null;
+        this.generatedImages.unshift({ id: job.id, prompt: job.prompt, dataURL: job.result.dataURL, meta: job, service: svc });
+        this.renderGallery();
+    }
+
+    renderGallery() {
+        // Ensure right panel gallery container exists
+        const rightPanel = document.querySelector('.image-editor-container .right-panel');
+        if (!rightPanel) return;
+
+        let galleryWrap = rightPanel.querySelector('.ollie-gallery');
+        if (!galleryWrap) {
+            galleryWrap = document.createElement('div');
+            galleryWrap.className = 'ollie-gallery';
+            galleryWrap.style.cssText = 'padding:12px;border-top:1px solid var(--nebula-border);overflow:auto;flex:1;';
+            rightPanel.appendChild(galleryWrap);
+        }
+
+        if (!this.generatedImages || this.generatedImages.length === 0) {
+            galleryWrap.innerHTML = `<div style="color:var(--nebula-text-secondary);font-size:13px;">No generated images yet</div>`;
+            return;
+        }
+
+        galleryWrap.innerHTML = this.generatedImages.map(img => `
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;border:1px solid var(--nebula-border);padding:8px;border-radius:6px;background:var(--nebula-surface);">
+                <div style="position:relative;">
+                    <img src="${img.dataURL}" style="width:72px;height:72px;object-fit:cover;border-radius:4px;" />
+                    ${img.service ? `<div style=\"position:absolute;left:6px;top:6px;padding:2px 6px;border-radius:4px;background:rgba(0,0,0,0.6);color:white;font-size:10px;">${img.service}</div>` : ''}
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;color:var(--nebula-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${img.prompt}</div>
+                    <div style="margin-top:6px;display:flex;gap:6px;">
+                        <button data-id="${img.id}" class="insert-gen" style="padding:6px;border-radius:6px;background:var(--nebula-primary);color:white;border:none;">Insert</button>
+                        <button data-id="${img.id}" class="save-gen" style="padding:6px;border-radius:6px;background:var(--nebula-surface-hover);border:1px solid var(--nebula-border);">Save</button>
+                        <button data-id="${img.id}" class="del-gen" style="padding:6px;border-radius:6px;background:var(--nebula-danger);color:white;border:none;">Delete</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        // Hook up buttons
+        galleryWrap.querySelectorAll('.insert-gen').forEach(btn => {
+            btn.onclick = (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                const img = this.generatedImages.find(i => `${i.id}` === id);
+                if (img) this.insertGeneratedImage(img.dataURL, `Generated ${img.id}`);
+            };
+        });
+
+        galleryWrap.querySelectorAll('.save-gen').forEach(btn => {
+            btn.onclick = (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                const img = this.generatedImages.find(i => `${i.id}` === id);
+                if (img) {
+                    // Trigger download
+                    const a = document.createElement('a');
+                    a.href = img.dataURL; a.download = `ollie-generated-${img.id}.png`; a.click();
+                }
+            };
+        });
+
+        galleryWrap.querySelectorAll('.del-gen').forEach(btn => {
+            btn.onclick = (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                this.generatedImages = this.generatedImages.filter(i => `${i.id}` !== id);
+                this.renderGallery();
+            };
+        });
     }
     
     createPropertiesPanel() {

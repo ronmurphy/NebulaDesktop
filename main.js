@@ -333,6 +333,35 @@ class NebulaDesktop {
             return this.createAppWindow(options);
         });
 
+        // Proxy fetch for assistant (perform HTTP requests from main process)
+        ipcMain.handle('assistant:proxy-fetch', async (event, req = {}) => {
+            try {
+                const url = req.url;
+                const opts = req.options || {};
+                // Use global fetch available in Electron/Node
+                const response = await fetch(url, opts);
+                const contentType = response.headers.get('content-type') || '';
+
+                if (contentType.includes('application/json')) {
+                    const json = await response.json();
+                    return { ok: true, type: 'json', data: json, status: response.status };
+                }
+
+                if (contentType.startsWith('image/')) {
+                    const buf = await response.arrayBuffer();
+                    const b64 = Buffer.from(buf).toString('base64');
+                    const dataURL = `data:${contentType};base64,${b64}`;
+                    return { ok: true, type: 'dataURL', dataURL, contentType, status: response.status };
+                }
+
+                // For plain text or unknown, return as text
+                const text = await response.text().catch(() => null);
+                return { ok: true, type: 'text', data: text, contentType, status: response.status };
+            } catch (err) {
+                return { ok: false, error: err.message || String(err) };
+            }
+        });
+
         ipcMain.on('window:close', (event, id) => {
             const window = this.childWindows.get(id);
             if (window) {

@@ -116,6 +116,11 @@ contextBridge.exposeInMainWorld('nebula', {
         getStats: () => ipcRenderer.invoke('adblocker:get-stats')
     },
 
+    // Assistant helpers
+    assistant: {
+        proxyFetch: (req) => ipcRenderer.invoke('assistant:proxy-fetch', req)
+    },
+
     // 🔸 SCREENSHOT API - NEW!
     screenshot: {
         // Capture entire screen
@@ -148,3 +153,20 @@ contextBridge.exposeInMainWorld('nebula', {
         ipcRenderer.removeListener(channel, callback);
     }
 });
+
+// Auto-load OLLIE renderer script so `window.NebulaImageEditor` is available early
+// window.addEventListener('DOMContentLoaded', () => {
+//     try {
+//         const scriptPath = '../CustomApps/OLLIE/OLLIE.js';
+//         if (!document.querySelector('script[data-ollie-loader]')) {
+//             const s = document.createElement('script');
+//             s.setAttribute('data-ollie-loader', 'true');
+//             s.src = scriptPath;
+//             s.onload = () => console.log('OLLIE script injected by preload');
+//             s.onerror = (e) => console.warn('Failed to load OLLIE script from', scriptPath, e);
+//             (document.head || document.body || document.documentElement).appendChild(s);
+//         }
+//     } catch (e) {
+//         console.warn('OLLIE preload loader error', e);
+//     }
+// });
