@@ -607,8 +607,8 @@ class NebulaDesktop {
         // 🔸 SCREENSHOT HANDLERS - NEW!
         this.setupScreenshotHandlers();
 
-        // 🔸 QBASIC COMPILATION HANDLERS - DISABLED DUE TO ISSUES
-        // this.setupQBJCHandlers();
+        // 🔸 QBASIC COMPILATION HANDLERS - ENABLED
+        this.setupQBJCHandlers();
     }
 
     // 🔸 QBJC Compilation functionality - NEW!

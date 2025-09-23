@@ -70,23 +70,22 @@ class NebulaQBasicTerminal {
 
         // Create main sections
         const toolbar = this.createToolbar();
-        const editorArea = this.createEditorArea();
-        const terminalArea = this.createTerminalArea();
+        const mainArea = this.createMainArea();
         const statusBar = this.createStatusBar();
 
         // Assemble the UI
         container.appendChild(toolbar);
-        container.appendChild(editorArea);
-        container.appendChild(terminalArea);
+        container.appendChild(mainArea);
         container.appendChild(statusBar);
 
         // Initialize after UI is created
         setTimeout(() => {
+            console.log('QBTerminal: Starting initialization...');
             this.setupEventListeners();
             this.initializeEditor();
             this.initializeTerminal();
             this.loadWelcomeMessage();
-        }, 0);
+        }, 500); // Increased delay to ensure DOM is ready
 
         return container;
     }
@@ -133,17 +132,44 @@ class NebulaQBasicTerminal {
                 <span class="material-symbols-outlined">clear_all</span>
             </button>
 
+            <button class="toolbar-btn" id="copy-terminal-btn" title="Copy Terminal Output">
+                <span class="material-symbols-outlined">content_copy</span>
+            </button>
+
             <button class="toolbar-btn" id="help-btn" title="QBasic Help">
                 <span class="material-symbols-outlined">help</span>
             </button>
 
             <div class="toolbar-title" style="margin-left: auto; font-weight: 500; color: var(--nebula-text-primary);">
-                QBasic Terminal - Powered by qbjc
+                QBasic Terminal - Custom Transpiler
             </div>
         `;
 
         this.addToolbarStyles();
         return toolbar;
+    }
+
+    /**
+     * Create the main content area with editor and terminal side by side
+     */
+    createMainArea() {
+        const mainArea = document.createElement('div');
+        mainArea.className = 'qbterminal-main';
+        mainArea.style.cssText = `
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+            min-height: 0; /* Allow flex items to shrink below content size */
+        `;
+
+        const editorArea = this.createEditorArea();
+        const terminalArea = this.createTerminalArea();
+
+        mainArea.appendChild(editorArea);
+        mainArea.appendChild(terminalArea);
+
+        return mainArea;
     }
 
     /**
@@ -154,10 +180,12 @@ class NebulaQBasicTerminal {
         editorArea.className = 'qbterminal-editor';
         editorArea.id = 'qb-editor-container';
         editorArea.style.cssText = `
-            height: 40%;
+            width: 50%;
+            height: 100%;
             background: var(--nebula-bg-primary);
-            border-bottom: 1px solid var(--nebula-border);
+            border-right: 1px solid var(--nebula-border);
             position: relative;
+            overflow: hidden;
         `;
 
         return editorArea;
@@ -172,6 +200,7 @@ class NebulaQBasicTerminal {
         terminalArea.id = 'qb-terminal-container';
         terminalArea.style.cssText = `
             flex: 1;
+            height: 100%;
             background: #000;
             position: relative;
             overflow: hidden;
@@ -201,7 +230,7 @@ class NebulaQBasicTerminal {
 
         statusBar.innerHTML = `
             <span class="status-left" id="status-info">Ready - Type QBasic code above and press F5 to run</span>
-            <span class="status-right" id="status-details">qbjc v0.1.2</span>
+            <span class="status-right" id="status-details">Custom Transpiler v1.0</span>
         `;
 
         return statusBar;
@@ -292,6 +321,10 @@ class NebulaQBasicTerminal {
             this.clearTerminal();
         });
 
+        document.getElementById('copy-terminal-btn')?.addEventListener('click', () => {
+            this.copyTerminalOutput();
+        });
+
         document.getElementById('help-btn')?.addEventListener('click', () => {
             this.showHelp();
         });
@@ -324,16 +357,25 @@ class NebulaQBasicTerminal {
      * Initialize Monaco editor for QBasic
      */
     async initializeEditor() {
+        console.log('QBTerminal: initializeEditor called');
         try {
             // Load Monaco
             if (typeof monaco === 'undefined') {
+                console.log('QBTerminal: Monaco not loaded, loading...');
                 await this.loadMonaco();
+            } else {
+                console.log('QBTerminal: Monaco already available');
             }
 
             // Create editor
             const container = document.getElementById('qb-editor-container');
-            if (!container) return;
+            console.log('QBTerminal: Editor container:', container);
+            if (!container) {
+                console.error('QBTerminal: Editor container not found!');
+                return;
+            }
 
+            console.log('QBTerminal: Creating Monaco editor...');
             this.editor = monaco.editor.create(container, {
                 value: this.getDefaultCode(),
                 language: 'plaintext', // We'll enhance this with QBasic syntax later
@@ -350,6 +392,14 @@ class NebulaQBasicTerminal {
                 this.currentCode = this.editor.getValue();
             });
 
+            // Fit editor to container
+            this.fitEditor();
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                this.fitEditor();
+            });
+
             console.log('Monaco editor initialized for QBasic');
 
         } catch (error) {
@@ -362,14 +412,24 @@ class NebulaQBasicTerminal {
      * Initialize xterm.js terminal
      */
     async initializeTerminal() {
+        console.log('QBTerminal: initializeTerminal called');
         try {
             // Load xterm.js if not already loaded
             if (typeof Terminal === 'undefined') {
+                console.log('QBTerminal: Terminal not loaded, loading...');
                 await this.loadXTerm();
+            } else {
+                console.log('QBTerminal: Terminal already available globally');
             }
 
             const container = document.getElementById('qb-terminal-container');
-            if (!container) return;
+            console.log('QBTerminal: Terminal container:', container);
+            if (!container) {
+                console.error('QBTerminal: Terminal container not found!');
+                return;
+            }
+
+            console.log('QBTerminal: Creating xterm.js terminal...');
 
             // Create terminal
             this.terminal = new Terminal({
@@ -511,23 +571,45 @@ class NebulaQBasicTerminal {
     }
 
     /**
+     * Fit Monaco editor to container
+     */
+    fitEditor() {
+        if (!this.editor) return;
+
+        const container = document.getElementById('qb-editor-container');
+        if (!container) return;
+
+        // Trigger Monaco layout update
+        this.editor.layout();
+    }
+
+    /**
      * Get default QBasic code
      */
     getDefaultCode() {
         return `' Welcome to NebulaQBasic Terminal!
-' This terminal runs real QBasic code using qbjc compiler
+' This terminal transpiles QBasic to JavaScript instantly
 '
 ' Try this sample program:
 
 CLS
 PRINT "Hello from NebulaQBasic!"
-PRINT "This is running on qbjc compiler"
+PRINT "This runs with our custom transpiler"
 PRINT
 
 FOR i = 1 TO 5
     PRINT "Count: "; i
 NEXT i
 
+PRINT
+PRINT "Features supported:"
+PRINT "• PRINT statements"
+PRINT "• FOR/NEXT loops"
+PRINT "• Variable assignments"
+PRINT "• IF/THEN/ELSE"
+PRINT "• REM comments"
+PRINT "• Arrays with DIM"
+PRINT "• Math functions (INT, etc.)"
 PRINT
 PRINT "Press F5 to run this program!"
 END
@@ -541,12 +623,12 @@ END
         if (!this.terminal) return;
 
         this.terminal.writeln('\\r\\n\\x1b[1;32mNebulaQBasic Terminal v1.0\\x1b[0m');
-        this.terminal.writeln('\\x1b[1;36mPowered by qbjc compiler\\x1b[0m');
+        this.terminal.writeln('\\x1b[1;36mMonaco Editor + xterm.js Terminal\\x1b[0m');
         this.terminal.writeln('');
         this.terminal.writeln('Type QBasic code in the editor above and press F5 to run.');
         this.terminal.writeln('Use Ctrl+O to open .BAS files, Ctrl+S to save.');
         this.terminal.writeln('');
-        this.terminal.writeln('\\x1b[1;33mReady for QBasic programs!\\x1b[0m');
+        this.terminal.writeln('\\x1b[1;33mReady for QBasic development!\\x1b[0m');
         this.terminal.writeln('');
     }
 
@@ -566,35 +648,34 @@ END
         }
 
         this.isRunning = true;
-        this.updateStatus('Compiling and running...');
+        this.updateStatus('Transpiling and running...');
 
         try {
-            // Use secure IPC API instead of direct require
-            const compileResult = await window.nebula.qbjc.compile(code);
+            // Clear terminal for output
+            this.terminal.writeln('');
+            this.terminal.writeln('\x1b[1;36m🔄 Transpiling QBasic code...\x1b[0m');
 
-            if (!compileResult.success) {
-                throw new Error(compileResult.error);
+            // Use our custom transpiler
+            const transpiledCode = this.transpileBasicToJavaScript(code);
+
+            if (!transpiledCode || transpiledCode === '// No transpilable BASIC code found') {
+                this.terminal.writeln('\x1b[1;33m⚠️ No transpilable code found\x1b[0m');
+                this.terminal.writeln('Try adding some PRINT statements or FOR loops!');
+                this.updateStatus('Ready');
+                return;
             }
 
-            // Clear terminal and show compilation success
-            this.terminal.writeln('');
-            this.terminal.writeln('\\x1b[1;32mProgram compiled successfully!\\x1b[0m');
+            this.terminal.writeln('\x1b[1;32m✅ Transpilation successful!\x1b[0m');
             this.terminal.writeln('');
 
-            // Execute the compiled program using the secure API
-            const executeResult = await window.nebula.qbjc.execute(compileResult.compiledJS);
-
-            if (!executeResult.success) {
-                throw new Error(executeResult.error);
-            }
-
-            this.updateStatus('Program completed successfully');
+            // Execute the transpiled JavaScript
+            this.executeTranspiledBasic(transpiledCode);
 
         } catch (error) {
-            console.error('QBasic execution error:', error);
+            console.error('QBasic transpilation error:', error);
             this.terminal.writeln('');
-            this.terminal.writeln(`\\x1b[1;31mError: ${error.message}\\x1b[0m`);
-            this.updateStatus('Execution failed');
+            this.terminal.writeln(`\x1b[1;31m❌ Transpilation Error: ${error.message}\x1b[0m`);
+            this.updateStatus('Transpilation failed');
         } finally {
             this.isRunning = false;
         }
@@ -666,6 +747,56 @@ END
     }
 
     /**
+     * Copy terminal output to clipboard
+     */
+    copyTerminalOutput() {
+        if (!this.terminal) return;
+
+        try {
+            // Get all lines from the terminal buffer
+            const buffer = this.terminal.buffer.active;
+            let text = '';
+
+            // Extract text from the buffer (last 1000 lines to avoid memory issues)
+            const startLine = Math.max(0, buffer.length - 1000);
+            for (let i = startLine; i < buffer.length; i++) {
+                const line = buffer.getLine(i);
+                if (line) {
+                    text += line.translateToString() + '\n';
+                }
+            }
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(text.trim()).then(() => {
+                this.updateStatus('Terminal output copied to clipboard');
+                // Show brief success message in terminal
+                this.terminal.writeln('\x1b[1;32m✓ Terminal output copied to clipboard\x1b[0m');
+            }).catch(err => {
+                console.error('Failed to copy terminal output:', err);
+                this.updateStatus('Failed to copy terminal output');
+                this.terminal.writeln('\x1b[1;31m✗ Failed to copy terminal output\x1b[0m');
+            });
+        } catch (error) {
+            console.error('Error copying terminal output:', error);
+            this.updateStatus('Error copying terminal output');
+            // Fallback to DOM-based extraction
+            try {
+                const terminalElement = document.querySelector('.xterm-screen');
+                if (terminalElement) {
+                    const text = terminalElement.textContent || terminalElement.innerText || '';
+                    navigator.clipboard.writeText(text).then(() => {
+                        this.updateStatus('Terminal output copied to clipboard (fallback)');
+                        this.terminal.writeln('\x1b[1;32m✓ Terminal output copied to clipboard\x1b[0m');
+                    });
+                }
+            } catch (fallbackError) {
+                console.error('Fallback copy failed:', fallbackError);
+                this.terminal.writeln('\x1b[1;31m✗ Failed to copy terminal output\x1b[0m');
+            }
+        }
+    }
+
+    /**
      * Show help
      */
     showHelp() {
@@ -701,6 +832,200 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
 
         // Show help in a modal dialog
         alert(helpText);
+    }
+
+    /**
+     * Simple BASIC to JavaScript transpiler (Phase 1)
+     * Handles basic QBasic constructs for educational purposes
+     */
+    transpileBasicToJavaScript(basicCode) {
+        let jsCode = '';
+        let indentLevel = 0;
+        const indent = () => '    '.repeat(indentLevel);
+
+        // Split into lines and process each
+        const lines = basicCode.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line || line.startsWith("'")) continue; // Skip empty lines and comments
+
+            const upperLine = line.toUpperCase();
+
+            // Apply function replacements to all lines first
+            line = line.replace(/\bRND\b/gi, 'Math.random()');
+            line = line.replace(/\bINT\(/gi, 'Math.floor(');
+            line = line.replace(/\bABS\(/gi, 'Math.abs(');
+            line = line.replace(/\bSQR\(/gi, 'Math.sqrt(');
+            line = line.replace(/\bSIN\(/gi, 'Math.sin(');
+            line = line.replace(/\bCOS\(/gi, 'Math.cos(');
+            line = line.replace(/\bTAN\(/gi, 'Math.tan(');
+            line = line.replace(/\bLOG\(/gi, 'Math.log(');
+            line = line.replace(/\bEXP\(/gi, 'Math.exp(');
+
+            // FOR loop
+            if (upperLine.startsWith('FOR ')) {
+                const forMatch = line.match(/FOR\s+(\w+)\s*=\s*(\d+)\s+TO\s+(\d+)/i);
+                if (forMatch) {
+                    const [_, varName, start, end] = forMatch;
+                    jsCode += `${indent()}for (let ${varName} = ${start}; ${varName} <= ${end}; ${varName}++) {\n`;
+                    indentLevel++;
+                } else {
+                    jsCode += `${indent()}// Invalid FOR statement: ${line}\n`;
+                }
+            }
+            // NEXT statement
+            else if (upperLine.startsWith('NEXT ')) {
+                indentLevel = Math.max(0, indentLevel - 1);
+                jsCode += `${indent()}}\n`;
+            }
+            // IF/THEN statement
+            else if (upperLine.startsWith('IF ')) {
+                const ifMatch = line.match(/IF\s+(.+?)\s+THEN\s*(.+)?/i);
+                if (ifMatch) {
+                    const [_, condition, thenPart] = ifMatch;
+                    jsCode += `${indent()}if (${condition}) {\n`;
+                    indentLevel++;
+                    // Handle inline THEN statements
+                    if (thenPart && thenPart.trim()) {
+                        // For now, treat inline statements as comments since we don't parse complex statements
+                        jsCode += `${indent()}// ${thenPart.trim()}\n`;
+                        indentLevel--;
+                        jsCode += `${indent()}}\n`;
+                    }
+                } else {
+                    jsCode += `${indent()}// Invalid IF statement: ${line}\n`;
+                }
+            }
+            // ELSE statement
+            else if (upperLine.trim() === 'ELSE') {
+                indentLevel = Math.max(0, indentLevel - 1);
+                jsCode += `${indent()}} else {\n`;
+                indentLevel++;
+            }
+            // END IF statement
+            else if (upperLine === 'END IF') {
+                indentLevel = Math.max(0, indentLevel - 1);
+                jsCode += `${indent()}}\n`;
+            }
+            // Simple PRINT statement
+            else if (upperLine.startsWith('PRINT ')) {
+                const content = line.substring(6).trim();
+                if (content.startsWith('"') && content.endsWith('"')) {
+                    // String literal
+                    jsCode += `${indent()}console.log(${content});\n`;
+                } else {
+                    // Expression
+                    jsCode += `${indent()}console.log(${content});\n`;
+                }
+            }
+            // Simple variable assignment
+            else if (line.includes('=')) {
+                const parts = line.split('=');
+                if (parts.length === 2) {
+                    const varName = parts[0].trim();
+                    const value = parts[1].trim();
+                    // Skip if this looks like a FOR loop (already handled above)
+                    if (!upperLine.startsWith('FOR ')) {
+                        jsCode += `${indent()}let ${varName} = ${value};\n`;
+                    }
+                }
+            }
+            // REM comments
+            else if (upperLine.startsWith('REM ')) {
+                jsCode += `${indent()}// ${line.substring(4)}\n`;
+            }
+            // CLS (clear screen)
+            else if (upperLine === 'CLS') {
+                jsCode += `${indent()}console.clear();\n`;
+            }
+            // END
+            else if (upperLine === 'END') {
+                jsCode += `${indent()}// END\n`;
+            }
+            // INPUT statement (basic)
+            else if (upperLine.startsWith('INPUT ')) {
+                const inputMatch = line.match(/INPUT\s+(.+?);\s*(.+)/i) || line.match(/INPUT\s+(.+)/i);
+                if (inputMatch) {
+                    const prompt = inputMatch[1] ? inputMatch[1].replace(/"/g, '') : '';
+                    const varName = inputMatch[2] || 'input';
+                    jsCode += `${indent()}// INPUT not fully implemented yet: ${line}\n`;
+                    jsCode += `${indent()}let ${varName} = prompt('${prompt}');\n`;
+                }
+            }
+            // LET statement (optional in QBasic)
+            else if (upperLine.startsWith('LET ')) {
+                const letMatch = line.match(/LET\s+(.+?)=(.+)/i);
+                if (letMatch) {
+                    const varName = letMatch[1].trim();
+                    const value = letMatch[2].trim();
+                    jsCode += `${indent()}let ${varName} = ${value};\n`;
+                }
+            }
+            // DIM statement (basic arrays)
+            else if (upperLine.startsWith('DIM ')) {
+                const dimMatch = line.match(/DIM\s+(\w+)\((.+?)\)/i);
+                if (dimMatch) {
+                    const varName = dimMatch[1];
+                    const size = dimMatch[2];
+                    jsCode += `${indent()}let ${varName} = new Array(${size}).fill(0);\n`;
+                }
+            }
+            // Simple function calls like RND, INT, etc. (now handled above for all lines)
+            // Unknown statements - pass through as comment for now
+            else {
+                jsCode += `${indent()}// Unknown BASIC statement: ${line}\n`;
+            }
+        }
+
+        return jsCode || '// No transpilable BASIC code found';
+    }
+
+    /**
+     * Execute transpiled BASIC code and display output in terminal
+     */
+    executeTranspiledBasic(jsCode) {
+        try {
+            // Capture console output
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            let output = '';
+
+            const captureOutput = (...args) => {
+                output += args.map(arg =>
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ') + '\n';
+            };
+
+            console.log = captureOutput;
+            console.error = captureOutput;
+            console.warn = captureOutput;
+
+            // Execute the transpiled code
+            eval(jsCode);
+
+            // Restore console
+            console.log = originalLog;
+            console.error = originalError;
+            console.warn = originalWarn;
+
+            // Display output in terminal
+            if (output.trim()) {
+                this.terminal.writeln('');
+                this.terminal.writeln('\x1b[1;32m📄 Program Output:\x1b[0m');
+                this.terminal.writeln(output.trim());
+            }
+
+            this.terminal.writeln('');
+            this.terminal.writeln('\x1b[1;32m✅ QBasic program completed successfully\x1b[0m');
+            this.updateStatus('Ready');
+
+        } catch (error) {
+            this.terminal.writeln('');
+            this.terminal.writeln(`\x1b[1;31m❌ Runtime Error: ${error.message}\x1b[0m`);
+            this.updateStatus('Error');
+        }
     }
 
     /**

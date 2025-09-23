@@ -121,13 +121,13 @@ contextBridge.exposeInMainWorld('nebula', {
         proxyFetch: (req) => ipcRenderer.invoke('assistant:proxy-fetch', req)
     },
 
-    // 🔸 QBASIC COMPILATION API - DISABLED DUE TO ISSUES
-    // qbjc: {
-    //     // Compile QBasic code to JavaScript
-    //     compile: (qbasicCode) => ipcRenderer.invoke('qbjc:compile', qbasicCode),
-    //     // Execute compiled QBasic code
-    //     execute: (compiledJS) => ipcRenderer.invoke('qbjc:execute', compiledJS)
-    // },
+    // 🔸 QBASIC COMPILATION API - ENABLED
+    qbjc: {
+        // Compile QBasic code to JavaScript
+        compile: (qbasicCode) => ipcRenderer.invoke('qbjc:compile', qbasicCode),
+        // Execute compiled QBasic code
+        execute: (compiledJS) => ipcRenderer.invoke('qbjc:execute', compiledJS)
+    },
 
     // Events
     on: (channel, callback) => {
