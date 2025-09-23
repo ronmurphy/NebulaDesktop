@@ -489,8 +489,10 @@ forceIconConversion() {
 
                 case 'qbterminal':
                     if (window.NebulaQBasicTerminal) {
+                        window.QBTERMINAL_AUTO_INIT = true;
                         new NebulaQBasicTerminal();
                         this.trackAppLaunched('qbterminal');
+                        delete window.QBTERMINAL_AUTO_INIT;
                     } else {
                         this.showError('QBasic Terminal app not available. Make sure QBTerminal.js is loaded.');
                     }

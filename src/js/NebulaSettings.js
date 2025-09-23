@@ -124,6 +124,21 @@ class NebulaSettings {
             }
         });
     }
+
+    /**
+     * Utility function to adjust color brightness
+     */
+    adjustBrightness(hex, factor) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        
+        const newR = Math.min(255, Math.round(r * factor));
+        const newG = Math.min(255, Math.round(g * factor));
+        const newB = Math.min(255, Math.round(b * factor));
+        
+        return `#${[newR, newG, newB].map(x => x.toString(16).padStart(2, '0')).join('')}`;
+    }
     
     /**
      * Create the settings interface
@@ -2639,6 +2654,14 @@ class NebulaSettings {
             if (themeData.wallpaperSettings?.image) {
                 const body = document.body;
                 body.style.backgroundImage = `url(${themeData.wallpaperSettings.image})`;
+                // Also apply to desktop element
+                const desktop = document.getElementById('desktop');
+                if (desktop) {
+                    desktop.style.backgroundImage = `url(${themeData.wallpaperSettings.image})`;
+                    desktop.style.backgroundSize = 'cover';
+                    desktop.style.backgroundPosition = 'center';
+                    desktop.style.backgroundRepeat = 'no-repeat';
+                }
                 body.style.backgroundAttachment = 'fixed';
                 body.style.backgroundSize = 'cover';
                 body.style.backgroundRepeat = 'no-repeat';
@@ -2732,6 +2755,14 @@ class NebulaSettings {
             case 'image':
                 if (this.wallpaperSettings.image) {
                     body.style.backgroundImage = `url(${this.wallpaperSettings.image})`;
+                    // Also apply to desktop element
+                    const desktop = document.getElementById('desktop');
+                    if (desktop) {
+                        desktop.style.backgroundImage = `url(${this.wallpaperSettings.image})`;
+                        desktop.style.backgroundSize = 'cover';
+                        desktop.style.backgroundPosition = 'center';
+                        desktop.style.backgroundRepeat = 'no-repeat';
+                    }
                     body.style.backgroundAttachment = 'fixed';
                     body.style.backgroundSize = 'cover';
                     body.style.backgroundRepeat = 'no-repeat';
@@ -3934,6 +3965,14 @@ class NebulaSettings {
                 if (settings.wallpaperSettings?.image) {
                     const body = document.body;
                     body.style.backgroundImage = `url(${settings.wallpaperSettings.image})`;
+                    // Also apply to desktop element
+                    const desktop = document.getElementById('desktop');
+                    if (desktop) {
+                        desktop.style.backgroundImage = `url(${settings.wallpaperSettings.image})`;
+                        desktop.style.backgroundSize = 'cover';
+                        desktop.style.backgroundPosition = 'center';
+                        desktop.style.backgroundRepeat = 'no-repeat';
+                    }
                     body.style.backgroundAttachment = 'fixed';
                     body.style.backgroundSize = 'cover';
                     body.style.backgroundRepeat = 'no-repeat';
@@ -4009,21 +4048,6 @@ class NebulaSettings {
         } catch (error) {
             console.warn('Could not auto-load saved theme:', error);
         }
-    }
-
-    /**
-     * Utility function to adjust color brightness
-     */
-    adjustBrightness(hex, factor) {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        
-        const newR = Math.min(255, Math.round(r * factor));
-        const newG = Math.min(255, Math.round(g * factor));
-        const newB = Math.min(255, Math.round(b * factor));
-        
-        return `#${[newR, newG, newB].map(x => x.toString(16).padStart(2, '0')).join('')}`;
     }
 
     previewWallpaper() {

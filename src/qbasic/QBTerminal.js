@@ -10,13 +10,17 @@ class NebulaQBasicTerminal {
         this.currentCode = '';
         this.isRunning = false;
 
-        this.init();
+        // Only auto-init if explicitly requested (not on script load)
+        if (window.QBTERMINAL_AUTO_INIT) {
+            this.init();
+        }
     }
 
     async init() {
+        // Wait for WindowManager to be available
         if (!window.windowManager) {
-            console.error('WindowManager not available');
-            return;
+            console.log('QBTerminal: Waiting for WindowManager...');
+            await this.waitForWindowManager();
         }
 
         // Create window with proper dimensions for terminal
@@ -33,6 +37,19 @@ class NebulaQBasicTerminal {
         window.windowManager.loadApp(this.windowId, this);
 
         console.log(`QBasic Terminal initialized with window ${this.windowId}`);
+    }
+
+    async waitForWindowManager() {
+        return new Promise((resolve) => {
+            const checkWM = () => {
+                if (window.windowManager) {
+                    resolve();
+                } else {
+                    setTimeout(checkWM, 100);
+                }
+            };
+            checkWM();
+        });
     }
 
     /**
@@ -393,15 +410,61 @@ class NebulaQBasicTerminal {
      */
     async loadMonaco() {
         return new Promise((resolve, reject) => {
+            // Check if Monaco is already loaded globally
             if (window.monaco) {
+                console.log('Monaco already loaded globally');
                 resolve();
+                return;
+            }
+
+            // Check if Monaco loader script is already loaded
+            const existingLoader = document.querySelector('script[src*="monaco-editor"][src*="loader.min.js"]');
+            if (existingLoader) {
+                console.log('Monaco loader script already exists, waiting for it to load...');
+                // Wait for the existing script to finish loading
+                const checkMonaco = () => {
+                    if (window.monaco) {
+                        resolve();
+                    } else {
+                        setTimeout(checkMonaco, 100);
+                    }
+                };
+                checkMonaco();
                 return;
             }
 
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
             script.onload = () => {
-                require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+                // Configure require to work with nodeIntegration
+                require.config({
+                    paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' },
+                    // Disable Node.js file system access for CDN URLs
+                    nodeRequire: false,
+                    nodeMain: false
+                });
+
+                // Override the loader's file reading to use fetch for HTTP URLs
+                const originalLoad = require.load;
+                require.load = function(context, moduleName, url) {
+                    if (url && url.startsWith('http')) {
+                        // Use fetch for HTTP URLs instead of Node.js fs
+                        return fetch(url)
+                            .then(response => response.text())
+                            .then(text => {
+                                eval(text);
+                                context.completeLoad(moduleName);
+                            })
+                            .catch(error => {
+                                console.error('Failed to load Monaco module:', url, error);
+                                context.onError(error);
+                            });
+                    } else {
+                        // Use original loader for other URLs
+                        return originalLoad.call(this, context, moduleName, url);
+                    }
+                };
+
                 require(['vs/editor/editor.main'], () => {
                     resolve();
                 });
@@ -506,26 +569,24 @@ END
         this.updateStatus('Compiling and running...');
 
         try {
-            // Import qbjc dynamically
-            const { compile } = await import('qbjc');
+            // Use secure IPC API instead of direct require
+            const compileResult = await window.nebula.qbjc.compile(code);
 
-            // Compile QBasic code
-            const compileResult = await compile({
-                source: code,
-                sourceFileName: 'program.bas'
-            });
+            if (!compileResult.success) {
+                throw new Error(compileResult.error);
+            }
 
             // Clear terminal and show compilation success
             this.terminal.writeln('');
             this.terminal.writeln('\\x1b[1;32mProgram compiled successfully!\\x1b[0m');
             this.terminal.writeln('');
 
-            // Create browser executor for xterm.js
-            const { BrowserExecutor } = await import('qbjc/browser');
-            const executor = new BrowserExecutor(this.terminal);
+            // Execute the compiled program using the secure API
+            const executeResult = await window.nebula.qbjc.execute(compileResult.compiledJS);
 
-            // Execute the compiled program
-            await executor.executeModule(compileResult.code);
+            if (!executeResult.success) {
+                throw new Error(executeResult.error);
+            }
 
             this.updateStatus('Program completed successfully');
 

@@ -68,19 +68,17 @@
     5. Desktop Environment (renderer.js)
     -->
 
-    <!-- Load WindowManager FIRST -->
-    <!-- Screenshot Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Load Desktop Environment FIRST (creates #desktop element) -->
+    <script src="js/renderer.js"></script>
 
-
-
+    <!-- Load WindowManager SECOND -->
     <script src="js/WindowManager.js"></script>
     <script src="js/nebula-theme-manager.js"></script>
 
     <!-- Widget System - Load BEFORE apps and renderer -->
-    <script src="js/NebulaWidgetSystem.js"></script>
+    <!-- <script src="js/NebulaWidgetSystem.js"></script>
     <script src="js/Widgets/NebulaLauncher.js"></script>
-    <script src="js/Widgets/NebulaClock.js"></script>
+    <script src="js/Widgets/NebulaClock.js"></script> -->
 
 
 
@@ -110,8 +108,7 @@
     <!-- Widget Integration - Load AFTER widgets but BEFORE renderer -->
     <script src="js/WidgetIntegration.js"></script>
 
-    <!-- Load Desktop Environment LAST -->
-    <script src="js/renderer.js"></script>
+    <!-- Load taskbar theme LAST -->
     <script src="js/taskbar-theme.js"></script>
 
 </body>

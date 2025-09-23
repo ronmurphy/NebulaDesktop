@@ -37,8 +37,8 @@ class NebulaDesktop {
             frame: !this.isFullscreen,
             kiosk: this.isFullscreen && !process.argv.includes('--dev'),
             webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true,
+                nodeIntegration: false,  // Disable for security
+                contextIsolation: true,  // Enable for security
                 preload: path.join(__dirname, 'src', 'preload.js'),
                 webviewTag: true  // Enable webview for web apps
             }
@@ -606,6 +606,66 @@ class NebulaDesktop {
 
         // 🔸 SCREENSHOT HANDLERS - NEW!
         this.setupScreenshotHandlers();
+
+        // 🔸 QBASIC COMPILATION HANDLERS - DISABLED DUE TO ISSUES
+        // this.setupQBJCHandlers();
+    }
+
+    // 🔸 QBJC Compilation functionality - NEW!
+    setupQBJCHandlers() {
+        try {
+            // Try to load qbjc - it should be installed via npm
+            const qbjc = require('qbjc');
+            const { compile } = qbjc;
+            const { BrowserExecutor } = require('qbjc/browser');
+
+            console.log('✅ QBJC compiler loaded successfully');
+
+            // Compile QBasic code to JavaScript
+            ipcMain.handle('qbjc:compile', async (event, qbasicCode) => {
+                try {
+                    console.log('🔄 Compiling QBasic code...');
+                    const compiledJS = compile(qbasicCode);
+                    console.log('✅ QBasic compilation successful');
+                    return { success: true, compiledJS };
+                } catch (error) {
+                    console.error('❌ QBasic compilation failed:', error);
+                    return { success: false, error: error.message };
+                }
+            });
+
+            // Execute compiled QBasic code
+            ipcMain.handle('qbjc:execute', async (event, compiledJS) => {
+                try {
+                    console.log('🔄 Executing compiled QBasic code...');
+
+                    // Create a browser executor instance
+                    const executor = new BrowserExecutor();
+
+                    // Execute the compiled code
+                    const result = await executor.execute(compiledJS);
+
+                    console.log('✅ QBasic execution completed');
+                    return { success: true, result };
+                } catch (error) {
+                    console.error('❌ QBasic execution failed:', error);
+                    return { success: false, error: error.message };
+                }
+            });
+
+        } catch (error) {
+            console.warn('⚠️ QBJC not available:', error.message);
+            console.warn('QBasic compilation features will be disabled');
+
+            // Provide fallback handlers that return errors
+            ipcMain.handle('qbjc:compile', async () => {
+                return { success: false, error: 'QBJC compiler not available. Please install with: npm install qbjc' };
+            });
+
+            ipcMain.handle('qbjc:execute', async () => {
+                return { success: false, error: 'QBJC compiler not available. Please install with: npm install qbjc' };
+            });
+        }
     }
 
     // 🔸 Screenshot functionality - NEW!
@@ -748,8 +808,8 @@ class NebulaDesktop {
             parent: this.mainWindow,
             modal: false,
             webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true,
+                nodeIntegration: false,  // Disable for security
+                contextIsolation: true,  // Enable for security
                 preload: path.join(__dirname, 'src', 'preload.js')
             }
         });

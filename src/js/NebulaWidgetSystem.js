@@ -121,13 +121,33 @@ class NebulaWidgetSystem {
      */
     init() {
         console.log('🧩 Initializing NebulaWidgetSystem...');
-        
+
+        // Wait for desktop to be ready before creating widget container
+        this.waitForDesktopAndInit();
+    }
+
+    /**
+     * Wait for desktop element to be available, then initialize
+     */
+    waitForDesktopAndInit() {
+        const desktop = document.getElementById('desktop');
+        if (!desktop) {
+            console.log('⏳ Waiting for desktop element...');
+            // Retry after a short delay
+            setTimeout(() => {
+                this.waitForDesktopAndInit();
+            }, 100);
+            return;
+        }
+
+        console.log('✅ Desktop element found, proceeding with widget system initialization');
+
         // Create widget container on desktop
         this.createWidgetContainer();
-        
+
         // Register built-in widgets
         this.registerBuiltInWidgets();
-        
+
         console.log('✅ NebulaWidgetSystem initialized');
     }
 
@@ -135,25 +155,20 @@ class NebulaWidgetSystem {
      * Create the main widget container
      */
     createWidgetContainer() {
-        // Wait for desktop element to be available
+        // Desktop element should be available now
         const desktop = document.getElementById('desktop');
         if (!desktop) {
-            console.warn('⚠️ Desktop element not found, retrying widget container creation...');
-            // Retry after a short delay
-            setTimeout(() => {
-                this.createWidgetContainer();
-            }, 100);
-            return;
+            throw new Error('Desktop element not found - cannot create widget container');
         }
 
         // Create widget layer that sits above desktop but below windows
         this.widgetContainer = document.createElement('div');
         this.widgetContainer.id = 'nebula-widget-layer';
         this.widgetContainer.className = 'widget-layer';
-        
+
         // Insert after desktop but before any windows
         desktop.appendChild(this.widgetContainer);
-        
+
         // Apply basic styles - Updated z-index ranges
         Object.assign(this.widgetContainer.style, {
             position: 'absolute',
@@ -164,7 +179,7 @@ class NebulaWidgetSystem {
             pointerEvents: 'none', // Allow clicks to pass through empty areas
             zIndex: '1500' // Widgets: 1000-1999, Windows: 2000-2999
         });
-        
+
         console.log('✅ Widget container created successfully', {
             containerId: this.widgetContainer.id,
             parent: desktop.id,

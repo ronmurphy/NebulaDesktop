@@ -121,20 +121,13 @@ contextBridge.exposeInMainWorld('nebula', {
         proxyFetch: (req) => ipcRenderer.invoke('assistant:proxy-fetch', req)
     },
 
-    // 🔸 SCREENSHOT API - NEW!
-    screenshot: {
-        // Capture entire screen
-        captureScreen: () => ipcRenderer.invoke('screenshot:capture-screen'),
-        
-        // Capture specific area
-        captureArea: (bounds) => ipcRenderer.invoke('screenshot:capture-area', bounds),
-        
-        // Get screen information
-        getScreenInfo: () => ipcRenderer.invoke('screenshot:get-screen-info'),
-        
-        // Save screenshot to file
-        saveToFile: (dataURL, filename) => ipcRenderer.invoke('screenshot:save-to-file', dataURL, filename)
-    },
+    // 🔸 QBASIC COMPILATION API - DISABLED DUE TO ISSUES
+    // qbjc: {
+    //     // Compile QBasic code to JavaScript
+    //     compile: (qbasicCode) => ipcRenderer.invoke('qbjc:compile', qbasicCode),
+    //     // Execute compiled QBasic code
+    //     execute: (compiledJS) => ipcRenderer.invoke('qbjc:execute', compiledJS)
+    // },
 
     // Events
     on: (channel, callback) => {

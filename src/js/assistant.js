@@ -743,7 +743,9 @@ AI Assistant
      */
     launchCodeAssistant() {
         try {
+            window.CODE_ASSISTANT_AUTO_INIT = true;
             const codeAssistant = new NebulaCodeAssistant();
+            delete window.CODE_ASSISTANT_AUTO_INIT;
             this.updateStatus('Code Assistant launched');
             console.log('Code Assistant launched successfully');
         } catch (error) {

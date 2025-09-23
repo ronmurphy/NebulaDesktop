@@ -95,7 +95,10 @@ class NebulaCodeAssistant {
         // Load saved preferences
         this.loadLayoutPreferences();
 
-        this.init();
+        // Only auto-init if explicitly requested (not on script load)
+        if (window.CODE_ASSISTANT_AUTO_INIT) {
+            this.init();
+        }
     }
 
     // 2. ADD NEW METHOD - Load layout preferences
@@ -257,9 +260,10 @@ class NebulaCodeAssistant {
     }
 
     async init() {
+        // Wait for WindowManager to be available
         if (!window.windowManager) {
-            console.error('WindowManager not available');
-            return;
+            console.log('CodeAssistant: Waiting for WindowManager...');
+            await this.waitForWindowManager();
         }
 
         this.windowId = window.windowManager.createWindow({
@@ -282,6 +286,19 @@ class NebulaCodeAssistant {
 
         window.windowManager.loadApp(this.windowId, this);
         console.log(`Code Assistant initialized with window ${this.windowId}`);
+    }
+
+    async waitForWindowManager() {
+        return new Promise((resolve) => {
+            const checkWM = () => {
+                if (window.windowManager) {
+                    resolve();
+                } else {
+                    setTimeout(checkWM, 100);
+                }
+            };
+            checkWM();
+        });
     }
 
     render() {
@@ -2929,10 +2946,54 @@ async consoleDiffMerge(sourceTabName, patchTabName) {
                 return;
             }
 
+            // Check if Monaco loader script is already loaded
+            const existingLoader = document.querySelector('script[src*="monaco-editor"][src*="loader.min.js"]');
+            if (existingLoader) {
+                console.log('Monaco loader script already exists, waiting for it to load...');
+                // Wait for the existing script to finish loading
+                const checkMonaco = () => {
+                    if (window.monaco) {
+                        resolve();
+                    } else {
+                        setTimeout(checkMonaco, 100);
+                    }
+                };
+                checkMonaco();
+                return;
+            }
+
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
             script.onload = () => {
-                require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+                // Configure require to work with nodeIntegration
+                require.config({
+                    paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' },
+                    // Disable Node.js file system access for CDN URLs
+                    nodeRequire: false,
+                    nodeMain: false
+                });
+
+                // Override the loader's file reading to use fetch for HTTP URLs
+                const originalLoad = require.load;
+                require.load = function(context, moduleName, url) {
+                    if (url && url.startsWith('http')) {
+                        // Use fetch for HTTP URLs instead of Node.js fs
+                        return fetch(url)
+                            .then(response => response.text())
+                            .then(text => {
+                                eval(text);
+                                context.completeLoad(moduleName);
+                            })
+                            .catch(error => {
+                                console.error('Failed to load Monaco module:', url, error);
+                                context.onError(error);
+                            });
+                    } else {
+                        // Use original loader for other URLs
+                        return originalLoad.call(this, context, moduleName, url);
+                    }
+                };
+
                 require(['vs/editor/editor.main'], () => {
                     resolve();
                 });
