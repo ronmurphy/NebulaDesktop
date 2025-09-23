@@ -57,6 +57,7 @@
     }
   },
   "dependencies": {
-    "diff-match-patch": "^1.0.5"
+    "diff-match-patch": "^1.0.5",
+    "qbjc": "^0.1.2"
   }
 }

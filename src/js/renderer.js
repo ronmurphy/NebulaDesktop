@@ -64,6 +64,7 @@ forceIconConversion() {
         '🌐': 'language',
         '📁': 'folder',
         '💻': 'terminal',
+        '🖥️': 'computer',
         '🧮': 'calculate'
     };
     
@@ -189,6 +190,13 @@ forceIconConversion() {
                 icon: '💻',
                 description: 'Command line interface',
                 keywords: ['command', 'cli', 'shell', 'console']
+            },
+            {
+                id: 'qbterminal',
+                name: 'QBasic Terminal',
+                icon: '🖥️',
+                description: 'QBasic compiler & runtime',
+                keywords: ['qbasic', 'basic', 'programming', 'compiler', 'retro']
             },
             {
                 id: 'calculator',
@@ -476,6 +484,15 @@ forceIconConversion() {
                         this.trackAppLaunched('terminal');
                     } else {
                         this.showError('Terminal app not available. Make sure NebulaTerminal.js is loaded.');
+                    }
+                    break;
+
+                case 'qbterminal':
+                    if (window.NebulaQBasicTerminal) {
+                        new NebulaQBasicTerminal();
+                        this.trackAppLaunched('qbterminal');
+                    } else {
+                        this.showError('QBasic Terminal app not available. Make sure QBTerminal.js is loaded.');
                     }
                     break;
 

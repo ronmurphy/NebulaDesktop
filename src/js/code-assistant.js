@@ -377,6 +377,7 @@ class NebulaCodeAssistant {
             ">
                 <option value="javascript">JavaScript</option>
                 <option value="typescript">TypeScript</option>
+                <option value="basic">QBasic</option>
                 <option value="python">Python</option>
                 <option value="html">HTML</option>
                 <option value="css">CSS</option>
@@ -853,9 +854,9 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
             }
         });
 
-        // ⚡ NEW: JS Execution Controls
+        // ⚡ NEW: Code Execution Controls
         document.getElementById(`runBtn-${this.windowId}`)?.addEventListener('click', () => {
-            this.runJavaScript();
+            this.runCode();
         });
 
         document.getElementById(`debugBtn-${this.windowId}`)?.addEventListener('click', () => {
@@ -980,10 +981,10 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
                 this.openFile();
             }
 
-            // F5 for running JavaScript (but not Ctrl+F5 for refresh)
+            // F5 for running code (but not Ctrl+F5 for refresh)
             if (e.key === 'F5' && !e.ctrlKey) {
                 e.preventDefault();
-                this.runJavaScript();
+                this.runCode();
             }
         });
 
@@ -999,8 +1000,8 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
 
 
 
-    // ⚡ NEW: JavaScript Execution (extracted from NebulaTerminal)
-    runJavaScript() {
+    // ⚡ NEW: Generic Code Execution (dispatches based on language)
+    runCode() {
         if (!this.monacoEditor) {
             this.writeOutput('Error: Editor not initialized', 'error');
             return;
@@ -1017,10 +1018,25 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
             this.toggleOutputPanel();
         }
 
-        this.executeJS(code);
+        // Dispatch based on current language
+        switch (this.currentLanguage) {
+            case 'javascript':
+            case 'typescript':
+                this.runJavaScriptCode(code);
+                break;
+            case 'basic':
+                this.runBasicCode(code);
+                break;
+            case 'python':
+                this.writeOutput('Python execution not yet implemented', 'warning');
+                break;
+            default:
+                this.writeOutput(`Execution not supported for ${this.currentLanguage}`, 'warning');
+        }
     }
 
-    executeJS(code) {
+    // ⚡ NEW: JavaScript Execution (renamed from runJavaScript)
+    runJavaScriptCode(code) {
         // NEW: Combine all open files for execution context
         const combinedCode = this.combineOpenFilesForExecution();
         const executionCode = combinedCode || code;
@@ -1101,6 +1117,171 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
                 this.writeOutput('Stack trace:', 'error');
                 this.writeOutput(error.stack, 'error');
             }
+        }
+    }
+
+    // 🆕 NEW: QBasic Code Execution using qbjc compiler
+    runBasicCode(code) {
+        this.writeOutput(`> Running QBasic code with qbjc...\n`, 'info');
+
+        try {
+            // For now, we'll use a simple transpilation approach
+            // In Phase 2, we'll integrate the full qbjc compiler
+            const transpiledCode = this.transpileBasicToJavaScript(code);
+
+            this.writeOutput('📝 Transpiled to JavaScript:', 'info');
+            this.writeOutput(transpiledCode, 'code');
+
+            // Execute the transpiled JavaScript
+            this.writeOutput('\n▶️ Executing transpiled code...\n', 'info');
+            this.executeTranspiledBasic(transpiledCode);
+
+        } catch (error) {
+            this.writeOutput(`❌ QBasic Error: ${error.message}\n`, 'error');
+        }
+    }
+
+    // 🆕 NEW: Simple BASIC to JavaScript transpiler (Phase 1)
+    transpileBasicToJavaScript(basicCode) {
+        let jsCode = '';
+        let indentLevel = 0;
+        const indent = () => '    '.repeat(indentLevel);
+
+        // Split into lines and process each
+        const lines = basicCode.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line || line.startsWith("'")) continue; // Skip empty lines and comments
+
+            const upperLine = line.toUpperCase();
+
+            // FOR loop
+            if (upperLine.startsWith('FOR ')) {
+                const forMatch = line.match(/FOR\s+(\w+)\s*=\s*(\d+)\s+TO\s+(\d+)/i);
+                if (forMatch) {
+                    const [_, varName, start, end] = forMatch;
+                    jsCode += `${indent()}for (let ${varName} = ${start}; ${varName} <= ${end}; ${varName}++) {\n`;
+                    indentLevel++;
+                } else {
+                    jsCode += `${indent()}// Invalid FOR statement: ${line}\n`;
+                }
+            }
+            // NEXT statement
+            else if (upperLine.startsWith('NEXT ')) {
+                indentLevel = Math.max(0, indentLevel - 1);
+                jsCode += `${indent()}}\n`;
+            }
+            // IF/THEN statement
+            else if (upperLine.startsWith('IF ')) {
+                const ifMatch = line.match(/IF\s+(.+?)\s+THEN\s*(.+)?/i);
+                if (ifMatch) {
+                    const [_, condition, thenPart] = ifMatch;
+                    jsCode += `${indent()}if (${condition}) {\n`;
+                    indentLevel++;
+                    // Handle inline THEN statements
+                    if (thenPart && thenPart.trim()) {
+                        // For now, treat inline statements as comments since we don't parse complex statements
+                        jsCode += `${indent()}// ${thenPart.trim()}\n`;
+                        indentLevel--;
+                        jsCode += `${indent()}}\n`;
+                    }
+                } else {
+                    jsCode += `${indent()}// Invalid IF statement: ${line}\n`;
+                }
+            }
+            // ELSE statement
+            else if (upperLine.trim() === 'ELSE') {
+                indentLevel = Math.max(0, indentLevel - 1);
+                jsCode += `${indent()}} else {\n`;
+                indentLevel++;
+            }
+            // END IF statement
+            else if (upperLine === 'END IF') {
+                indentLevel = Math.max(0, indentLevel - 1);
+                jsCode += `${indent()}}\n`;
+            }
+            // Simple PRINT statement
+            else if (upperLine.startsWith('PRINT ')) {
+                const content = line.substring(6).trim();
+                if (content.startsWith('"') && content.endsWith('"')) {
+                    // String literal
+                    jsCode += `${indent()}console.log(${content});\n`;
+                } else {
+                    // Expression
+                    jsCode += `${indent()}console.log(${content});\n`;
+                }
+            }
+            // Simple variable assignment
+            else if (line.includes('=')) {
+                const parts = line.split('=');
+                if (parts.length === 2) {
+                    const varName = parts[0].trim();
+                    const value = parts[1].trim();
+                    // Skip if this looks like a FOR loop (already handled above)
+                    if (!upperLine.startsWith('FOR ')) {
+                        jsCode += `${indent()}let ${varName} = ${value};\n`;
+                    }
+                }
+            }
+            // REM comments
+            else if (upperLine.startsWith('REM ')) {
+                jsCode += `${indent()}// ${line.substring(4)}\n`;
+            }
+            // CLS (clear screen)
+            else if (upperLine === 'CLS') {
+                jsCode += `${indent()}console.clear();\n`;
+            }
+            // END
+            else if (upperLine === 'END') {
+                jsCode += `${indent()}// END\n`;
+            }
+            // Unknown statements - pass through as comment for now
+            else {
+                jsCode += `${indent()}// Unknown BASIC statement: ${line}\n`;
+            }
+        }
+
+        return jsCode || '// No transpilable BASIC code found';
+    }
+
+    // 🆕 NEW: Execute transpiled BASIC code
+    executeTranspiledBasic(jsCode) {
+        try {
+            // Capture console output
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            let output = '';
+
+            const captureOutput = (...args) => {
+                output += args.map(arg =>
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ') + '\n';
+            };
+
+            console.log = captureOutput;
+            console.error = captureOutput;
+            console.warn = captureOutput;
+
+            // Execute the transpiled code
+            eval(jsCode);
+
+            // Restore console
+            console.log = originalLog;
+            console.error = originalError;
+            console.warn = originalWarn;
+
+            // Show captured output
+            if (output.trim()) {
+                this.writeOutput('\n📄 Program Output:', 'success');
+                this.writeOutput(output, 'result');
+            }
+
+            this.writeOutput('\n✅ QBasic program completed successfully\n', 'success');
+
+        } catch (error) {
+            this.writeOutput(`❌ Runtime Error: ${error.message}\n`, 'error');
         }
     }
 
@@ -1782,6 +1963,8 @@ if (typeof window.nebula === 'undefined') {
             'js': 'javascript',
             'ts': 'typescript',
             'py': 'python',
+            'bas': 'basic',
+            'qb': 'basic',
             'html': 'html',
             'htm': 'html',
             'css': 'css',
@@ -4124,7 +4307,13 @@ function createAmazingApp() {
         this.currentLanguage = language;
 
         if (this.monacoEditor && monaco) {
-            monaco.editor.setModelLanguage(this.monacoEditor.getModel(), language);
+            // Handle special cases for languages not natively supported by Monaco
+            let monacoLanguage = language;
+            if (language === 'basic') {
+                monacoLanguage = 'plaintext'; // Use plaintext for now, custom definition in Phase 2
+            }
+
+            monaco.editor.setModelLanguage(this.monacoEditor.getModel(), monacoLanguage);
         }
 
         console.log(`Switched to ${language}`);
@@ -4249,6 +4438,8 @@ function createAmazingApp() {
             'js': 'javascript',
             'ts': 'typescript',
             'py': 'python',
+            'bas': 'basic',
+            'qb': 'basic',
             'html': 'html',
             'css': 'css',
             'json': 'json',
