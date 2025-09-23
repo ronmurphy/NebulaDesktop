@@ -271,15 +271,6 @@ class NebulaCodeAssistant {
             minimizable: true
         });
 
-            try {
-        await this.loadDiffMatchPatch();
-        console.log('✅ diff-match-patch pre-loaded');
-    } catch (e) {
-        console.warn('diff-match-patch not available:', e);
-    }
-
-
-
         window.windowManager.loadApp(this.windowId, this);
         console.log(`Code Assistant initialized with window ${this.windowId}`);
     }
@@ -307,25 +298,15 @@ class NebulaCodeAssistant {
         container.appendChild(chatSide);
 
         // Setup after DOM is ready
-        // setTimeout(() => {
-        //     this.setupEventListeners();
-        //     this.initializeMonaco();
-        //     this.createWebview();
-        //     this.setupErrorDetection(); // NEW: Add error detection
-        //     this.createNewTab(); // Initialize with first tab
-        //     this.updateWindowTitle(); // Set initial window title and status
-
-        //     // Update stub environment button state
-        //     this.updateStubEnvironmentButtonState();
-        // }, 0);
-
-                setTimeout(async () => {
+        setTimeout(() => {
             this.setupEventListeners();
-            await this.initializeMonaco();  // Wait for Monaco to load
+            this.initializeMonaco();
             this.createWebview();
-            this.setupErrorDetection();
-            this.createNewTab();  // Now Monaco is available
-            this.updateWindowTitle();
+            this.setupErrorDetection(); // NEW: Add error detection
+            this.createNewTab(); // Initialize with first tab
+            this.updateWindowTitle(); // Set initial window title and status
+
+            // Update stub environment button state
             this.updateStubEnvironmentButtonState();
         }, 0);
 
@@ -1565,34 +1546,11 @@ if (typeof window.nebula === 'undefined') {
 
     // ⚡ NEW: Multi-File Tab Management System
 
-    // createNewTab(filePath = null, content = null) {
-    //     const fileId = `file-${this.nextFileId++}`;
-    //     const fileName = filePath ? filePath.split('/').pop() : 'Untitled';
-    //     const language = this.detectLanguageFromPath(filePath || fileName);
-
-    //     const fileData = {
-    //         id: fileId,
-    //         path: filePath,
-    //         name: fileName,
-    //         content: content || this.getWelcomeCode(),
-    //         language: language,
-    //         hasUnsavedChanges: false,
-    //         monacoModel: null
-    //     };
-
-    //     this.openFiles.set(fileId, fileData);
-    //     this.createTabElement(fileData);
-    //     this.switchToTab(fileId);
-
-    //     console.log(`Created new tab: ${fileName}`);
-    //     return fileId;
-    // }
-
-        createNewTab(filePath = null, content = null) {
+    createNewTab(filePath = null, content = null) {
         const fileId = `file-${this.nextFileId++}`;
         const fileName = filePath ? filePath.split('/').pop() : 'Untitled';
         const language = this.detectLanguageFromPath(filePath || fileName);
-    
+
         const fileData = {
             id: fileId,
             path: filePath,
@@ -1602,20 +1560,12 @@ if (typeof window.nebula === 'undefined') {
             hasUnsavedChanges: false,
             monacoModel: null
         };
-    
-        // Create Monaco model with proper URI (use file name for lookup)
-        const uri = monaco.Uri.file(fileName);  // e.g., file:///code-assistant.js
-        fileData.monacoModel = monaco.editor.createModel(
-            fileData.content,
-            fileData.language,
-            uri  // Set the URI so uri.path ends with the file name
-        );
-    
+
         this.openFiles.set(fileId, fileData);
         this.createTabElement(fileData);
         this.switchToTab(fileId);
-    
-        console.log(`Created new tab: ${fileName} with URI: ${uri.toString()}`);
+
+        console.log(`Created new tab: ${fileName}`);
         return fileId;
     }
 
@@ -1981,438 +1931,69 @@ Please provide specific fixes for each error.`;
 }
 
 // --- Diff/Patch Merge using diff-match-patch ---
-// async diffMerge(sourceContent, patchContent) {
-//     // Load diff-match-patch from CDN if not available
-//     if (!window.diff_match_patch) {
-//         await this.loadDiffMatchPatch();
-//     }
-
-//     let DiffMatchPatch;
-//     try {
-//         DiffMatchPatch = window.diff_match_patch;
-//     } catch (e) {
-//         this.writeOutput('❌ diff-match-patch library not found.', 'error');
-//         throw new Error('diff-match-patch not available');
-//     }
-
-//     const dmp = new DiffMatchPatch();
-
-//     // Parse the patch (unified diff format)
-//     let patches;
-//     try {
-//         patches = dmp.patch_fromText(patchContent);
-//     } catch (err) {
-//         this.writeOutput('❌ Failed to parse patch/diff file: ' + err.message, 'error');
-//         throw err;
-//     }
-
-//     // Apply the patch
-//     const [mergedText, results] = dmp.patch_apply(patches, sourceContent);
-
-//     // Check for failed patches
-//     if (results.some(r => !r)) {
-//         this.writeOutput('⚠️ Some hunks in the patch did not apply cleanly.', 'warning');
-//     }
-
-//     return mergedText;
-// }
-
-async loadJSDiff() {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/jsdiff@5.1.0/dist/jsdiff.umd.js';
-        script.onload = () => {
-            console.log('✅ jsdiff loaded from CDN (UMD)');
-            resolve();
-        };
-        script.onerror = (e) => {
-            console.error('❌ Failed to load jsdiff from CDN', e);
-            reject(e);
-        };
-        document.head.appendChild(script);
-    });
-}
-
-// async diffMerge(sourceContent, patchContent) {
-//     // Load jsdiff from CDN if not available
-//     if (!window.jsdiff) {
-//         await this.loadJSDiff();
-//     }
-
-//     let jsdiff;
-//     try {
-//         jsdiff = window.jsdiff;
-//     } catch (e) {
-//         this.writeOutput('❌ jsdiff library not found.', 'error');
-//         throw new Error('jsdiff not available');
-//     }
-
-//     try {
-//         // Parse the unified diff
-//         const patches = jsdiff.parsePatch(patchContent);
-        
-//         if (patches.length === 0) {
-//             throw new Error('No valid patches found in diff file');
-//         }
-
-//         // Apply the first patch (unified diffs usually have one main patch)
-//         const result = jsdiff.applyPatch(sourceContent, patches[0]);
-        
-//         if (!result || typeof result !== 'string') {
-//             throw new Error('Patch application failed - check diff format');
-//         }
-
-//         return result;
-//     } catch (error) {
-//         console.error('Patch parsing error:', error);
-//         throw new Error(`Failed to apply patch: ${error.message}`);
-//     }
-// }
-
-async loadDiffMatchPatch() {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js';
-        script.onload = () => {
-            console.log('✅ diff-match-patch loaded from CDN');
-            resolve();
-        };
-        script.onerror = (e) => {
-            console.error('❌ Failed to load diff-match-patch from CDN', e);
-            reject(e);
-        };
-        document.head.appendChild(script);
-    });
-}
-
-// async diffMerge(sourceContent, patchContent) {
-//     // Use diff-match-patch (already loaded)
-//     if (!window.diff_match_patch) {
-//         await this.loadDiffMatchPatch();
-//     }
-
-//     const dmp = new diff_match_patch();
-//     dmp.Diff_Timeout = 1.0; // Fast processing
-
-//     try {
-//         // Parse unified diff manually
-//         const patches = this.parseUnifiedDiff(patchContent);
-        
-//         if (patches.length === 0) {
-//             throw new Error('No valid patches found in diff file');
-//         }
-
-//         let result = sourceContent;
-
-//         // Apply each patch
-//         for (const patch of patches) {
-//             result = this.applyPatchHunk(result, patch, dmp);
-//         }
-
-//         return result;
-//     } catch (error) {
-//         console.error('Custom diff merge error:', error);
-//         throw new Error(`Failed to apply patch: ${error.message}`);
-//     }
-// }
-
-// Parse unified diff format manually
-
 async diffMerge(sourceContent, patchContent) {
-
-        // Add to the beginning of diffMerge
-    console.log('Diff content preview:', patchContent.substring(0, 500));
-    console.log('Diff lines starting with @@:', patchContent.split('\n').filter(line => line.startsWith('@@')).length);
-    // Load jsdiff from CDN if not available
-    if (!window.jsdiff) {
-        await this.loadJSDiff();
-    }
-
-    let jsdiff;
+    // Import diff-match-patch (works in Electron/Node)
+    let DiffMatchPatch;
     try {
-        jsdiff = window.jsdiff;
+        DiffMatchPatch = (window.diff_match_patch) ? window.diff_match_patch : require('diff-match-patch');
     } catch (e) {
-        this.writeOutput('❌ jsdiff library not found.', 'error');
-        throw new Error('jsdiff not available');
+        this.writeOutput('❌ diff-match-patch library not found. Please install with npm install diff-match-patch', 'error');
+        throw new Error('diff-match-patch not available');
     }
 
+    const dmp = new DiffMatchPatch();
+
+    // Parse the patch (unified diff format)
+    let patches;
     try {
-        // Parse the unified diff
-        const patches = jsdiff.parsePatch(patchContent);
-        
-        if (patches.length === 0) {
-            throw new Error('No valid patches found in diff file');
-        }
-
-        // Apply all patches (unified diffs can have multiple hunks)
-        let result = sourceContent;
-        for (const patch of patches) {
-            const applied = jsdiff.applyPatch(result, patch);
-            if (applied) {
-                result = applied;
-            } else {
-                throw new Error(`Failed to apply patch hunk: ${patch.oldFileName || 'unknown'}`);
-            }
-        }
-
-        return result;
-    } catch (error) {
-        console.error('Patch parsing error:', error);
-        throw new Error(`Failed to apply patch: ${error.message}`);
-    }
-}
-
-
-parseUnifiedDiff(diffContent) {
-    const lines = diffContent.split('\n');
-    const patches = [];
-    let currentPatch = null;
-    let inHunk = false;
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-
-        // Skip empty lines
-        if (!line.trim()) continue;
-
-        // Header lines (--- and +++)
-        if (line.startsWith('---') || line.startsWith('+++')) {
-            continue;
-        }
-
-        // Hunk header (@@ -start,len +start,len @@)
-        const hunkMatch = line.match(/^@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@/);
-        if (hunkMatch) {
-            if (currentPatch) {
-                patches.push(currentPatch);
-            }
-
-            const oldStart = parseInt(hunkMatch[1]);
-            const oldLen = hunkMatch[2] ? parseInt(hunkMatch[2]) : 1;
-            const newStart = parseInt(hunkMatch[3]);
-            const newLen = hunkMatch[4] ? parseInt(hunkMatch[4]) : 1;
-
-            currentPatch = {
-                oldStart: oldStart - 1, // Convert to 0-based
-                oldLen: oldLen,
-                newStart: newStart - 1,
-                newLen: newLen,
-                context: [],
-                removals: [],
-                additions: []
-            };
-            inHunk = true;
-            continue;
-        }
-
-        if (!inHunk || !currentPatch) continue;
-
-        // Process hunk lines
-        if (line.startsWith(' ')) {
-            // Context line
-            currentPatch.context.push(line.substring(1));
-        } else if (line.startsWith('-')) {
-            // Removal line
-            currentPatch.removals.push(line.substring(1));
-        } else if (line.startsWith('+')) {
-            // Addition line
-            currentPatch.additions.push(line.substring(1));
-        }
+        patches = dmp.patch_fromText(patchContent);
+    } catch (err) {
+        this.writeOutput('❌ Failed to parse patch/diff file: ' + err.message, 'error');
+        throw err;
     }
 
-    // Add final patch
-    if (currentPatch) {
-        patches.push(currentPatch);
+    // Apply the patch
+    const [mergedText, results] = dmp.patch_apply(patches, sourceContent);
+
+    // Check for failed patches
+    if (results.some(r => !r)) {
+        this.writeOutput('⚠️ Some hunks in the patch did not apply cleanly.', 'warning');
     }
 
-    return patches;
-}
+        console.log('Patch:', patchContent);
+    console.log('Source:', sourceContent);
+    console.log('Merged:', mergedText);
+    console.log('Patch results:', results);
 
-// Apply a single patch hunk
-applyPatchHunk(sourceText, patch, dmp) {
-    const lines = sourceText.split('\n');
-    
-    // Find the context in the source
-    const contextStart = this.findContextInSource(lines, patch);
-    if (contextStart === -1) {
-        throw new Error(`Could not find context for patch at line ${patch.oldStart + 1}`);
-    }
-
-    // Build the original text block
-    const originalBlock = [];
-    for (let i = 0; i < patch.context.length; i++) {
-        const lineIndex = contextStart + i;
-        if (lineIndex < lines.length) {
-            originalBlock.push(lines[lineIndex]);
-        }
-    }
-
-    // Build the modified text block
-    const modifiedBlock = [...patch.context];
-    
-    // Apply removals and additions
-    let contextIndex = 0;
-    let removalIndex = 0;
-    let additionIndex = 0;
-
-    while (contextIndex < patch.context.length || removalIndex < patch.removals.length || additionIndex < patch.additions.length) {
-        // Add context lines
-        while (contextIndex < patch.context.length) {
-            modifiedBlock.splice(contextIndex + removalIndex + additionIndex, 0, patch.context[contextIndex]);
-            contextIndex++;
-        }
-
-        // Remove lines
-        while (removalIndex < patch.removals.length) {
-            const removeIndex = contextIndex + removalIndex;
-            if (removeIndex < modifiedBlock.length) {
-                modifiedBlock.splice(removeIndex, 1);
-            }
-            removalIndex++;
-        }
-
-        // Add lines
-        while (additionIndex < patch.additions.length) {
-            const addIndex = contextIndex + removalIndex + additionIndex;
-            modifiedBlock.splice(addIndex, 0, patch.additions[additionIndex]);
-            additionIndex++;
-        }
-    }
-
-    // Use diff-match-patch to compute and apply the precise changes
-    const originalText = originalBlock.join('\n');
-    const modifiedText = modifiedBlock.join('\n');
-
-    const diffs = dmp.diff_main(originalText, modifiedText);
-    dmp.diff_cleanupSemantic(diffs);
-    dmp.diff_cleanupEfficiency(diffs);
-
-    const patches = dmp.patch_make(originalText, diffs);
-    const results = dmp.patch_apply(patches, originalText);
-
-    if (!results[0]) {
-        throw new Error('Failed to apply patch hunk');
-    }
-
-    // Replace the block in the source
-    const beforeBlock = lines.slice(0, contextStart);
-    const afterBlock = lines.slice(contextStart + originalBlock.length);
-    const newLines = [...beforeBlock, ...results[0].split('\n'), ...afterBlock];
-
-    return newLines.join('\n');
-}
-
-// Find context in source text
-findContextInSource(lines, patch) {
-    if (patch.context.length === 0) {
-        // No context, use line numbers
-        return Math.max(0, patch.oldStart);
-    }
-
-    // Look for the context block
-    for (let i = 0; i <= lines.length - patch.context.length; i++) {
-        let match = true;
-        for (let j = 0; j < patch.context.length; j++) {
-            if (lines[i + j] !== patch.context[j]) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
-            return i;
-        }
-    }
-
-    // Fallback to line number
-    return Math.max(0, patch.oldStart);
+    return mergedText;
 }
 
 // --- Console command: Merge two Monaco tabs by filename ---
-// Helper method to list all open Monaco tabs/models
-listOpenTabs() {
-    const models = monaco.editor.getModels();
-    console.log('Available Monaco Tabs/Models:');
-    models.forEach((model, index) => {
-        console.log(`${index + 1}. Path: ${model.uri.path}`);
-        console.log(`   Full URI: ${model.uri.toString()}`);
-        console.log(`   Content length: ${model.getValue().length} chars`);
-        console.log('---');
-    });
-    
-    // Also list openFiles for comparison
-    console.log('Tracked in openFiles:');
-    Array.from(this.openFiles.values()).forEach((fileData, index) => {
-        console.log(`${index + 1}. Name: ${fileData.name}, Path: ${fileData.path}`);
-    });
-    
-    this.writeOutput('📋 Tab list logged to console', 'info');
-}
-
 async consoleDiffMerge(sourceTabName, patchTabName) {
+    // Get all Monaco models
     const models = monaco.editor.getModels();
-    
-    // More flexible model lookup - try multiple matching strategies
-    const findModel = (tabName) => {
-        return models.find(model => {
-            const path = model.uri.path;
-            return path.endsWith(tabName) || 
-                   path.endsWith('/' + tabName) || 
-                   path.includes(tabName);
-        });
-    };
-    
-    const sourceModel = findModel(sourceTabName);
-    const patchModel = findModel(patchTabName);
-    
-    console.log('Searching for:', sourceTabName, 'and', patchTabName);
-    console.log('Source Model found:', sourceModel ? sourceModel.uri.path : 'NOT FOUND');
-    console.log('Patch Model found:', patchModel ? patchModel.uri.path : 'NOT FOUND');
-    
+
+    // Find source and patch models by filename (URI)
+    const sourceModel = models.find(model => model.uri.path.endsWith(sourceTabName));
+    const patchModel = models.find(model => model.uri.path.endsWith(patchTabName));
+
     if (!sourceModel || !patchModel) {
-        this.writeOutput('❌ Monaco tab not found for diff merge. Run codeAssistant.listOpenTabs() to see available tabs.', 'error');
+        this.writeOutput('❌ Monaco tab not found for diff merge', 'error');
         return;
     }
-    
+
     const sourceContent = sourceModel.getValue();
     const patchContent = patchModel.getValue();
-    
-    console.log('Source content length:', sourceContent.length);
-    console.log('Patch content length:', patchContent.length);
-    
+
     try {
         const merged = await this.diffMerge(sourceContent, patchContent);
+        // Create a new Monaco tab with the merged result
         this.createNewTab(`${sourceTabName}.merged.js`, merged);
         this.writeOutput('✅ Diff merge completed and opened in new tab', 'success');
     } catch (err) {
         this.writeOutput('❌ Diff merge failed: ' + err.message, 'error');
-        console.error('Diff merge error:', err);
     }
 }
-
-// async consoleDiffMerge(sourceTabName, patchTabName) {
-//     const models = monaco.editor.getModels();
-//     const sourceModel = models.find(model => model.uri.path.endsWith(sourceTabName));
-//     const patchModel = models.find(model => model.uri.path.endsWith(patchTabName));
-
-// console.log('Source Model:', sourceModel ? sourceModel.uri.path : 'undefined');
-// console.log('Patch Model:', patchModel ? patchModel.uri.path : 'undefined');
-
-//     if (!sourceModel || !patchModel) {
-//         this.writeOutput('❌ Monaco tab not found for diff merge', 'error');
-//         return;
-//     }
-
-//     const sourceContent = sourceModel.getValue();
-//     const patchContent = patchModel.getValue();
-
-//     try {
-//         const merged = await this.diffMerge(sourceContent, patchContent);
-//         this.createNewTab(`${sourceTabName}.merged.js`, merged);
-//         this.writeOutput('✅ Diff merge completed and opened in new tab', 'success');
-//     } catch (err) {
-//         this.writeOutput('❌ Diff merge failed: ' + err.message, 'error');
-//     }
-// }
 
     // Update existing methods to work with tabs
     getCurrentFileData() {
@@ -4161,37 +3742,23 @@ function createAmazingApp() {
     /**
      * File operations - ENHANCED with real filesystem access
      */
-    // newFile() {
-    //     if (this.hasUnsavedChanges && this.monacoEditor) {
-    //         if (!confirm('Create new file? Unsaved changes will be lost.')) {
-    //             return;
-    //         }
-    //     }
-
-    //     if (this.monacoEditor) {
-    //         this.monacoEditor.setValue(this.getWelcomeCode());
-    //     }
-    //     this.currentFilePath = null;
-    //     this.hasUnsavedChanges = false;
-    //     this.updateWindowTitle();
-    //     this.clearOutput();
-    //     this.writeOutput('New file created', 'info');
-    //     console.log('New file created');
-    // }
-
     newFile() {
-    // Warn about unsaved changes in the current tab
-    if (this.hasUnsavedChanges && this.monacoEditor) {
-        if (!confirm('Create new file? Unsaved changes will be lost.')) {
-            return;
+        if (this.hasUnsavedChanges && this.monacoEditor) {
+            if (!confirm('Create new file? Unsaved changes will be lost.')) {
+                return;
+            }
         }
-    }
 
-    // Create a new tab with default welcome code
-    this.createNewTab(null, this.getWelcomeCode());
-    this.writeOutput('New file tab created', 'info');
-    console.log('New file tab created');
-}
+        if (this.monacoEditor) {
+            this.monacoEditor.setValue(this.getWelcomeCode());
+        }
+        this.currentFilePath = null;
+        this.hasUnsavedChanges = false;
+        this.updateWindowTitle();
+        this.clearOutput();
+        this.writeOutput('New file created', 'info');
+        console.log('New file created');
+    }
 
     // NEW: Open file from filesystem using NATIVE dialog
     async openFile() {
