@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebula Image Editor Pro - Standalone</title>
+    
+    <!-- Google Material Symbols -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <style>
+        :root {
+            --nebula-background: #1a1a1a;
+            --nebula-surface: #2d2d2d;
+            --nebula-border: #404040;
+            --nebula-text: #ffffff;
+            --nebula-text-secondary: #b0b0b0;
+            --nebula-accent: #4a9eff;
+            --nebula-accent-hover: #3d8ce6;
+            --nebula-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--nebula-font);
+            background: var(--nebula-background);
+            color: var(--nebula-text);
+            overflow: hidden;
+        }
+        
+        .image-editor-container {
+            display: flex;
+            height: 100vh;
+            background: var(--nebula-background);
+            color: var(--nebula-text);
+            font-family: var(--nebula-font);
+        }
+        
+        .main-toolbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--nebula-surface);
+            border-bottom: 1px solid var(--nebula-border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .toolbar-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .toolbar-btn {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 44px;
+            justify-content: center;
+        }
+        
+        .toolbar-btn:hover {
+            background: var(--nebula-border);
+            border-color: var(--nebula-accent);
+        }
+        
+        .toolbar-btn.active {
+            background: var(--nebula-accent);
+            border-color: var(--nebula-accent);
+            color: white;
+        }
+        
+        .toolbar-separator {
+            width: 1px;
+            height: 30px;
+            background: var(--nebula-border);
+            margin: 0 10px;
+        }
+        
+        .left-panel {
+            width: 300px;
+            background: var(--nebula-surface);
+            border-right: 1px solid var(--nebula-border);
+            margin-top: 60px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            padding: 20px;
+        }
+        
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-top: 60px;
+            background: var(--nebula-background);
+            position: relative;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .canvas-wrapper {
+            position: relative;
+            background: #ffffff;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+        
+        #main-canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        .right-panel {
+            width: 300px;
+            background: var(--nebula-surface);
+            border-left: 1px solid var(--nebula-border);
+            margin-top: 60px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            padding: 20px;
+        }
+        
+        .status-bar {
+            height: 30px;
+            background: var(--nebula-surface);
+            border-top: 1px solid var(--nebula-border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 12px;
+            gap: 20px;
+        }
+        
+        .enhanced-btn {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .enhanced-btn:hover {
+            background: var(--nebula-border);
+            border-color: var(--nebula-accent);
+        }
+        
+        .enhanced-btn.primary {
+            background: var(--nebula-accent);
+            border-color: var(--nebula-accent);
+            color: white;
+        }
+        
+        .enhanced-slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--nebula-border);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .enhanced-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--nebula-accent);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .property-group {
+            margin-bottom: 16px;
+        }
+        
+        .property-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--nebula-text-secondary);
+        }
+        
+        .property-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .property-value {
+            font-size: 11px;
+            color: var(--nebula-text-secondary);
+            min-width: 40px;
+            text-align: right;
+        }
+        
+        .layer-item {
+            padding: 10px;
+            border: 1px solid var(--nebula-border);
+            margin-bottom: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .layer-item:hover {
+            background: var(--nebula-border);
+        }
+        
+        .layer-item.active {
+            background: var(--nebula-accent);
+            color: white;
+        }
+        
+        .layer-thumbnail {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            border: 1px solid var(--nebula-border);
+            border-radius: 2px;
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .layer-info {
+            flex: 1;
+        }
+        
+        .layer-name {
+            font-weight: 500;
+        }
+        
+        .layer-details {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .layer-controls {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .layer-visibility-btn,
+        .layer-lock-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .layer-visibility-btn:hover,
+        .layer-lock-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--nebula-text);
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 20px 0 12px 0;
+            color: var(--nebula-text);
+        }
+        
+        .enhanced-select {
+            background: var(--nebula-surface);
+            border: 1px solid var(--nebula-border);
+            color: var(--nebula-text);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            width: 100%;
+        }
+        
+        .enhanced-color-picker {
+            width: 40px;
+            height: 30px;
+            border: 1px solid var(--nebula-border);
+            border-radius: 4px;
+            background: none;
+            cursor: pointer;
+        }
+        
+        .zoom-display {
+            font-size: 12px;
+            color: var(--nebula-text-secondary);
+            min-width: 50px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="image-editor-container">
+        <!-- Toolbar -->
+        <div class="main-toolbar">
+            <div class="toolbar-group">
+                <button class="toolbar-btn" id="new-btn" title="New (Ctrl+N)">
+                    <span class="material-symbols-outlined">add</span>
+                    New
+                </button>
+                <button class="toolbar-btn" id="save-btn" title="Save (Ctrl+S)">
+                    <span class="material-symbols-outlined">save</span>
+                    Save
+                </button>
+            </div>
+            
+            <div class="toolbar-separator"></div>
+            
+            <div class="toolbar-group">
+                <button class="toolbar-btn" id="undo-btn" title="Undo (Ctrl+Z)">
+                    <span class="material-symbols-outlined">undo</span>
+                </button>
+                <button class="toolbar-btn" id="redo-btn" title="Redo (Ctrl+Y)">
+                    <span class="material-symbols-outlined">redo</span>
+                </button>
+            </div>
+            
+            <div class="toolbar-separator"></div>
+            
+            <div class="toolbar-group" id="main-tools">
+                <button class="toolbar-btn active" data-tool="brush" title="Brush (B)">
+                    <span class="material-symbols-outlined">brush</span>
+                </button>
+                <button class="toolbar-btn" data-tool="eraser" title="Eraser (E)">
+                    <span class="material-symbols-outlined">cleaning_services</span>
+                </button>
+                <button class="toolbar-btn" data-tool="select" title="Select (M)">
+                    <span class="material-symbols-outlined">crop_free</span>
+                </button>
+            </div>
+            
+            <div class="toolbar-separator"></div>
+            
+            <div class="toolbar-group">
+                <button class="toolbar-btn" id="zoom-out-btn" title="Zoom Out">
+                    <span class="material-symbols-outlined">zoom_out</span>
+                </button>
+                <span class="zoom-display" id="zoom-display">100%</span>
+                <button class="toolbar-btn" id="zoom-in-btn" title="Zoom In">
+                    <span class="material-symbols-outlined">zoom_in</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <h3 class="panel-title">Tools</h3>
+            
+            <div class="property-group">
+                <label class="property-label">Size</label>
+                <div class="property-control">
+                    <input type="range" id="brush-size" min="1" max="100" value="10" class="enhanced-slider">
+                    <span id="brush-size-value" class="property-value">10px</span>
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <label class="property-label">Opacity</label>
+                <div class="property-control">
+                    <input type="range" id="brush-opacity" min="0" max="100" value="100" class="enhanced-slider">
+                    <span id="brush-opacity-value" class="property-value">100%</span>
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <label class="property-label">Color</label>
+                <input type="color" id="brush-color" value="#000000" class="enhanced-color-picker">
+            </div>
+            
+            <h4 class="section-title">Adjustments</h4>
+            
+            <div class="property-group">
+                <label class="property-label">Brightness</label>
+                <div class="property-control">
+                    <input type="range" id="brightness" min="-100" max="100" value="0" class="enhanced-slider">
+                    <span id="brightness-value" class="property-value">0</span>
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <label class="property-label">Contrast</label>
+                <div class="property-control">
+                    <input type="range" id="contrast" min="-100" max="100" value="0" class="enhanced-slider">
+                    <span id="contrast-value" class="property-value">0</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button class="enhanced-btn" id="grayscale-btn">Grayscale</button>
+                <button class="enhanced-btn" id="invert-btn">Invert</button>
+            </div>
+        </div>
+        
+        <!-- Canvas Area -->
+        <div class="canvas-area">
+            <div class="canvas-container">
+                <div class="canvas-wrapper" id="canvas-wrapper">
+                    <canvas id="main-canvas" width="800" height="600"></canvas>
+                </div>
+            </div>
+            
+            <div class="status-bar">
+                <span id="status-text">Ready - Use B for Brush, E for Eraser, M for Select</span>
+                <span id="canvas-size">800 × 600 px</span>
+                <span id="cursor-position">0, 0</span>
+            </div>
+        </div>
+        
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 class="panel-title">Layers</h3>
+                <div style="display: flex; gap: 8px;">
+                    <button class="enhanced-btn" id="add-layer-btn" title="Add Layer">
+                        <span class="material-symbols-outlined">add</span>
+                    </button>
+                    <button class="enhanced-btn" id="delete-layer-btn" title="Delete Layer">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <label class="property-label">Blend Mode</label>
+                <select id="layer-blend-mode" class="enhanced-select">
+                    <option value="normal">Normal</option>
+                    <option value="multiply">Multiply</option>
+                    <option value="screen">Screen</option>
+                    <option value="overlay">Overlay</option>
+                </select>
+            </div>
+            
+            <div class="property-group">
+                <label class="property-label">Layer Opacity</label>
+                <div class="property-control">
+                    <input type="range" id="layer-opacity" min="0" max="100" value="100" class="enhanced-slider">
+                    <span id="layer-opacity-value" class="property-value">100%</span>
+                </div>
+            </div>
+            
+            <div id="layers-list">
+                <!-- Layers will be populated here -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Simple Image Editor Implementation
+        class SimpleImageEditor {
+            constructor() {
+                this.canvas = document.getElementById('main-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.isDrawing = false;
+                this.currentTool = 'brush';
+                this.brushSize = 10;
+                this.brushOpacity = 1;
+                this.brushColor = '#000000';
+                this.zoom = 1;
+                
+                // Layers system
+                this.layers = [];
+                this.activeLayerIndex = 0;
+                this.layerCounter = 1;
+                
+                // History system
+                this.history = [];
+                this.historyIndex = -1;
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.addLayer('Background');
+                this.updateLayersPanel();
+                this.saveState('Initial state');
+            }
+            
+            setupCanvas() {
+                // Set up main canvas
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Canvas event listeners
+                this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
+                this.canvas.addEventListener('mousemove', this.draw.bind(this));
+                this.canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
+                this.canvas.addEventListener('mouseleave', this.stopDrawing.bind(this));
+                
+                // Cursor position tracking
+                this.canvas.addEventListener('mousemove', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = Math.round((e.clientX - rect.left) / this.zoom);
+                    const y = Math.round((e.clientY - rect.top) / this.zoom);
+                    document.getElementById('cursor-position').textContent = `${x}, ${y}`;
+                });
+            }
+            
+            setupEventListeners() {
+                // Tool buttons
+                document.querySelectorAll('[data-tool]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.setTool(e.target.dataset.tool);
+                    });
+                });
+                
+                // Brush controls
+                document.getElementById('brush-size').addEventListener('input', (e) => {
+                    this.brushSize = parseInt(e.target.value);
+                    document.getElementById('brush-size-value').textContent = this.brushSize + 'px';
+                });
+                
+                document.getElementById('brush-opacity').addEventListener('input', (e) => {
+                    this.brushOpacity = parseInt(e.target.value) / 100;
+                    document.getElementById('brush-opacity-value').textContent = parseInt(e.target.value) + '%';
+                });
+                
+                document.getElementById('brush-color').addEventListener('input', (e) => {
+                    this.brushColor = e.target.value;
+                });
+                
+                // Layer controls
+                document.getElementById('add-layer-btn').addEventListener('click', () => {
+                    this.addLayer(`Layer ${this.layerCounter++}`);
+                });
+                
+                document.getElementById('delete-layer-btn').addEventListener('click', () => {
+                    if (this.layers.length > 1) {
+                        this.deleteLayer(this.activeLayerIndex);
+                    }
+                });
+                
+                document.getElementById('layer-opacity').addEventListener('input', (e) => {
+                    const opacity = parseInt(e.target.value) / 100;
+                    this.layers[this.activeLayerIndex].opacity = opacity;
+                    document.getElementById('layer-opacity-value').textContent = parseInt(e.target.value) + '%';
+                    this.renderLayers();
+                });
+                
+                // Adjustment controls
+                document.getElementById('brightness').addEventListener('input', (e) => {
+                    document.getElementById('brightness-value').textContent = e.target.value;
+                    this.applyAdjustments();
+                });
+                
+                document.getElementById('contrast').addEventListener('input', (e) => {
+                    document.getElementById('contrast-value').textContent = e.target.value;
+                    this.applyAdjustments();
+                });
+                
+                // Filter buttons
+                document.getElementById('grayscale-btn').addEventListener('click', () => {
+                    this.applyFilter('grayscale');
+                });
+                
+                document.getElementById('invert-btn').addEventListener('click', () => {
+                    this.applyFilter('invert');
+                });
+                
+                // Zoom controls
+                document.getElementById('zoom-in-btn').addEventListener('click', () => {
+                    this.setZoom(this.zoom * 1.2);
+                });
+                
+                document.getElementById('zoom-out-btn').addEventListener('click', () => {
+                    this.setZoom(this.zoom * 0.8);
+                });
+                
+                // File operations
+                document.getElementById('new-btn').addEventListener('click', () => {
+                    if (confirm('Create new project? Unsaved changes will be lost.')) {
+                        this.newProject();
+                    }
+                });
+                
+                document.getElementById('save-btn').addEventListener('click', () => {
+                    this.saveImage();
+                });
+                
+                // Undo/Redo
+                document.getElementById('undo-btn').addEventListener('click', () => {
+                    this.undo();
+                });
+                
+                document.getElementById('redo-btn').addEventListener('click', () => {
+                    this.redo();
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        switch (e.key.toLowerCase()) {
+                            case 'z':
+                                e.preventDefault();
+                                if (e.shiftKey) {
+                                    this.redo();
+                                } else {
+                                    this.undo();
+                                }
+                                break;
+                            case 'y':
+                                e.preventDefault();
+                                this.redo();
+                                break;
+                            case 's':
+                                e.preventDefault();
+                                this.saveImage();
+                                break;
+                            case 'n':
+                                e.preventDefault();
+                                if (confirm('Create new project? Unsaved changes will be lost.')) {
+                                    this.newProject();
+                                }
+                                break;
+                        }
+                    } else {
+                        switch (e.key.toLowerCase()) {
+                            case 'b':
+                                this.setTool('brush');
+                                break;
+                            case 'e':
+                                this.setTool('eraser');
+                                break;
+                            case 'm':
+                                this.setTool('select');
+                                break;
+                        }
+                    }
+                });
+            }
+            
+            setTool(tool) {
+                this.currentTool = tool;
+                
+                // Update UI
+                document.querySelectorAll('[data-tool]').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+                
+                // Update cursor
+                const cursors = {
+                    brush: 'crosshair',
+                    eraser: 'crosshair',
+                    select: 'crosshair'
+                };
+                this.canvas.style.cursor = cursors[tool] || 'default';
+                
+                // Update status
+                document.getElementById('status-text').textContent = `Tool: ${tool.charAt(0).toUpperCase() + tool.slice(1)}`;
+            }
+            
+            startDrawing(e) {
+                if (this.currentTool === 'select') return;
+                
+                this.isDrawing = true;
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / this.zoom;
+                const y = (e.clientY - rect.top) / this.zoom;
+                
+                const layer = this.layers[this.activeLayerIndex];
+                layer.ctx.beginPath();
+                layer.ctx.moveTo(x, y);
+                
+                this.setupBrush(layer.ctx);
+            }
+            
+            draw(e) {
+                if (!this.isDrawing || this.currentTool === 'select') return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / this.zoom;
+                const y = (e.clientY - rect.top) / this.zoom;
+                
+                const layer = this.layers[this.activeLayerIndex];
+                layer.ctx.lineTo(x, y);
+                layer.ctx.stroke();
+                
+                this.renderLayers();
+            }
+            
+            stopDrawing() {
+                if (this.isDrawing) {
+                    this.isDrawing = false;
+                    this.saveState('Drawing operation');
+                }
+            }
+            
+            setupBrush(ctx) {
+                ctx.lineWidth = this.brushSize;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.globalAlpha = this.brushOpacity;
+                
+                if (this.currentTool === 'brush') {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = this.brushColor;
+                } else if (this.currentTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                }
+            }
+            
+            addLayer(name) {
+                const canvas = document.createElement('canvas');
+                canvas.width = this.canvas.width;
+                canvas.height = this.canvas.height;
+                const ctx = canvas.getContext('2d');
+                
+                // Fill background layer with white
+                if (this.layers.length === 0) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                
+                const layer = {
+                    name: name,
+                    canvas: canvas,
+                    ctx: ctx,
+                    visible: true,
+                    opacity: 1,
+                    blendMode: 'normal'
+                };
+                
+                this.layers.push(layer);
+                this.activeLayerIndex = this.layers.length - 1;
+                this.updateLayersPanel();
+                this.renderLayers();
+            }
+            
+            deleteLayer(index) {
+                if (this.layers.length <= 1) return;
+                
+                this.layers.splice(index, 1);
+                this.activeLayerIndex = Math.min(this.activeLayerIndex, this.layers.length - 1);
+                this.updateLayersPanel();
+                this.renderLayers();
+                this.saveState('Deleted layer');
+            }
+            
+            setActiveLayer(index) {
+                this.activeLayerIndex = index;
+                this.updateLayersPanel();
+                
+                // Update layer opacity slider
+                const layer = this.layers[index];
+                document.getElementById('layer-opacity').value = Math.round(layer.opacity * 100);
+                document.getElementById('layer-opacity-value').textContent = Math.round(layer.opacity * 100) + '%';
+            }
+            
+            updateLayersPanel() {
+                const layersList = document.getElementById('layers-list');
+                layersList.innerHTML = '';
+                
+                // Render layers in reverse order (top to bottom)
+                for (let i = this.layers.length - 1; i >= 0; i--) {
+                    const layer = this.layers[i];
+                    const layerElement = document.createElement('div');
+                    layerElement.className = `layer-item ${i === this.activeLayerIndex ? 'active' : ''}`;
+                    
+                    layerElement.innerHTML = `
+                        <div class="layer-thumbnail" style="background-image: url(${layer.canvas.toDataURL()});"></div>
+                        <div class="layer-info">
+                            <div class="layer-name">${layer.name}</div>
+                            <div class="layer-details">${layer.blendMode} • ${Math.round(layer.opacity * 100)}%</div>
+                        </div>
+                        <div class="layer-controls">
+                            <button class="layer-visibility-btn" title="Toggle Visibility">
+                                <span class="material-symbols-outlined">${layer.visible ? 'visibility' : 'visibility_off'}</span>
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Layer selection
+                    layerElement.addEventListener('click', (e) => {
+                        if (!e.target.closest('.layer-controls')) {
+                            this.setActiveLayer(i);
+                        }
+                    });
+                    
+                    // Visibility toggle
+                    layerElement.querySelector('.layer-visibility-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        layer.visible = !layer.visible;
+                        this.updateLayersPanel();
+                        this.renderLayers();
+                    });
+                    
+                    layersList.appendChild(layerElement);
+                }
+            }
+            
+            renderLayers() {
+                // Clear main canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Render all visible layers
+                this.layers.forEach(layer => {
+                    if (layer.visible) {
+                        this.ctx.save();
+                        this.ctx.globalAlpha = layer.opacity;
+                        this.ctx.globalCompositeOperation = layer.blendMode;
+                        this.ctx.drawImage(layer.canvas, 0, 0);
+                        this.ctx.restore();
+                    }
+                });
+            }
+            
+            applyAdjustments() {
+                const brightness = parseInt(document.getElementById('brightness').value);
+                const contrast = parseInt(document.getElementById('contrast').value);
+                
+                const layer = this.layers[this.activeLayerIndex];
+                const imageData = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+                const data = imageData.data;
+                
+                const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    // Apply brightness
+                    data[i] = Math.max(0, Math.min(255, data[i] + brightness));
+                    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + brightness));
+                    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + brightness));
+                    
+                    // Apply contrast
+                    data[i] = Math.max(0, Math.min(255, contrastFactor * (data[i] - 128) + 128));
+                    data[i + 1] = Math.max(0, Math.min(255, contrastFactor * (data[i + 1] - 128) + 128));
+                    data[i + 2] = Math.max(0, Math.min(255, contrastFactor * (data[i + 2] - 128) + 128));
+                }
+                
+                layer.ctx.putImageData(imageData, 0, 0);
+                this.renderLayers();
+                this.saveState('Applied adjustments');
+            }
+            
+            applyFilter(filterType) {
+                const layer = this.layers[this.activeLayerIndex];
+                const imageData = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+                const data = imageData.data;
+                
+                switch (filterType) {
+                    case 'grayscale':
+                        for (let i = 0; i < data.length; i += 4) {
+                            const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                            data[i] = gray;
+                            data[i + 1] = gray;
+                            data[i + 2] = gray;
+                        }
+                        break;
+                        
+                    case 'invert':
+                        for (let i = 0; i < data.length; i += 4) {
+                            data[i] = 255 - data[i];
+                            data[i + 1] = 255 - data[i + 1];
+                            data[i + 2] = 255 - data[i + 2];
+                        }
+                        break;
+                }
+                
+                layer.ctx.putImageData(imageData, 0, 0);
+                this.renderLayers();
+                this.saveState(`Applied ${filterType} filter`);
+            }
+            
+            setZoom(newZoom) {
+                this.zoom = Math.max(0.1, Math.min(5, newZoom));
+                const wrapper = document.getElementById('canvas-wrapper');
+                wrapper.style.transform = `scale(${this.zoom})`;
+                document.getElementById('zoom-display').textContent = Math.round(this.zoom * 100) + '%';
+            }
+            
+            saveState(description) {
+                // Remove any states after current index
+                this.history = this.history.slice(0, this.historyIndex + 1);
+                
+                // Save current state
+                const state = {
+                    description: description,
+                    layersData: this.layers.map(layer => ({
+                        name: layer.name,
+                        imageData: layer.canvas.toDataURL(),
+                        visible: layer.visible,
+                        opacity: layer.opacity,
+                        blendMode: layer.blendMode
+                    })),
+                    activeLayerIndex: this.activeLayerIndex
+                };
+                
+                this.history.push(state);
+                this.historyIndex = this.history.length - 1;
+                
+                // Limit history size
+                if (this.history.length > 50) {
+                    this.history.shift();
+                    this.historyIndex--;
+                }
+            }
+            
+            undo() {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.restoreState(this.history[this.historyIndex]);
+                }
+            }
+            
+            redo() {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
+                    this.restoreState(this.history[this.historyIndex]);
+                }
+            }
+            
+            restoreState(state) {
+                // Clear current layers
+                this.layers = [];
+                
+                // Restore layers
+                state.layersData.forEach(layerData => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = this.canvas.width;
+                    canvas.height = this.canvas.height;
+                    const ctx = canvas.getContext('2d');
+                    
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0);
+                        this.renderLayers();
+                    };
+                    img.src = layerData.imageData;
+                    
+                    this.layers.push({
+                        name: layerData.name,
+                        canvas: canvas,
+                        ctx: ctx,
+                        visible: layerData.visible,
+                        opacity: layerData.opacity,
+                        blendMode: layerData.blendMode
+                    });
+                });
+                
+                this.activeLayerIndex = state.activeLayerIndex;
+                this.updateLayersPanel();
+            }
+            
+            newProject() {
+                this.layers = [];
+                this.history = [];
+                this.historyIndex = -1;
+                this.layerCounter = 1;
+                
+                this.addLayer('Background');
+                this.saveState('New project');
+                
+                // Reset adjustments
+                document.getElementById('brightness').value = 0;
+                document.getElementById('contrast').value = 0;
+                document.getElementById('brightness-value').textContent = '0';
+                document.getElementById('contrast-value').textContent = '0';
+            }
+            
+            saveImage() {
+                // Create a temporary canvas to flatten all layers
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = this.canvas.width;
+                tempCanvas.height = this.canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Render all visible layers
+                this.layers.forEach(layer => {
+                    if (layer.visible) {
+                        tempCtx.save();
+                        tempCtx.globalAlpha = layer.opacity;
+                        tempCtx.globalCompositeOperation = layer.blendMode;
+                        tempCtx.drawImage(layer.canvas, 0, 0);
+                        tempCtx.restore();
+                    }
+                });
+                
+                // Download the image
+                const link = document.createElement('a');
+                link.download = 'nebula-artwork.png';
+                link.href = tempCanvas.toDataURL();
+                link.click();
+            }
+        }
+        
+        // Initialize the editor when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const editor = new SimpleImageEditor();
+            console.log('Nebula Image Editor initialized!');
+            console.log('Keyboard shortcuts: B (Brush), E (Eraser), M (Select), Ctrl+Z (Undo), Ctrl+S (Save)');
+        });
+    </script>
+</body>
+</html>
+
