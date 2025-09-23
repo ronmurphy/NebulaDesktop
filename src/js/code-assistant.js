@@ -4445,6 +4445,7 @@ function createAmazingApp() {
             'json': 'json',
             'md': 'markdown'
         };
+        // yay it works!
 
         if (languageMap[extension]) {
             this.switchLanguage(languageMap[extension]);
