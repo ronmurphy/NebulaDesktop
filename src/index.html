@@ -37,7 +37,7 @@
     </style>
 
     <!-- Shoelace (explicit component imports - autoloader avoided) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
+    <link rel="stylesheet" data-shoelace-theme="true" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
     <!-- Individual Shoelace components (listed explicitly so autoloader is not required) -->
     <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/button/button.js"></script>
     <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/input/input.js"></script>
@@ -83,6 +83,24 @@
         window.addEventListener('load', () => setTimeout(injectShoelaceBridge, 60));
     </script>
 
+        <!-- Small component overrides so Shoelace controls use Nebula sizing/shape -->
+        <style id="shoelace-nebula-overrides">
+            sl-button::part(base) {
+                border-radius: var(--nebula-radius-sm, 6px);
+                padding: 6px 12px;
+                font-family: var(--nebula-font-family, system-ui, sans-serif);
+                box-shadow: none;
+                border: 1px solid var(--sl-border-color, rgba(0,0,0,0.08));
+                background: var(--sl-color-primary-600, var(--nebula-primary));
+                color: var(--sl-color-neutral-0, #fff);
+            }
+
+            sl-input::part(base),
+            sl-textarea::part(base) {
+                font-family: var(--nebula-font-family, system-ui, sans-serif);
+            }
+        </style>
+
     <!-- Our CSS -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/nebula-theme.css">
@@ -95,6 +113,7 @@
     <link rel="stylesheet" href="css/nebula-material-icons.css">
     <link rel="stylesheet" href="css/capsule-preview.css">
     <link rel="stylesheet" href="css/nebula-theme-bridge.css">
+    <link rel="stylesheet" href="css/shoelace-nebula-bridge.css">
 
     <!-- XTerm.js for terminal emulation -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
@@ -154,6 +173,60 @@
 
     <!-- Load taskbar theme LAST -->
     <script src="js/taskbar-theme.js"></script>
+
+    <!-- Theme change hook: refresh shoelace bridge and swap shoelace theme when Nebula theme changes -->
+    <script>
+    (function(){
+        const darkHref = 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css';
+        const lightHref = 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/light.css';
+
+        function refreshBridge() {
+            const link = document.querySelector('link[href$="shoelace-nebula-bridge.css"]');
+            if (!link) return;
+            const parent = link.parentNode;
+            const newLink = link.cloneNode(true);
+            const base = link.getAttribute('href').split('?')[0];
+            newLink.setAttribute('href', base + '?t=' + Date.now());
+            parent.insertBefore(newLink, link.nextSibling);
+            newLink.addEventListener('load', () => {
+                // remove the old link after new one loads
+                try { link.remove(); } catch (err) {}
+            });
+        }
+
+        function setShoelaceThemeForNebula(themeId) {
+            const link = document.querySelector('link[data-shoelace-theme]');
+            if (!link) return;
+            const prefersLight = (themeId && (themeId.includes('light') || themeId === 'nebula-minimal'));
+            const desired = prefersLight ? lightHref : darkHref;
+            if (link.getAttribute('href') !== desired) {
+                link.setAttribute('href', desired + '?t=' + Date.now());
+            }
+        }
+
+        window.addEventListener('themeChanged', (e) => {
+            const themeId = e?.detail?.theme || null;
+            // Refresh the bridge and swap Shoelace theme to better force re-render
+            refreshBridge();
+            setShoelaceThemeForNebula(themeId);
+            // Force a small reflow to encourage components to pick up new vars
+            document.documentElement.style.setProperty('--nebula-theme-refresh', Date.now());
+            // Also force a quick repaint/reflow of Shoelace components
+            setTimeout(() => {
+                const els = document.querySelectorAll('sl-button, sl-input, sl-textarea, sl-select, sl-checkbox, sl-radio, sl-icon, sl-icon-button');
+                els.forEach(el => {
+                    try {
+                        const prev = el.style.display || '';
+                        el.style.display = 'none';
+                        requestAnimationFrame(() => { el.style.display = prev; });
+                    } catch (err) {
+                        // ignore
+                    }
+                });
+            }, 80);
+        });
+    })();
+    </script>
 
 </body>
 

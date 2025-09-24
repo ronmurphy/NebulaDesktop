@@ -86,6 +86,34 @@ class NebulaCodeAssistant {
             }
         };
 
+        // Component palette for Visual Designer
+        this.visualComponents = [
+            { type: 'button', label: 'Button', tag: 'sl-button', attrs: { type: 'primary' } },
+            { type: 'input', label: 'Input', tag: 'sl-input', attrs: { placeholder: 'Enter text' } },
+            { type: 'textarea', label: 'Textarea', tag: 'sl-textarea', attrs: { placeholder: 'Enter text' } },
+            { type: 'select', label: 'Select', tag: 'sl-select', attrs: {} },
+            { type: 'checkbox', label: 'Checkbox', tag: 'sl-checkbox', attrs: {} },
+            { type: 'radio', label: 'Radio', tag: 'sl-radio', attrs: { name: 'group1' } },
+            { type: 'switch', label: 'Switch', tag: 'sl-switch', attrs: {} },
+            { type: 'range', label: 'Range', tag: 'sl-range', attrs: {} },
+            { type: 'icon', label: 'Icon', tag: 'sl-icon', attrs: { name: 'star' } },
+            { type: 'icon-button', label: 'Icon Button', tag: 'sl-icon-button', attrs: { name: 'star' } },
+            { type: 'dropdown', label: 'Dropdown', tag: 'sl-dropdown', attrs: {} },
+            { type: 'dialog', label: 'Dialog', tag: 'sl-dialog', attrs: {} },
+            { type: 'nebula-filepicker', label: 'Nebula FilePicker', tag: 'nebula-filepicker', attrs: {} }
+        ];
+
+        // Add extended shoelace components
+        this.visualComponents.push(
+            { type: 'sl-badge', label: 'Badge', tag: 'sl-badge', attrs: { value: '1' } },
+            { type: 'sl-avatar', label: 'Avatar', tag: 'sl-avatar', attrs: { initials: 'AB' } },
+            { type: 'sl-progress', label: 'Progress', tag: 'sl-progress', attrs: { value: 50 } },
+            { type: 'sl-spinner', label: 'Spinner', tag: 'sl-spinner', attrs: {} },
+            { type: 'sl-tooltip', label: 'Tooltip', tag: 'sl-tooltip', attrs: { content: 'Hint' } },
+            { type: 'sl-tabs', label: 'Tabs', tag: 'sl-tabs', attrs: {} },
+            { type: 'sl-toast', label: 'Toast', tag: 'sl-toast', attrs: {} }
+        );
+
         // AI Services (enhanced with LM Studio)
         this.aiServices = {
             lmstudio: { name: 'LM Studio (Local)', url: 'http://192.168.1.254:1234', icon: '🏠', type: 'api' },
@@ -7139,6 +7167,19 @@ closeModal(modal) {
         `;
 
         designerModal.innerHTML = `
+            <style>
+                /* Designer helper styles */
+                .gui-component { position: absolute; box-sizing: border-box; }
+                .component-frame { position: relative; display: inline-block; }
+                .component-inner { display: inline-block; }
+                .drag-handle { box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+                /* resize-handle removed - use properties panel to set size */
+                .component-outline { position:absolute; left:0; top:0; right:0; bottom:0; pointer-events:none; border: 1px dashed rgba(0,0,0,0.08); border-radius:4px; }
+                .ghost-placeholder { position: absolute; left:8px; bottom:8px; background: rgba(0,0,0,0.06); color: var(--nebula-text-secondary); padding:4px 6px; font-size:11px; border-radius:4px; display:flex; align-items:center; gap:6px; z-index:25; }
+                .design-canvas { background: #f7f7f9; position: relative; }
+                /* App frame simulating NebulaApp viewport */
+                .app-frame { width: 900px; height: 600px; background: white; border: 2px solid #e6e6e6; box-shadow: 0 6px 20px rgba(0,0,0,0.08); border-radius:8px; position: relative; margin: 0 auto; overflow: hidden; }
+            </style>
             <!-- GUI Designer Header -->
             <div style="
                 height: 50px;
@@ -7192,7 +7233,7 @@ closeModal(modal) {
                 ">Close Designer</button>
             </div>
 
-            <!-- Main Designer Area -->
+                <!-- Main Designer Area -->
             <div style="
                 flex: 1;
                 display: flex;
@@ -7240,6 +7281,22 @@ closeModal(modal) {
                                 Button
                             </div>
                             
+                            <div class="component-item" data-type="sl-button" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-primary);">▣</span>
+                                Sl Button
+                            </div>
+
                             <div class="component-item" data-type="input" style="
                                 padding: 8px;
                                 background: var(--nebula-bg-primary);
@@ -7272,6 +7329,22 @@ closeModal(modal) {
                                 Label
                             </div>
                             
+                            <div class="component-item" data-type="sl-input" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-accent);">▭</span>
+                                Sl Input
+                            </div>
+                            
                             <div class="component-item" data-type="checkbox" style="
                                 padding: 8px;
                                 background: var(--nebula-bg-primary);
@@ -7288,6 +7361,22 @@ closeModal(modal) {
                                 Checkbox
                             </div>
                             
+                            <div class="component-item" data-type="sl-checkbox" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-success);">☑</span>
+                                Sl Checkbox
+                            </div>
+                            
                             <div class="component-item" data-type="select" style="
                                 padding: 8px;
                                 background: var(--nebula-bg-primary);
@@ -7302,6 +7391,22 @@ closeModal(modal) {
                             ">
                                 <span style="color: var(--nebula-warning);">▼</span>
                                 Dropdown
+                            </div>
+                            
+                            <div class="component-item" data-type="sl-select" style="
+                                padding: 8px;
+                                background: var(--nebula-bg-primary);
+                                border: 1px solid var(--nebula-border);
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                margin-bottom: 4px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <span style="color: var(--nebula-warning);">▼</span>
+                                Sl Select
                             </div>
                         </div>
                         
@@ -7471,7 +7576,31 @@ closeModal(modal) {
 
         // Create component content based on type
         const componentData = this.createComponentContent(type, componentId);
-        component.innerHTML = componentData.html;
+
+        // Wrap in frame so we can draw outlines and add resize handle
+        const frame = document.createElement('div');
+        frame.className = 'component-frame';
+        frame.style.cssText = 'position:relative; display:inline-block;';
+
+        const inner = document.createElement('div');
+        inner.className = 'component-inner';
+        inner.innerHTML = componentData.html;
+
+        const outline = document.createElement('div');
+        outline.className = 'component-outline';
+
+    frame.appendChild(inner);
+    frame.appendChild(outline);
+
+        // For components that are not normally visible (toast/dialog), show a ghost placeholder
+        if (this.isNonVisibleComponent(type)) {
+            const ghost = document.createElement('div');
+            ghost.className = 'ghost-placeholder';
+            ghost.innerHTML = `<span style="opacity:0.7">◪</span><span>${type}</span>`;
+            frame.appendChild(ghost);
+        }
+
+        component.appendChild(frame);
         
         // Store component data
         this.designedComponents.push({
@@ -7598,6 +7727,136 @@ closeModal(modal) {
                         padding: '20px'
                     }
                 };
+
+            case 'sl-button':
+                return {
+                    html: `<sl-button type="default">Button</sl-button>`,
+                    properties: { text: 'Button', type: 'default' }
+                };
+
+            case 'sl-input':
+                return {
+                    html: `<sl-input placeholder="Enter text"></sl-input>`,
+                    properties: { placeholder: 'Enter text', value: '' }
+                };
+
+            case 'sl-textarea':
+                return {
+                    html: `<sl-textarea placeholder="Enter text"></sl-textarea>`,
+                    properties: { placeholder: 'Enter text', value: '' }
+                };
+
+            case 'sl-select':
+                return {
+                    html: `<sl-select>
+                                <sl-menu-item>Option 1</sl-menu-item>
+                                <sl-menu-item>Option 2</sl-menu-item>
+                           </sl-select>`,
+                    properties: { options: ['Option 1', 'Option 2'] }
+                };
+
+            case 'sl-checkbox':
+                return {
+                    html: `<sl-checkbox>Check me</sl-checkbox>`,
+                    properties: { checked: false }
+                };
+
+            case 'sl-radio':
+                return {
+                    html: `<div style="display:flex;gap:8px;align-items:center;"><sl-radio name="r1">A</sl-radio><sl-radio name="r1">B</sl-radio></div>`,
+                    properties: { name: 'r1' }
+                };
+
+            case 'sl-switch':
+                return {
+                    html: `<sl-switch></sl-switch>`,
+                    properties: { checked: false }
+                };
+
+            case 'sl-range':
+                return {
+                    html: `<sl-range min="0" max="100" value="50"></sl-range>`,
+                    properties: { min: 0, max: 100, value: 50 }
+                };
+
+            case 'sl-icon':
+                return {
+                    html: `<sl-icon name="star"></sl-icon>`,
+                    properties: { name: 'star' }
+                };
+
+            case 'sl-icon-button':
+                return {
+                    html: `<sl-icon-button name="star"></sl-icon-button>`,
+                    properties: { name: 'star' }
+                };
+
+            case 'sl-dropdown':
+                return {
+                    html: `<sl-dropdown>
+                                <sl-button slot="trigger">Menu</sl-button>
+                                <sl-menu>
+                                    <sl-menu-item>Item 1</sl-menu-item>
+                                    <sl-menu-item>Item 2</sl-menu-item>
+                                </sl-menu>
+                           </sl-dropdown>`,
+                    properties: { items: ['Item 1', 'Item 2'] }
+                };
+
+            case 'sl-dialog':
+                return {
+                    html: `<sl-dialog label="Dialog">
+                                <div>Dialog content</div>
+                                <sl-button slot="footer" variant="primary">OK</sl-button>
+                           </sl-dialog>`,
+                    properties: { label: 'Dialog' }
+                };
+
+            case 'sl-badge':
+                return {
+                    html: `<sl-badge>1</sl-badge>`,
+                    properties: { value: '1' }
+                };
+
+            case 'sl-avatar':
+                return {
+                    html: `<sl-avatar initials="AB"></sl-avatar>`,
+                    properties: { initials: 'AB' }
+                };
+
+            case 'sl-progress':
+                return {
+                    html: `<sl-progress value="50"></sl-progress>`,
+                    properties: { value: 50 }
+                };
+
+            case 'sl-spinner':
+                return {
+                    html: `<sl-spinner></sl-spinner>`,
+                    properties: {}
+                };
+
+            case 'sl-tooltip':
+                return {
+                    html: `<sl-tooltip content="Hint"><sl-button>Hover</sl-button></sl-tooltip>`,
+                    properties: { content: 'Hint' }
+                };
+
+            case 'sl-tabs':
+                return {
+                    html: `<sl-tabs>
+                                <sl-tab slot="nav">Tab 1</sl-tab>
+                                <sl-tab slot="nav">Tab 2</sl-tab>
+                                <div>Content for tabs</div>
+                           </sl-tabs>`,
+                    properties: { tabs: ['Tab 1', 'Tab 2'] }
+                };
+
+            case 'sl-toast':
+                return {
+                    html: `<sl-toast>Notification</sl-toast>`,
+                    properties: { text: 'Notification' }
+                };
             
             default:
                 return {
@@ -7613,20 +7872,36 @@ closeModal(modal) {
         let dragPreview = null;
         let potentialDropTarget = null;
 
+        // Ensure there is a visible drag handle to avoid clicking into Shadow DOM elements
+        if (!component.querySelector('.drag-handle')) {
+            const handle = document.createElement('div');
+            handle.className = 'drag-handle';
+            handle.style.cssText = `
+                width:12px; height:12px; background:rgba(0,0,0,0.12); position:absolute; right:6px; top:6px; border-radius:2px; cursor:grab; z-index:10;
+            `;
+            component.appendChild(handle);
+        }
+
+        // Track whether we're resizing instead of dragging
+        let isResizing = false;
+
         component.addEventListener('mousedown', (e) => {
-            // Only allow dragging from the component itself or its immediate content
-            if (e.target !== component && e.target.parentElement !== component) return;
-            
-            isDragging = true;
+            const path = e.composedPath ? e.composedPath() : (e.path || []);
+            const clickedHandle = path.some(node => node && node.classList && node.classList.contains && node.classList.contains('drag-handle'));
+            const clickedSelf = path.includes(component);
+            if (!clickedHandle && !clickedSelf) return;
+
             startX = e.clientX;
             startY = e.clientY;
             startLeft = parseInt(component.style.left) || 0;
             startTop = parseInt(component.style.top) || 0;
-            
+
+            isDragging = true;
+            component.style.cursor = 'move';
             // Create drag preview indicator
             component.style.opacity = '0.7';
             component.style.zIndex = '9999';
-            
+
             e.preventDefault();
         });
 
@@ -7650,6 +7925,7 @@ closeModal(modal) {
                 // Restore visual state
                 component.style.opacity = '1';
                 component.style.zIndex = 'auto';
+                component.style.cursor = 'default';
                 
                 // Clear any drop target highlights
                 this.clearContainerDropHighlights();
@@ -7669,9 +7945,21 @@ closeModal(modal) {
                 if (componentData) {
                     componentData.position.x = parseInt(component.style.left) || 0;
                     componentData.position.y = parseInt(component.style.top) || 0;
+                    // If resized, stash frame dimensions
+                    const frame = component.querySelector('.component-frame');
+                    if (frame) {
+                        componentData.properties.width = frame.style.width || (frame.offsetWidth + 'px');
+                        componentData.properties.height = frame.style.height || (frame.offsetHeight + 'px');
+                    }
                 }
             }
         });
+    }
+
+    isNonVisibleComponent(type) {
+        // Components that do not render immediately inside the layout but appear in overlays
+        const nonVisible = ['sl-toast', 'sl-dialog', 'sl-dropdown'];
+        return nonVisible.includes(type);
     }
 
     updateContainerDropTargets(mouseEvent, draggedComponent) {
@@ -7851,45 +8139,113 @@ closeModal(modal) {
         let html = `<div style="color: var(--nebula-text-primary); font-weight: 600; margin-bottom: 12px; font-size: 13px;">
             ${component.type.charAt(0).toUpperCase() + component.type.slice(1)} Properties
         </div>`;
+        // Schema-driven properties for common components
+        const schema = this.getPropertySchemaForType(component.type, props);
 
-        // Generate property inputs based on component type
-        Object.entries(props).forEach(([key, value]) => {
-            html += `
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 11px; color: var(--nebula-text-secondary); margin-bottom: 4px;">
-                        ${key.charAt(0).toUpperCase() + key.slice(1)}
-                    </label>
-                    <input 
-                        type="${key.includes('color') || key.includes('Color') ? 'color' : 'text'}"
-                        value="${value}"
-                        data-component-id="${component.id}"
-                        data-property="${key}"
-                        style="
-                            width: 100%;
-                            padding: 6px;
-                            border: 1px solid var(--nebula-border);
-                            border-radius: 3px;
-                            font-size: 12px;
-                            background: var(--nebula-bg-primary);
-                            color: var(--nebula-text-primary);
-                        "
-                    >
-                </div>
-            `;
+        schema.forEach(field => {
+            const val = component.properties[field.key] ?? field.default ?? '';
+            if (field.type === 'textarea') {
+                html += `
+                    <div style="margin-bottom: 12px;">
+                        <label style="display:block;font-size:11px;color:var(--nebula-text-secondary);margin-bottom:4px;">${field.label}</label>
+                        <textarea data-component-id="${component.id}" data-property="${field.key}" style="width:100%;min-height:60px;padding:6px;border:1px solid var(--nebula-border);border-radius:3px;background:var(--nebula-bg-primary);color:var(--nebula-text-primary);">${val}</textarea>
+                    </div>
+                `;
+            } else if (field.type === 'select') {
+                html += `<div style="margin-bottom:12px;"><label style="display:block;font-size:11px;color:var(--nebula-text-secondary);margin-bottom:4px;">${field.label}</label><select data-component-id="${component.id}" data-property="${field.key}" style="width:100%;padding:6px;border:1px solid var(--nebula-border);border-radius:3px;background:var(--nebula-bg-primary);color:var(--nebula-text-primary);">`;
+                field.options.forEach(o => {
+                    const s = (o === val) ? 'selected' : '';
+                    html += `<option value="${o}" ${s}>${o}</option>`;
+                });
+                html += `</select></div>`;
+            } else if (field.type === 'checkbox') {
+                const checked = val ? 'checked' : '';
+                html += `<div style="margin-bottom:12px;"><label style="font-size:11px;color:var(--nebula-text-secondary);"><input type="checkbox" data-component-id="${component.id}" data-property="${field.key}" ${checked}> ${field.label}</label></div>`;
+            } else {
+                const inputType = field.type === 'color' ? 'color' : 'text';
+                html += `
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 11px; color: var(--nebula-text-secondary); margin-bottom: 4px;">${field.label}</label>
+                        <input type="${inputType}" value="${val}" data-component-id="${component.id}" data-property="${field.key}" style="width:100%;padding:6px;border:1px solid var(--nebula-border);border-radius:3px;background:var(--nebula-bg-primary);color:var(--nebula-text-primary);">
+                    </div>
+                `;
+            }
         });
+
+        // Add preview controls for certain components
+        if (component.type === 'sl-toast') {
+            html += `<div style="margin-top:8px;display:flex;gap:8px;"><button id="previewShowToast-${component.id}" style="padding:6px 10px;border-radius:4px;border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);">Show Toast</button></div>`;
+        }
+        if (component.type === 'sl-dialog') {
+            html += `<div style="margin-top:8px;display:flex;gap:8px;"><button id="previewOpenDialog-${component.id}" style="padding:6px 10px;border-radius:4px;border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);">Open Dialog</button></div>`;
+        }
+
+        // Add a small helper for linking events (placeholder for future node editor)
+        html += `<div style="margin-top:8px;"><button id="linkEventBtn-${component.id}" style="padding:6px 10px;border-radius:4px;border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);">Link to...</button></div>`;
 
         propertiesPanel.innerHTML = html;
 
-        // Add property change listeners
-        propertiesPanel.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', (e) => {
-                this.updateComponentProperty(
-                    e.target.dataset.componentId,
-                    e.target.dataset.property,
-                    e.target.value
-                );
+        // Attach listeners for inputs
+        propertiesPanel.querySelectorAll('input, textarea, select').forEach(input => {
+            const eventType = input.tagName === 'SELECT' ? 'change' : 'input';
+            input.addEventListener(eventType, (e) => {
+                const dataset = e.target.dataset;
+                const value = (e.target.type === 'checkbox') ? e.target.checked : e.target.value;
+                this.updateComponentProperty(dataset.componentId, dataset.property, value);
             });
         });
+
+        // Link button (stub) for future node editor
+        const linkBtn = propertiesPanel.querySelector(`#linkEventBtn-${component.id}`);
+        if (linkBtn) {
+            linkBtn.addEventListener('click', () => {
+                this.openLinkEditor(component);
+            });
+        }
+
+        const toastBtn = propertiesPanel.querySelector(`#previewShowToast-${component.id}`);
+        if (toastBtn) {
+            toastBtn.addEventListener('click', () => {
+                const inner = component.element.querySelector('.component-inner');
+                const sl = inner && inner.querySelector('sl-toast');
+                if (sl) {
+                    try { sl.show(); } catch (e) { sl.setAttribute('open',''); }
+                }
+            });
+        }
+
+        const dialogBtn = propertiesPanel.querySelector(`#previewOpenDialog-${component.id}`);
+        if (dialogBtn) {
+            dialogBtn.addEventListener('click', () => {
+                const inner = component.element.querySelector('.component-inner');
+                const sl = inner && inner.querySelector('sl-dialog');
+                if (sl) {
+                    try { sl.show(); } catch (e) { sl.setAttribute('open',''); }
+                }
+            });
+        }
+    }
+
+    getPropertySchemaForType(type, existingProps) {
+        // Provide editable fields for common native and shoelace components
+        const base = [ { key: 'id', label: 'ID', type: 'text', default: existingProps.id || '' } ];
+
+        const schemas = {
+            'button': [ { key: 'text', label: 'Text', type: 'text', default: existingProps.text || 'Button' }, { key: 'backgroundColor', label: 'Background', type: 'color', default: existingProps.backgroundColor || '#667eea' } ],
+            'input': [ { key: 'placeholder', label: 'Placeholder', type: 'text', default: existingProps.placeholder || 'Enter text' }, { key: 'value', label: 'Value', type: 'text', default: existingProps.value || '' } ],
+            'sl-button': [ { key: 'text', label: 'Text', type: 'text', default: existingProps.text || 'Button' }, { key: 'variant', label: 'Variant', type: 'select', options: ['default','primary','success','danger'], default: existingProps.variant || 'default' }, { key: 'icon', label: 'Icon', type: 'text', default: existingProps.icon || '' } ],
+            'sl-input': [ { key: 'placeholder', label: 'Placeholder', type: 'text', default: existingProps.placeholder || 'Enter text' }, { key: 'value', label: 'Value', type: 'text', default: existingProps.value || '' } ],
+            'sl-select': [ { key: 'options', label: 'Options (comma separated)', type: 'text', default: (existingProps.options || []).join(',') } ],
+            'sl-checkbox': [ { key: 'checked', label: 'Checked', type: 'checkbox', default: existingProps.checked || false } ],
+            'sl-progress': [ { key: 'value', label: 'Value', type: 'text', default: existingProps.value || 0 } ],
+            'sl-badge': [ { key: 'value', label: 'Value', type: 'text', default: existingProps.value || '' } ],
+            'sl-icon': [ { key: 'name', label: 'Icon name', type: 'text', default: existingProps.name || 'star' } ],
+            'sl-tabs': [ { key: 'tabs', label: 'Tabs (label::content per line)', type: 'textarea', default: (existingProps.tabs || []).map(t=> (t.label + '::' + (t.content||''))).join('\n') } ],
+            'sl-toast': [ { key: 'text', label: 'Text', type: 'text', default: existingProps.text || 'Notification' }, { key: 'timeout', label: 'Timeout (ms)', type: 'text', default: existingProps.timeout || '4000' } ],
+            'sl-dialog': [ { key: 'label', label: 'Label', type: 'text', default: existingProps.label || 'Dialog' }, { key: 'content', label: 'Content (HTML)', type: 'textarea', default: existingProps.content || '' }, { key: 'open', label: 'Open', type: 'checkbox', default: existingProps.open || false } ]
+        };
+
+        return schemas[type] ? schemas[type] : Object.entries(existingProps).map(([k,v]) => ({ key: k, label: k, type: 'text', default: v }));
     }
 
     updateComponentProperty(componentId, property, value) {
@@ -7900,39 +8256,124 @@ closeModal(modal) {
 
         // Update the visual element
         const element = component.element;
-        const content = element.querySelector('button, input, label, select, div');
-        
-        if (content) {
+        const inner = element.querySelector('.component-inner');
+        const native = inner && inner.querySelector('button, input, label, select, textarea, div');
+
+        // If this is a Shoelace component, prefer setting attributes/properties on the custom element
+        const sl = inner && inner.querySelector('[is^="sl-"]') || inner && inner.querySelector('sl-button, sl-input, sl-select, sl-checkbox, sl-progress, sl-badge, sl-icon');
+
+        // Generic mapping logic
+        if (sl) {
+            // For sl-select options we accept comma-separated string
+            if (property === 'options' && typeof value === 'string') {
+                const opts = value.split(',').map(s => s.trim()).filter(Boolean);
+                // Clear existing menu items
+                while (sl.firstChild) sl.removeChild(sl.firstChild);
+                opts.forEach(o => {
+                    const mi = document.createElement('sl-menu-item');
+                    mi.textContent = o;
+                    sl.appendChild(mi);
+                });
+                component.properties.options = opts;
+                return;
+            }
+
+            // boolean
+            if (property === 'checked') {
+                try { sl.checked = !!value; } catch(e) { sl.setAttribute('checked', value ? '': ''); }
+                return;
+            }
+
+            // numeric/value
+            if (property === 'value') {
+                try { sl.value = value; } catch (e) { sl.setAttribute('value', value); }
+                return;
+            }
+
+            // sl-tabs special handling: parse textarea with lines label::content
+            if (sl.tagName && sl.tagName.toLowerCase() === 'sl-tabs' && property === 'tabs') {
+                // Clear current tabs
+                while (sl.firstChild) sl.removeChild(sl.firstChild);
+                const lines = value.split('\n').map(l => l.trim()).filter(Boolean);
+                lines.forEach((ln, idx) => {
+                    const parts = ln.split('::');
+                    const label = parts[0] || `Tab ${idx+1}`;
+                    const content = parts[1] || '';
+                    const tab = document.createElement('sl-tab');
+                    tab.setAttribute('slot', 'nav');
+                    tab.textContent = label;
+                    sl.appendChild(tab);
+                    const panel = document.createElement('div');
+                    panel.innerHTML = content;
+                    sl.appendChild(panel);
+                });
+                component.properties.tabs = lines.map(l => { const p = l.split('::'); return { label: p[0], content: p[1]||'' }; });
+                return;
+            }
+
+            // sl-toast: update text/timeout and offer preview
+            if (sl.tagName && sl.tagName.toLowerCase() === 'sl-toast') {
+                if (property === 'text') {
+                    sl.textContent = value;
+                    component.properties.text = value;
+                    return;
+                }
+                if (property === 'timeout') {
+                    try { sl.timeout = parseInt(value); } catch (e) { sl.setAttribute('timeout', value); }
+                    component.properties.timeout = value;
+                    return;
+                }
+            }
+
+            // sl-dialog: set label/content/open
+            if (sl.tagName && sl.tagName.toLowerCase() === 'sl-dialog') {
+                if (property === 'label') { try { sl.label = value; } catch(e) { sl.setAttribute('label', value); } component.properties.label = value; return; }
+                if (property === 'content') { // replace dialog inner HTML
+                    // remove existing non-template children
+                    while (sl.firstChild) sl.removeChild(sl.firstChild);
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = value;
+                    sl.appendChild(wrapper);
+                    component.properties.content = value;
+                    return;
+                }
+                if (property === 'open') {
+                    const shouldOpen = !!value;
+                    try { if (shouldOpen) sl.show(); else sl.hide(); } catch(e) { if (shouldOpen) sl.setAttribute('open',''); else sl.removeAttribute('open'); }
+                    component.properties.open = shouldOpen;
+                    return;
+                }
+            }
+
+            // fallback: set attribute
+            try { sl.setAttribute(property, value); } catch (e) { /* ignore */ }
+            return;
+        }
+
+        // Native element fallback
+        if (native) {
             switch (property) {
                 case 'text':
-                    if (content.tagName === 'BUTTON' || content.tagName === 'LABEL') {
-                        content.textContent = value;
-                    } else if (content.tagName === 'INPUT') {
-                        content.placeholder = value;
-                    }
-                    break;
-                case 'backgroundColor':
-                    content.style.backgroundColor = value;
-                    break;
-                case 'color':
-                    content.style.color = value;
-                    break;
-                case 'width':
-                    content.style.width = value;
-                    break;
-                case 'height':
-                    content.style.height = value;
-                    break;
-                case 'fontSize':
-                    content.style.fontSize = value;
+                    native.textContent = value;
                     break;
                 case 'placeholder':
-                    if (content.tagName === 'INPUT') {
-                        content.placeholder = value;
-                    }
+                    if (native.tagName === 'INPUT' || native.tagName === 'TEXTAREA') native.placeholder = value;
                     break;
+                case 'backgroundColor':
+                    native.style.backgroundColor = value; break;
+                case 'width':
+                    native.style.width = value; break;
+                case 'height':
+                    native.style.height = value; break;
+                default:
+                    try { native.setAttribute(property, value); } catch (e) {}
             }
         }
+    }
+
+    openLinkEditor(component) {
+        // Placeholder: simple modal that will be replaced by the node editor later
+        alert('Link editor coming soon — will allow you to connect events between components.');
     }
 
     generateVisualGuiMethod() {

@@ -1,0 +1,107 @@
+/* shoelace-nebula-bridge.css
+   Maps Nebula design tokens to Shoelace CSS custom properties so
+   Shoelace components adopt the Nebula theme. This file intentionally
+   references Nebula variables (var(--nebula-...)) so changes to the
+   Nebula theme immediately reflect in Shoelace components.
+*/
+:root {
+  /* Primary palette (use Nebula primary/accent as anchors) */
+  --sl-color-primary-50:  var(--nebula-primary-50, var(--nebula-primary, #0b84ff));
+  --sl-color-primary-100: var(--nebula-primary-100, var(--nebula-primary, #0b84ff));
+  --sl-color-primary-200: var(--nebula-primary-200, var(--nebula-accent, #0ea5ff));
+  --sl-color-primary-300: var(--nebula-primary-300, var(--nebula-accent, #0ea5ff));
+  --sl-color-primary-400: var(--nebula-primary-400, var(--nebula-accent, #0ea5ff));
+  --sl-color-primary-500: var(--nebula-primary-500, var(--nebula-accent, #0ea5ff));
+  --sl-color-primary-600: var(--nebula-primary-600, var(--nebula-primary, #0b84ff));
+  --sl-color-primary-700: var(--nebula-primary-700, var(--nebula-primary, #0b84ff));
+  --sl-color-primary-800: var(--nebula-primary-800, var(--nebula-primary, #0b84ff));
+  --sl-color-primary-900: var(--nebula-primary-900, var(--nebula-primary, #0b84ff));
+
+  /* Neutral / surface / text mapping */
+  --sl-color-neutral-0:   var(--nebula-surface, #ffffff);
+  --sl-color-neutral-50:  var(--nebula-neutral-50, var(--nebula-bg-primary, #f8fafc));
+  --sl-color-neutral-100: var(--nebula-neutral-100, var(--nebula-bg-primary, #f5f7fb));
+  --sl-color-neutral-200: var(--nebula-neutral-200, var(--nebula-bg-secondary, #eef2f6));
+  --sl-color-neutral-300: var(--nebula-neutral-300, var(--nebula-border, #e5e7eb));
+  --sl-color-neutral-400: var(--nebula-neutral-400, var(--nebula-border, #d1d5db));
+  --sl-color-neutral-500: var(--nebula-neutral-500, var(--nebula-text-secondary, #6b7280));
+  --sl-color-neutral-600: var(--nebula-neutral-600, var(--nebula-text-secondary, #6b7280));
+  --sl-color-neutral-700: var(--nebula-neutral-700, var(--nebula-text-secondary, #374151));
+  --sl-color-neutral-800: var(--nebula-neutral-800, var(--nebula-text-primary, #111827));
+  --sl-color-neutral-900: var(--nebula-neutral-900, var(--nebula-text-primary, #111827));
+
+  /* Background / surfaces */
+  --sl-color-background:   var(--nebula-bg-primary, #f5f7fb);
+  --sl-color-surface:      var(--nebula-surface, #ffffff);
+  --sl-color-surface-1:    var(--nebula-surface, #ffffff);
+  --sl-color-surface-2:    var(--nebula-surface-2, var(--nebula-surface, #f8fafc));
+
+  /* Disabled / muted */
+  --sl-color-neutral-disabled: var(--nebula-disabled, #9ca3af);
+  --sl-opacity-disabled: 0.5;
+
+  /* Borders & focus */
+  --sl-border-color:       var(--nebula-border, #e5e7eb);
+  --sl-focus-ring-color:   var(--nebula-primary, #0b84ff);
+
+  /* Radius tokens */
+  --sl-border-radius-small:  var(--nebula-radius-sm, 6px);
+  --sl-border-radius-medium: var(--nebula-radius-md, 8px);
+  --sl-border-radius-large:  var(--nebula-radius-lg, 12px);
+
+  /* Size tokens - map to Nebula spacing tokens if available */
+  --sl-spacing-xsmall: var(--nebula-spacing-1, 4px);
+  --sl-spacing-small: var(--nebula-spacing-2, 8px);
+  --sl-spacing-medium: var(--nebula-spacing-3, 12px);
+  --sl-spacing-large: var(--nebula-spacing-4, 16px);
+
+  /* Elevation / shadows (best-effort) */
+  --sl-shadow-xsmall: 0 1px 2px rgba(16,24,40,0.04);
+  --sl-shadow-small:  0 4px 8px rgba(16,24,40,0.06);
+  --sl-shadow-medium: 0 8px 16px rgba(16,24,40,0.08);
+
+  /* Semantic colors */
+  --sl-color-success-50:  var(--nebula-success-50, var(--nebula-success, #16a34a));
+  --sl-color-success-100: var(--nebula-success-100, var(--nebula-success, #16a34a));
+  --sl-color-success-600: var(--nebula-success, #16a34a);
+  --sl-color-warning-600: var(--nebula-warning, #f59e0b);
+  --sl-color-danger-600:  var(--nebula-danger, #ef4444);
+  --sl-color-info-600: var(--nebula-info, #0ea5ff);
+  --sl-color-muted: var(--nebula-text-secondary, #6b7280);
+}
+
+/* Component adjustments to match Nebula sizing and shape */
+sl-button::part(base) {
+  border-radius: var(--sl-border-radius-small);
+  padding: 6px 12px;
+  font-family: var(--nebula-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial);
+  box-shadow: none;
+  border: 1px solid var(--sl-border-color, rgba(0,0,0,0.06));
+  background: var(--sl-color-primary-600, var(--nebula-primary));
+  color: var(--sl-color-neutral-0, var(--nebula-surface, #fff));
+}
+
+sl-input::part(base), sl-textarea::part(base) {
+  font-family: var(--nebula-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial);
+}
+
+/* Slightly reduce Shoelace control radii for compact Nebula feel */
+sl-button, sl-input, sl-textarea, sl-select {
+  --sl-border-radius: var(--sl-border-radius-small);
+}
+
+/* Disabled state mapping */
+sl-button[disabled]::part(base),
+sl-input[disabled]::part(base),
+sl-textarea[disabled]::part(base) {
+  opacity: var(--sl-opacity-disabled, 0.6);
+  background: var(--sl-color-neutral-100);
+  color: var(--sl-color-neutral-400);
+}
+
+/* Focus outlines */
+sl-button::part(base):focus,
+sl-input::part(base):focus,
+sl-textarea::part(base):focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sl-focus-ring-color) 16%, transparent);
+}
