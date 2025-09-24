@@ -17,10 +17,11 @@ class NebulaQBasicTerminal {
         this.inputBuffer = '';
         this.waitingForInput = false;
         this.inputResolver = null;
-    // Store last transpiled JS for debug viewing
-    this.lastTranspiledCode = null;
-    // Monaco read-only editor instance for transpiled modal (if created)
-    this.transpiledModalEditor = null;
+        // Store last transpiled JS for debug viewing
+        this.lastTranspiledCode = null;
+        // Monaco read-only editor instances for transpiled modal (if created)
+        this.transpiledModalEditor = null;
+        this.qbasicModalEditor = null;
 
         // Only auto-init if explicitly requested (not on script load)
         if (window.QBTERMINAL_AUTO_INIT) {
@@ -400,7 +401,7 @@ class NebulaQBasicTerminal {
     }
 
     /**
-     * Show a modal with the last transpiled JavaScript
+     * Show a split-view modal with QBasic source on left, transpiled JS on right
      */
     showTranspiledJS() {
         const existing = document.getElementById('qb-transpiled-modal');
@@ -416,8 +417,8 @@ class NebulaQBasicTerminal {
             left: 50%;
             top: 50%;
             transform: translate(-50%, -50%);
-            width: 80%;
-            height: 70%;
+            width: 90%;
+            height: 80%;
             background: var(--nebula-surface);
             color: var(--nebula-text-primary);
             border: 1px solid var(--nebula-border);
@@ -431,51 +432,110 @@ class NebulaQBasicTerminal {
         const header = document.createElement('div');
         header.style.cssText = 'padding: 8px 12px; display:flex; align-items:center; gap:8px;';
         const title = document.createElement('div');
-        title.textContent = 'Transpiled JavaScript';
+        title.textContent = 'QBasic ↔ JavaScript Transpiler';
         title.style.fontWeight = '600';
         header.appendChild(title);
 
-        const btnCopy = document.createElement('button');
-        btnCopy.textContent = 'Copy';
-        btnCopy.style.marginLeft = 'auto';
-        btnCopy.addEventListener('click', () => {
-            // Copy from Monaco editor if present, otherwise from lastTranspiledCode
+        // Copy buttons for both panels
+        const copyContainer = document.createElement('div');
+        copyContainer.style.cssText = 'display:flex; gap:4px; margin-left:auto;';
+
+        const btnCopyQBasic = document.createElement('button');
+        btnCopyQBasic.textContent = 'Copy QBasic';
+        btnCopyQBasic.title = 'Copy QBasic source code';
+        btnCopyQBasic.addEventListener('click', () => {
+            navigator.clipboard.writeText(this.currentCode || '').then(() => {
+                this.updateStatus('QBasic source copied to clipboard');
+            }).catch(() => this.updateStatus('Failed to copy QBasic source'));
+        });
+        copyContainer.appendChild(btnCopyQBasic);
+
+        const btnCopyJS = document.createElement('button');
+        btnCopyJS.textContent = 'Copy JS';
+        btnCopyJS.title = 'Copy transpiled JavaScript';
+        btnCopyJS.addEventListener('click', () => {
             const text = (this.transpiledModalEditor && typeof this.transpiledModalEditor.getValue === 'function') ? this.transpiledModalEditor.getValue() : (this.lastTranspiledCode || '');
             navigator.clipboard.writeText(text).then(() => {
                 this.updateStatus('Transpiled JS copied to clipboard');
             }).catch(() => this.updateStatus('Failed to copy transpiled JS'));
         });
-        header.appendChild(btnCopy);
+        copyContainer.appendChild(btnCopyJS);
+
+        header.appendChild(copyContainer);
 
         const btnClose = document.createElement('button');
         btnClose.textContent = 'Close';
         btnClose.style.marginLeft = '8px';
         btnClose.addEventListener('click', () => {
-            // Dispose Monaco editor if created
+            // Dispose Monaco editors if created
             try {
+                if (this.qbasicModalEditor) {
+                    this.qbasicModalEditor.dispose();
+                    this.qbasicModalEditor = null;
+                }
                 if (this.transpiledModalEditor) {
                     this.transpiledModalEditor.dispose();
                     this.transpiledModalEditor = null;
                 }
             } catch (e) {
-                console.warn('Error disposing modal editor:', e);
+                console.warn('Error disposing modal editors:', e);
             }
             modal.remove();
         });
         header.appendChild(btnClose);
 
-        const contentArea = document.createElement('div');
-        contentArea.style.cssText = 'flex:1; overflow:hidden; padding:8px; background: var(--nebula-surface);';
-        contentArea.id = 'qb-transpiled-content';
+        // Split container for QBasic and JS
+        const splitContainer = document.createElement('div');
+        splitContainer.style.cssText = 'flex:1; display:flex; overflow:hidden;';
+
+        // Left panel - QBasic source
+        const qbasicPanel = document.createElement('div');
+        qbasicPanel.style.cssText = 'flex:1; display:flex; flex-direction:column; border-right:1px solid var(--nebula-border);';
+
+        const qbasicHeader = document.createElement('div');
+        qbasicHeader.style.cssText = 'padding:4px 8px; background:var(--nebula-bg-secondary); border-bottom:1px solid var(--nebula-border); font-size:12px; font-weight:500;';
+        qbasicHeader.textContent = 'QBasic Source';
+        qbasicPanel.appendChild(qbasicHeader);
+
+        const qbasicContent = document.createElement('div');
+        qbasicContent.style.cssText = 'flex:1; overflow:hidden;';
+        qbasicPanel.appendChild(qbasicContent);
+
+        // Right panel - Transpiled JS
+        const jsPanel = document.createElement('div');
+        jsPanel.style.cssText = 'flex:1; display:flex; flex-direction:column;';
+
+        const jsHeader = document.createElement('div');
+        jsHeader.style.cssText = 'padding:4px 8px; background:var(--nebula-bg-secondary); border-bottom:1px solid var(--nebula-border); font-size:12px; font-weight:500;';
+        jsHeader.textContent = 'Transpiled JavaScript';
+        jsPanel.appendChild(jsHeader);
+
+        const jsContent = document.createElement('div');
+        jsContent.style.cssText = 'flex:1; overflow:hidden;';
+        jsPanel.appendChild(jsContent);
+
+        splitContainer.appendChild(qbasicPanel);
+        splitContainer.appendChild(jsPanel);
 
         modal.appendChild(header);
-        modal.appendChild(contentArea);
+        modal.appendChild(splitContainer);
         document.body.appendChild(modal);
 
-        // If Monaco is available, create a read-only Monaco editor inside the modal
+        // Create Monaco editors for both panels if available
         if (typeof monaco !== 'undefined' && monaco && monaco.editor) {
             try {
-                this.transpiledModalEditor = monaco.editor.create(contentArea, {
+                // QBasic source editor (read-only)
+                this.qbasicModalEditor = monaco.editor.create(qbasicContent, {
+                    value: this.currentCode || '// No QBasic code available',
+                    language: 'qbasic',
+                    readOnly: true,
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    theme: this.getSavedEditorTheme() || 'qbasic-classic'
+                });
+
+                // Transpiled JS editor (read-only)
+                this.transpiledModalEditor = monaco.editor.create(jsContent, {
                     value: this.lastTranspiledCode || '// No transpiled code available',
                     language: 'javascript',
                     readOnly: true,
@@ -484,15 +544,30 @@ class NebulaQBasicTerminal {
                     theme: this.getSavedEditorTheme() || 'qbasic-classic'
                 });
             } catch (e) {
-                contentArea.textContent = this.lastTranspiledCode || '// No transpiled code available';
+                console.warn('Error creating Monaco editors:', e);
+                // Fallback to plain text
+                this.createFallbackEditors(qbasicContent, jsContent);
             }
         } else {
-            const pre = document.createElement('pre');
-            pre.style.cssText = 'flex:1; overflow:auto; padding:12px; background: #0b0b0b; color: #e6e6e6; margin:0;';
-            pre.textContent = this.lastTranspiledCode || '// No transpiled code available';
-            contentArea.appendChild(pre);
+            this.createFallbackEditors(qbasicContent, jsContent);
         }
-        document.body.appendChild(modal);
+    }
+
+    /**
+     * Create fallback plain text editors when Monaco is not available
+     */
+    createFallbackEditors(qbasicContainer, jsContainer) {
+        // QBasic fallback
+        const qbasicPre = document.createElement('pre');
+        qbasicPre.style.cssText = 'flex:1; overflow:auto; padding:12px; background: #0b0b0b; color: #74c0fc; margin:0; font-family:monospace;';
+        qbasicPre.textContent = this.currentCode || '// No QBasic code available';
+        qbasicContainer.appendChild(qbasicPre);
+
+        // JS fallback
+        const jsPre = document.createElement('pre');
+        jsPre.style.cssText = 'flex:1; overflow:auto; padding:12px; background: #0b0b0b; color: #e6e6e6; margin:0; font-family:monospace;';
+        jsPre.textContent = this.lastTranspiledCode || '// No transpiled code available';
+        jsContainer.appendChild(jsPre);
     }
 
     /**
@@ -1223,25 +1298,37 @@ END
 QBasic Terminal Help
 ===================
 
-This terminal runs authentic QBasic programs using the qbjc compiler.
+This terminal runs QBasic programs using a custom JavaScript transpiler.
 
 COMMANDS:
 • F5 or Run button: Execute QBasic program
 • Ctrl+O: Open .BAS file
 • Ctrl+S: Save .BAS file
 • Clear Terminal: Clear output
+• View Transpiled JS: See generated JavaScript code
 
 QBASIC FEATURES SUPPORTED:
 • PRINT, INPUT, CLS statements
-• FOR/NEXT loops
+• FOR/NEXT, WHILE/WEND loops
 • IF/THEN/ELSE conditionals
-• SUB/FUNCTION procedures
 • Arrays (DIM)
-• DATA/READ statements
-• Most built-in functions
+• Variable assignments
+• String functions: LEN(), MID$(), LEFT$(), RIGHT$(), CHR$(), ASC()
+• Math functions: INT(), ABS(), SQR(), SIN(), COS(), TAN(), LOG(), EXP(), RND()
+• Terminal control: LOCATE, COLOR
+• REM comments
+
+EXAMPLES:
+PRINT "Hello, World!"
+FOR i = 1 TO 10: PRINT i: NEXT i
+WHILE x < 100: x = x + 1: WEND
+LOCATE 5, 10: PRINT "Positioned text"
+COLOR 2, 0: PRINT "Green text"
+name$ = LEFT$("Hello", 3)
 
 CREDITS:
-• qbjc compiler: https://github.com/jichu4n/qbjc (Apache-2.0 License)
+• Custom JavaScript transpiler
+• Monaco Editor: https://microsoft.github.io/monaco-editor/
 • xterm.js terminal: https://xtermjs.org/
 • Monaco editor: https://microsoft.com/en-us/monaco
 
@@ -1258,6 +1345,8 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
      * Handles basic QBasic constructs for educational purposes
      */
     transpileBasicToJavaScript(basicCode) {
+        console.log('🔄 Transpiling QBasic code:', basicCode.substring(0, 100) + (basicCode.length > 100 ? '...' : ''));
+
         let jsCode = '';
         let indentLevel = 0;
         const indent = () => '    '.repeat(indentLevel);
@@ -1281,9 +1370,27 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
             line = line.replace(/\bTAN\(/gi, 'Math.tan(');
             line = line.replace(/\bLOG\(/gi, 'Math.log(');
             line = line.replace(/\bEXP\(/gi, 'Math.exp(');
+            // String functions
+            line = line.replace(/\bLEN\(/gi, '__qb_len(');
+            line = line.replace(/\bMID\$\(/gi, '__qb_mid(');
+            line = line.replace(/\bLEFT\$\(/gi, '__qb_left(');
+            line = line.replace(/\bRIGHT\$\(/gi, '__qb_right(');
+            line = line.replace(/\bCHR\$\(/gi, '__qb_chr(');
+            line = line.replace(/\bASC\(/gi, '__qb_asc(');
 
+            // WHILE loop
+            if (upperLine.startsWith('WHILE ')) {
+                const condition = line.substring(6).trim();
+                jsCode += `${indent()}while (${condition}) {\n`;
+                indentLevel++;
+            }
+            // WEND statement
+            else if (upperLine === 'WEND') {
+                indentLevel = Math.max(0, indentLevel - 1);
+                jsCode += `${indent()}}\n`;
+            }
             // FOR loop
-            if (upperLine.startsWith('FOR ')) {
+            else if (upperLine.startsWith('FOR ')) {
                 const forMatch = line.match(/FOR\s+(\w+)\s*=\s*(\d+)\s+TO\s+(\d+)/i);
                 if (forMatch) {
                     const [_, varName, start, end] = forMatch;
@@ -1334,18 +1441,29 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
                 if (!content) {
                     jsCode += `${indent()}__qb_writeln('');\n`;
                 } else {
-                    // Split on ; or , but ignore separators inside string literals
+                    // Split on ; or , but ignore separators inside string literals and parentheses
                     const parts = [];
                     let cur = '';
                     let inQuote = false;
+                    let parenDepth = 0;
                     for (let j = 0; j < content.length; j++) {
                         const ch = content[j];
                         if (ch === '"') {
                             inQuote = !inQuote;
                             cur += ch;
-                        } else if (!inQuote && (ch === ';' || ch === ',')) {
-                            parts.push(cur.trim());
-                            cur = '';
+                        } else if (!inQuote) {
+                            if (ch === '(') {
+                                parenDepth++;
+                                cur += ch;
+                            } else if (ch === ')') {
+                                parenDepth--;
+                                cur += ch;
+                            } else if (parenDepth === 0 && (ch === ';' || ch === ',')) {
+                                parts.push(cur.trim());
+                                cur = '';
+                            } else {
+                                cur += ch;
+                            }
                         } else {
                             cur += ch;
                         }
@@ -1373,7 +1491,7 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
                     const value = parts[1].trim();
                     // Skip if this looks like a FOR loop (already handled above)
                     if (!upperLine.startsWith('FOR ')) {
-                        jsCode += `${indent()}let ${varName} = ${value};\n`;
+                        jsCode += `${indent()}var ${varName} = ${value};\n`;
                     }
                 }
             }
@@ -1384,6 +1502,28 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
             // CLS (clear screen)
             else if (upperLine === 'CLS') {
                 jsCode += `${indent()}__qb_clear();\n`;
+            }
+            // LOCATE statement (cursor positioning)
+            else if (upperLine.startsWith('LOCATE ')) {
+                const locateMatch = line.match(/LOCATE\s+(\d+)(?:\s*,\s*(\d+))?/i);
+                if (locateMatch) {
+                    const row = locateMatch[1];
+                    const col = locateMatch[2] || '1';
+                    jsCode += `${indent()}__qb_locate(${row}, ${col});\n`;
+                } else {
+                    jsCode += `${indent()}// Invalid LOCATE statement: ${line}\n`;
+                }
+            }
+            // COLOR statement (text color)
+            else if (upperLine.startsWith('COLOR ')) {
+                const colorMatch = line.match(/COLOR\s+(\d+)(?:\s*,\s*(\d+))?/i);
+                if (colorMatch) {
+                    const fg = colorMatch[1];
+                    const bg = colorMatch[2] || '0';
+                    jsCode += `${indent()}__qb_color(${fg}, ${bg});\n`;
+                } else {
+                    jsCode += `${indent()}// Invalid COLOR statement: ${line}\n`;
+                }
             }
             // END
             else if (upperLine === 'END') {
@@ -1455,7 +1595,7 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
                 if (letMatch) {
                     const varName = letMatch[1].trim();
                     const value = letMatch[2].trim();
-                    jsCode += `${indent()}let ${varName} = ${value};\n`;
+                    jsCode += `${indent()}var ${varName} = ${value};\n`;
                 }
             }
             // DIM statement (basic arrays)
@@ -1474,6 +1614,7 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
             }
         }
 
+        console.log('✅ Transpilation result:', jsCode.substring(0, 100) + (jsCode.length > 100 ? '...' : ''));
         return jsCode || '// No transpilable BASIC code found';
     }
 
@@ -1482,6 +1623,8 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
      */
     async executeTranspiledBasic(jsCode) {
         try {
+            console.log('🔄 Executing transpiled JavaScript...');
+
             // Capture console output and write incrementally to the terminal
             const originalLog = console.log;
             const originalError = console.error;
@@ -1526,12 +1669,40 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
             const __qb_tab = (n) => { try { const spaces = ' '.repeat(Math.max(0, parseInt(n,10)||0)); self.terminal.write(spaces); } catch (e) { /* ignore */ } };
             const __qb_clear = () => { try { self.terminal.clear(); } catch (e) { /* ignore */ } };
 
+            // String function helpers
+            const __qb_len = (str) => String(str).length;
+            const __qb_mid = (str, start, length) => {
+                const s = String(str);
+                const st = Math.max(0, parseInt(start, 10) - 1); // QBasic is 1-based
+                return length !== undefined ? s.substr(st, parseInt(length, 10)) : s.substr(st);
+            };
+            const __qb_left = (str, length) => String(str).substr(0, parseInt(length, 10));
+            const __qb_right = (str, length) => {
+                const s = String(str);
+                return s.substr(Math.max(0, s.length - parseInt(length, 10)));
+            };
+            const __qb_chr = (code) => String.fromCharCode(parseInt(code, 10));
+            const __qb_asc = (str) => String(str).charCodeAt(0) || 0;
+
+            // Terminal control helpers
+            const __qb_locate = (row, col) => {
+                // ANSI escape sequence for cursor positioning (1-based)
+                try { self.terminal.write(`\x1b[${parseInt(row,10)};${parseInt(col,10)}H`); } catch (e) { /* ignore */ }
+            };
+            const __qb_color = (fg, bg) => {
+                // ANSI color codes (simplified QBasic color mapping)
+                const colors = [30, 34, 32, 36, 31, 35, 33, 37, 90, 94, 92, 96, 91, 95, 93, 97];
+                const fgCode = colors[parseInt(fg, 10) % colors.length] || 37;
+                const bgCode = (parseInt(bg, 10) > 0) ? (colors[parseInt(bg, 10) % colors.length] || 40) + 10 : 40;
+                try { self.terminal.write(`\x1b[${fgCode};${bgCode}m`); } catch (e) { /* ignore */ }
+            };
+
             // Wrap code in an async IIFE and inject helpers
-            const wrapped = `(async function(__qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear){\n${jsCode}\n}).call(this, __qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear);`;
+            const wrapped = `(async function(__qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear, __qb_len, __qb_mid, __qb_left, __qb_right, __qb_chr, __qb_asc, __qb_locate, __qb_color){\n${jsCode}\n}).call(this, __qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear, __qb_len, __qb_mid, __qb_left, __qb_right, __qb_chr, __qb_asc, __qb_locate, __qb_color);`;
 
             // Evaluate in current context with helpers available
-            const func = new Function('__qb_input', '__qb_write', '__qb_writeln', '__qb_tab', '__qb_clear', wrapped);
-            await func(__qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear);
+            const func = new Function('__qb_input', '__qb_write', '__qb_writeln', '__qb_tab', '__qb_clear', '__qb_len', '__qb_mid', '__qb_left', '__qb_right', '__qb_chr', '__qb_asc', '__qb_locate', '__qb_color', wrapped);
+            await func(__qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear, __qb_len, __qb_mid, __qb_left, __qb_right, __qb_chr, __qb_asc, __qb_locate, __qb_color);
 
             // Restore console
             console.log = originalLog;
@@ -1545,6 +1716,18 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
         } catch (error) {
             this.terminal.writeln('');
             this.terminal.writeln(`\x1b[1;31m❌ Runtime Error: ${error.message}\x1b[0m`);
+            this.terminal.writeln('\x1b[1;33m🔍 Debug Info:\x1b[0m');
+
+            // Show the transpiled JavaScript for debugging
+            this.terminal.writeln('\x1b[1;36mGenerated JavaScript:\x1b[0m');
+            const lines = jsCode.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                this.terminal.writeln(`  ${i + 1}: ${lines[i]}`);
+            }
+
+            // Show full transpiled code in modal for detailed debugging
+            this.terminal.writeln('\x1b[1;35m💡 Tip: Use "View Transpiled JS" button to see full generated code\x1b[0m');
+
             this.updateStatus('Error');
         }
     }
