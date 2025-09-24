@@ -2,6 +2,10 @@
 // Based on NebulaApp-Single.js template
 // Integrates qbjc compiler with xterm.js terminal for authentic QBasic experience
 
+// NebulaQBasic Terminal - QBasic Compiler & Runtime
+// Based on NebulaApp-Single.js template
+// Integrates qbjc compiler with xterm.js terminal for authentic QBasic experience
+
 class NebulaQBasicTerminal {
     constructor() {
         this.windowId = null;
@@ -9,6 +13,14 @@ class NebulaQBasicTerminal {
         this.editor = null;
         this.currentCode = '';
         this.isRunning = false;
+        // Input state for interactive INPUT support
+        this.inputBuffer = '';
+        this.waitingForInput = false;
+        this.inputResolver = null;
+    // Store last transpiled JS for debug viewing
+    this.lastTranspiledCode = null;
+    // Monaco read-only editor instance for transpiled modal (if created)
+    this.transpiledModalEditor = null;
 
         // Only auto-init if explicitly requested (not on script load)
         if (window.QBTERMINAL_AUTO_INIT) {
@@ -85,6 +97,13 @@ class NebulaQBasicTerminal {
             this.initializeEditor();
             this.initializeTerminal();
             this.loadWelcomeMessage();
+            // Add theme selector UI and start watching for Nebula theme changes
+            this.addThemeSelector();
+            this.watchNebulaThemeChanges();
+            // Show a brief hint about variable suffixes for beginners
+            setTimeout(() => this.showCenterHint('Tip: Use $ for strings and % for integers (e.g., name$ or count%)', 7000), 800);
+            // Start rotating tips
+            this.startRotatingTips();
         }, 500); // Increased delay to ensure DOM is ready
 
         return container;
@@ -136,6 +155,11 @@ class NebulaQBasicTerminal {
                 <span class="material-symbols-outlined">content_copy</span>
             </button>
 
+            <button class="toolbar-btn" id="view-transpiled-btn" title="View Transpiled JS">
+                <span class="material-symbols-outlined">visibility</span>
+            </button>
+
+
             <button class="toolbar-btn" id="help-btn" title="QBasic Help">
                 <span class="material-symbols-outlined">help</span>
             </button>
@@ -147,6 +171,48 @@ class NebulaQBasicTerminal {
 
         this.addToolbarStyles();
         return toolbar;
+    }
+
+    /**
+     * Build a theme selector dropdown in the toolbar (called once during UI setup)
+     */
+    addThemeSelector() {
+        const toolbar = document.querySelector('.qbterminal-toolbar');
+        if (!toolbar) return;
+
+        // Avoid adding twice
+        if (document.getElementById('qb-theme-select')) return;
+
+        const select = document.createElement('select');
+        select.id = 'qb-theme-select';
+        select.style.cssText = 'margin-left:8px; background: var(--nebula-bg-secondary); color: var(--nebula-text-primary); border:1px solid var(--nebula-border); padding:4px;';
+        const options = [
+            { v: 'qbasic-classic', t: 'Classic QB' },
+            { v: 'qbasic-nebula', t: 'Nebula' },
+            { v: 'qbasic-simple', t: 'Simple' },
+            { v: 'vs-light', t: 'Light (Monaco)' }
+        ];
+        options.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.v;
+            opt.textContent = o.t;
+            select.appendChild(opt);
+        });
+
+        select.value = this.getSavedEditorTheme() || 'qbasic-classic';
+        select.addEventListener('change', (e) => {
+            const v = e.target.value;
+            try {
+                if (typeof monaco !== 'undefined' && monaco && monaco.editor) {
+                    monaco.editor.setTheme(v);
+                }
+            } catch (err) { console.warn('Set theme failed', err); }
+            this.saveEditorTheme(v);
+        });
+
+        // Insert before the toolbar title
+        const title = toolbar.querySelector('.toolbar-title');
+        if (title) toolbar.insertBefore(select, title);
     }
 
     /**
@@ -173,7 +239,7 @@ class NebulaQBasicTerminal {
     }
 
     /**
-     * Create the Monaco editor area for QBasic code
+     * Create the Monaco editor area for QBasic
      */
     createEditorArea() {
         const editorArea = document.createElement('div');
@@ -230,10 +296,47 @@ class NebulaQBasicTerminal {
 
         statusBar.innerHTML = `
             <span class="status-left" id="status-info">Ready - Type QBasic code above and press F5 to run</span>
+            <span class="status-center" id="status-center"></span>
             <span class="status-right" id="status-details">Custom Transpiler v1.0</span>
         `;
 
         return statusBar;
+    }
+
+    // Show a short, centered hint in the status bar
+    showCenterHint(msg, timeoutMs = 5000) {
+        const el = document.getElementById('status-center');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.opacity = '1';
+        setTimeout(() => {
+            el.style.opacity = '0.0';
+            el.textContent = '';
+        }, timeoutMs);
+    }
+
+    // Rotating tips in the center status area
+    startRotatingTips(intervalMs = 8000) {
+        if (this._tipsTimer) return;
+        this._tips = [
+            'Tip: Use $ for strings (name$), % for integers (count%)',
+            'Tip: Use REM or an apostrophe (\') to add comments',
+            'Tip: Use CLS to clear the screen at program start',
+            'Tip: INPUT "Prompt", var$ to prompt the user'
+        ];
+        let idx = 0;
+        this.showCenterHint(this._tips[idx], 4000);
+        this._tipsTimer = setInterval(() => {
+            idx = (idx + 1) % this._tips.length;
+            this.showCenterHint(this._tips[idx], 4000);
+        }, intervalMs);
+    }
+
+    stopRotatingTips() {
+        if (this._tipsTimer) {
+            clearInterval(this._tipsTimer);
+            this._tipsTimer = null;
+        }
     }
 
     /**
@@ -297,6 +400,102 @@ class NebulaQBasicTerminal {
     }
 
     /**
+     * Show a modal with the last transpiled JavaScript
+     */
+    showTranspiledJS() {
+        const existing = document.getElementById('qb-transpiled-modal');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.id = 'qb-transpiled-modal';
+        modal.style.cssText = `
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 70%;
+            background: var(--nebula-surface);
+            color: var(--nebula-text-primary);
+            border: 1px solid var(--nebula-border);
+            border-radius: 8px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        `;
+
+        const header = document.createElement('div');
+        header.style.cssText = 'padding: 8px 12px; display:flex; align-items:center; gap:8px;';
+        const title = document.createElement('div');
+        title.textContent = 'Transpiled JavaScript';
+        title.style.fontWeight = '600';
+        header.appendChild(title);
+
+        const btnCopy = document.createElement('button');
+        btnCopy.textContent = 'Copy';
+        btnCopy.style.marginLeft = 'auto';
+        btnCopy.addEventListener('click', () => {
+            // Copy from Monaco editor if present, otherwise from lastTranspiledCode
+            const text = (this.transpiledModalEditor && typeof this.transpiledModalEditor.getValue === 'function') ? this.transpiledModalEditor.getValue() : (this.lastTranspiledCode || '');
+            navigator.clipboard.writeText(text).then(() => {
+                this.updateStatus('Transpiled JS copied to clipboard');
+            }).catch(() => this.updateStatus('Failed to copy transpiled JS'));
+        });
+        header.appendChild(btnCopy);
+
+        const btnClose = document.createElement('button');
+        btnClose.textContent = 'Close';
+        btnClose.style.marginLeft = '8px';
+        btnClose.addEventListener('click', () => {
+            // Dispose Monaco editor if created
+            try {
+                if (this.transpiledModalEditor) {
+                    this.transpiledModalEditor.dispose();
+                    this.transpiledModalEditor = null;
+                }
+            } catch (e) {
+                console.warn('Error disposing modal editor:', e);
+            }
+            modal.remove();
+        });
+        header.appendChild(btnClose);
+
+        const contentArea = document.createElement('div');
+        contentArea.style.cssText = 'flex:1; overflow:hidden; padding:8px; background: var(--nebula-surface);';
+        contentArea.id = 'qb-transpiled-content';
+
+        modal.appendChild(header);
+        modal.appendChild(contentArea);
+        document.body.appendChild(modal);
+
+        // If Monaco is available, create a read-only Monaco editor inside the modal
+        if (typeof monaco !== 'undefined' && monaco && monaco.editor) {
+            try {
+                this.transpiledModalEditor = monaco.editor.create(contentArea, {
+                    value: this.lastTranspiledCode || '// No transpiled code available',
+                    language: 'javascript',
+                    readOnly: true,
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    theme: this.getSavedEditorTheme() || 'qbasic-classic'
+                });
+            } catch (e) {
+                contentArea.textContent = this.lastTranspiledCode || '// No transpiled code available';
+            }
+        } else {
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'flex:1; overflow:auto; padding:12px; background: #0b0b0b; color: #e6e6e6; margin:0;';
+            pre.textContent = this.lastTranspiledCode || '// No transpiled code available';
+            contentArea.appendChild(pre);
+        }
+        document.body.appendChild(modal);
+    }
+
+    /**
      * Set up event listeners
      */
     setupEventListeners() {
@@ -327,6 +526,11 @@ class NebulaQBasicTerminal {
 
         document.getElementById('help-btn')?.addEventListener('click', () => {
             this.showHelp();
+        });
+
+        // View transpiled JS button
+        document.getElementById('view-transpiled-btn')?.addEventListener('click', () => {
+            this.showTranspiledJS();
         });
 
         // Keyboard shortcuts
@@ -367,6 +571,87 @@ class NebulaQBasicTerminal {
                 console.log('QBTerminal: Monaco already available');
             }
 
+            // Register QBasic language and themes if not already done
+            try {
+                if (monaco && !monaco.languages.getLanguages().some(l=>l.id==='qbasic')) {
+                    monaco.languages.register({ id: 'qbasic' });
+                    monaco.languages.setMonarchTokensProvider('qbasic', {
+                        tokenizer: {
+                            root: [
+                                // Line numbers (e.g., 10 PRINT "HI")
+                                [/^\s*\d+/, 'number'],
+                                // Labels (e.g., foo:)
+                                [/\b[A-Za-z_]\w*:\b/, 'label'],
+                                // Keywords
+                                [/\b(?:PRINT|INPUT|FOR|NEXT|IF|THEN|ELSE|END IF|END|DIM|LET|REM|CLS|GOTO|GOSUB|RETURN|DATA|READ|RESTORE|STEP|TO|STEP|STEP)\b/i, 'keyword'],
+                                // Built-in functions
+                                [/\b(?:RND|INT|ABS|SQR|SIN|COS|TAN|LOG|EXP|LEN|MID|LEFT|RIGHT|CHR$)\b/gi, 'keyword.operator'],
+                                // Strings
+                                [/"([^"\\]|\\.)*"/, 'string'],
+                                // Comments starting with ' or REM
+                                [/\'.*$/, 'comment'],
+                                [/\bREM\b.*$/i, 'comment'],
+                                // Numbers (integers and floats)
+                                [/\b\d+(?:\.\d+)?\b/, 'number'],
+                                // Variables with $ (strings) or % (integers)
+                                [/\b[A-Za-z_]\w*\$\b/, 'variable.string'],
+                                [/\b[A-Za-z_]\w*%\b/, 'variable.integer'],
+                                // Identifiers
+                                [/\b[A-Za-z_]\w*\b/, 'identifier'],
+                                // Operators and punctuation
+                                [/[+\-*/=<>\(\),;:.]/, 'delimiter']
+                            ]
+                        }
+                    });
+
+                    // Define three themes: classic qbasic, nebula-adaptive, simple
+                    monaco.editor.defineTheme('qbasic-classic', {
+                        base: 'vs-dark',
+                        inherit: true,
+                        rules: [
+                            { token: 'keyword', foreground: 'FFFF00', fontStyle: 'bold' },
+                            { token: 'string', foreground: '00FF00' },
+                            { token: 'comment', foreground: '888888', fontStyle: 'italic' },
+                            { token: 'number', foreground: 'FF9900' },
+                            { token: 'identifier', foreground: 'FFFFFF' },
+                            { token: 'variable.string', foreground: '66FFCC' },
+                            { token: 'variable.integer', foreground: 'FF6666' }
+                        ],
+                        colors: { 'editor.background': '#000033' }
+                    });
+
+                    monaco.editor.defineTheme('qbasic-nebula', {
+                        base: 'vs-dark',
+                        inherit: true,
+                        rules: [
+                            { token: 'keyword', foreground: '9CDCFE' },
+                            { token: 'string', foreground: 'CE9178' },
+                            { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+                            { token: 'number', foreground: 'B5CEA8' },
+                            { token: 'variable.string', foreground: '7EE787' },
+                            { token: 'variable.integer', foreground: 'FF8A80' }
+                        ],
+                        colors: { 'editor.background': getComputedStyle(document.documentElement).getPropertyValue('--nebula-bg-primary') || '#1e1e1e' }
+                    });
+
+                    monaco.editor.defineTheme('qbasic-simple', {
+                        base: 'vs-dark',
+                        inherit: true,
+                        rules: [
+                            { token: 'keyword', foreground: 'C586C0' },
+                            { token: 'string', foreground: 'CE9178' },
+                            { token: 'comment', foreground: '6A9955' },
+                            { token: 'number', foreground: 'B5CEA8' },
+                            { token: 'variable.string', foreground: '9AD3A2' },
+                            { token: 'variable.integer', foreground: 'FF9999' }
+                        ],
+                        colors: { 'editor.background': '#0f1720' }
+                    });
+                }
+            } catch (e) {
+                console.warn('Could not register QBasic language/themes:', e);
+            }
+
             // Create editor
             const container = document.getElementById('qb-editor-container');
             console.log('QBTerminal: Editor container:', container);
@@ -378,8 +663,8 @@ class NebulaQBasicTerminal {
             console.log('QBTerminal: Creating Monaco editor...');
             this.editor = monaco.editor.create(container, {
                 value: this.getDefaultCode(),
-                language: 'plaintext', // We'll enhance this with QBasic syntax later
-                theme: 'vs-dark',
+                language: 'qbasic',
+                theme: this.getSavedEditorTheme() || 'qbasic-classic',
                 fontSize: 14,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
@@ -391,6 +676,14 @@ class NebulaQBasicTerminal {
             this.editor.onDidChangeModelContent(() => {
                 this.currentCode = this.editor.getValue();
             });
+
+            // Apply saved theme explicitly (monaco may need explicit set)
+            try {
+                const saved = this.getSavedEditorTheme();
+                if (saved && typeof monaco !== 'undefined' && monaco && monaco.editor) monaco.editor.setTheme(saved);
+            } catch (e) {
+                // ignore
+            }
 
             // Fit editor to container
             this.fitEditor();
@@ -451,6 +744,49 @@ class NebulaQBasicTerminal {
 
             // Fit terminal to container
             this.fitTerminal();
+
+            // Handle terminal input for INPUT statements
+            this.terminal.onData((data) => {
+                try {
+                    if (!this.waitingForInput) {
+                        // If not waiting for input, ignore but still allow copy/paste
+                        return;
+                    }
+
+                    for (let ch of data) {
+                        const code = ch.charCodeAt(0);
+                        // Enter = CR(13) or LF(10)
+                        if (code === 13 || code === 10) {
+                            // Enter pressed - resolve input (trim whitespace)
+                            const value = this.inputBuffer.trim();
+                            // Move to new line in terminal for clarity
+                            this.terminal.writeln('');
+                            this.inputBuffer = '';
+                            this.waitingForInput = false;
+                            if (this.inputResolver) {
+                                const r = this.inputResolver;
+                                this.inputResolver = null;
+                                r(value);
+                            }
+                            // If LF follows CR, we'll ignore it in subsequent iterations
+                        } else if (code === 127 || code === 8) { // Backspace (DEL or BS)
+                            if (this.inputBuffer.length > 0) {
+                                this.inputBuffer = this.inputBuffer.slice(0, -1);
+                                // Move cursor back, erase char, move back again
+                                this.terminal.write('\b \b');
+                            }
+                        } else if (code >= 32 || code === 9) { // Printable or TAB
+                            // Regular printable character or tab
+                            this.inputBuffer += ch;
+                            this.terminal.write(ch);
+                        } else {
+                            // Control characters: ignore
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error handling terminal input:', e);
+                }
+            });
 
             // Handle window resize
             window.addEventListener('resize', () => {
@@ -554,6 +890,86 @@ class NebulaQBasicTerminal {
         });
     }
 
+    // Theme persistence helpers
+    getSavedEditorTheme() {
+        try {
+            return localStorage.getItem('nebula_qbasic_theme');
+        } catch (e) {
+            return null;
+        }
+    }
+
+    saveEditorTheme(name) {
+        try {
+            localStorage.setItem('nebula_qbasic_theme', name);
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    // (cycleEditorTheme removed - use the theme dropdown selector instead)
+
+    // Recompute theme colors from Nebula CSS variables and redefine Monaco themes
+    redefineThemesFromCSS() {
+        try {
+            const root = getComputedStyle(document.documentElement);
+            const bg = root.getPropertyValue('--nebula-bg-primary') || '#1e1e1e';
+            const surface = root.getPropertyValue('--nebula-surface') || '#252526';
+            const keyword = root.getPropertyValue('--nebula-accent') || '#9CDCFE';
+            const string = root.getPropertyValue('--nebula-success') || '#CE9178';
+            const comment = root.getPropertyValue('--nebula-muted') || '#6A9955';
+
+            // Re-define the qbasic-nebula theme dynamically
+            if (typeof monaco !== 'undefined' && monaco && monaco.editor) {
+                monaco.editor.defineTheme('qbasic-nebula', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [
+                        { token: 'keyword', foreground: keyword.replace('#','') },
+                        { token: 'string', foreground: string.replace('#','') },
+                        { token: 'comment', foreground: comment.replace('#',''), fontStyle: 'italic' },
+                        { token: 'number', foreground: 'B5CEA8' },
+                        { token: 'variable.string', foreground: (root.getPropertyValue('--nebula-success') || '#7EE787').replace('#','') },
+                        { token: 'variable.integer', foreground: (root.getPropertyValue('--nebula-danger') || '#FF8A80').replace('#','') }
+                    ],
+                    colors: { 'editor.background': bg || '#1e1e1e', 'editor.foreground': root.getPropertyValue('--nebula-text-primary') || '#ffffff' }
+                });
+
+                // Update simple theme background to surface
+                monaco.editor.defineTheme('qbasic-simple', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [
+                        { token: 'keyword', foreground: 'C586C0' },
+                        { token: 'string', foreground: string.replace('#','') },
+                        { token: 'comment', foreground: comment.replace('#','') },
+                        { token: 'number', foreground: 'B5CEA8' },
+                        { token: 'variable.string', foreground: (root.getPropertyValue('--nebula-success') || '#9AD3A2').replace('#','') },
+                        { token: 'variable.integer', foreground: (root.getPropertyValue('--nebula-danger') || '#FF9999').replace('#','') }
+                    ],
+                    colors: { 'editor.background': surface || '#0f1720' }
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to redefine themes from CSS variables', e);
+        }
+    }
+
+    // Observe changes to documentElement to re-define themes when Nebula variables change
+    watchNebulaThemeChanges() {
+        try {
+            const observer = new MutationObserver((mutations) => {
+                // Simple heuristic: any attribute change -> recompute themes
+                this.redefineThemesFromCSS();
+            });
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+            // Also call once to initialize
+            this.redefineThemesFromCSS();
+        } catch (e) {
+            console.warn('Could not install Nebula theme observer', e);
+        }
+    }
+
     /**
      * Fit terminal to container
      */
@@ -589,8 +1005,8 @@ class NebulaQBasicTerminal {
     getDefaultCode() {
         return `' Welcome to NebulaQBasic Terminal!
 ' This terminal transpiles QBasic to JavaScript instantly
-'
-' Try this sample program:
+' 
+ ' Try this sample program:
 
 CLS
 PRINT "Hello from NebulaQBasic!"
@@ -622,13 +1038,13 @@ END
     loadWelcomeMessage() {
         if (!this.terminal) return;
 
-        this.terminal.writeln('\\r\\n\\x1b[1;32mNebulaQBasic Terminal v1.0\\x1b[0m');
-        this.terminal.writeln('\\x1b[1;36mMonaco Editor + xterm.js Terminal\\x1b[0m');
+        this.terminal.writeln('\r\n\x1b[1;32mNebulaQBasic Terminal v1.0\x1b[0m');
+        this.terminal.writeln('\x1b[1;36mMonaco Editor + xterm.js Terminal\x1b[0m');
         this.terminal.writeln('');
-        this.terminal.writeln('Type QBasic code in the editor above and press F5 to run.');
+        this.terminal.writeln('Type QBasic code in the editor and press F5 to run.');
         this.terminal.writeln('Use Ctrl+O to open .BAS files, Ctrl+S to save.');
         this.terminal.writeln('');
-        this.terminal.writeln('\\x1b[1;33mReady for QBasic development!\\x1b[0m');
+        this.terminal.writeln('\x1b[1;33mReady for QBasic development!\x1b[0m');
         this.terminal.writeln('');
     }
 
@@ -657,6 +1073,9 @@ END
 
             // Use our custom transpiler
             const transpiledCode = this.transpileBasicToJavaScript(code);
+
+            // Store last transpiled code for debug viewing
+            this.lastTranspiledCode = transpiledCode;
 
             if (!transpiledCode || transpiledCode === '// No transpilable BASIC code found') {
                 this.terminal.writeln('\x1b[1;33m⚠️ No transpilable code found\x1b[0m');
@@ -690,7 +1109,7 @@ END
         this.isRunning = false;
         this.updateStatus('Program stopped');
         this.terminal.writeln('');
-        this.terminal.writeln('\\x1b[1;33mProgram execution stopped\\x1b[0m');
+        this.terminal.writeln('\x1b[1;33mProgram execution stopped\x1b[0m');
     }
 
     /**
@@ -824,7 +1243,7 @@ QBASIC FEATURES SUPPORTED:
 CREDITS:
 • qbjc compiler: https://github.com/jichu4n/qbjc (Apache-2.0 License)
 • xterm.js terminal: https://xtermjs.org/
-• Monaco editor: https://microsoft.com/monaco
+• Monaco editor: https://microsoft.com/en-us/monaco
 
 For more QBasic documentation, visit:
 https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/visual-basic-6-documentation
@@ -908,15 +1327,42 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
                 indentLevel = Math.max(0, indentLevel - 1);
                 jsCode += `${indent()}}\n`;
             }
-            // Simple PRINT statement
-            else if (upperLine.startsWith('PRINT ')) {
-                const content = line.substring(6).trim();
-                if (content.startsWith('"') && content.endsWith('"')) {
-                    // String literal
-                    jsCode += `${indent()}console.log(${content});\n`;
+            // Simple PRINT statement (supports multiple arguments separated by ';' or ',')
+            else if (upperLine.startsWith('PRINT')) {
+                // Support both `PRINT` and `PRINT <expr>`
+                const content = line.length > 5 ? line.substring(5).trim() : '';
+                if (!content) {
+                    jsCode += `${indent()}__qb_writeln('');\n`;
                 } else {
-                    // Expression
-                    jsCode += `${indent()}console.log(${content});\n`;
+                    // Split on ; or , but ignore separators inside string literals
+                    const parts = [];
+                    let cur = '';
+                    let inQuote = false;
+                    for (let j = 0; j < content.length; j++) {
+                        const ch = content[j];
+                        if (ch === '"') {
+                            inQuote = !inQuote;
+                            cur += ch;
+                        } else if (!inQuote && (ch === ';' || ch === ',')) {
+                            parts.push(cur.trim());
+                            cur = '';
+                        } else {
+                            cur += ch;
+                        }
+                    }
+                    if (cur.trim() !== '') parts.push(cur.trim());
+
+                    const jsParts = parts.map(p => {
+                        if (!p) return '""';
+                        const trimmed = p.trim();
+                        if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+                            return trimmed;
+                        }
+                        // Coerce non-string parts to String() to mimic PRINT concatenation
+                        return `String(${trimmed})`;
+                    });
+
+                    jsCode += `${indent()}__qb_writeln(${jsParts.join(' + ')});\n`;
                 }
             }
             // Simple variable assignment
@@ -937,20 +1383,70 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
             }
             // CLS (clear screen)
             else if (upperLine === 'CLS') {
-                jsCode += `${indent()}console.clear();\n`;
+                jsCode += `${indent()}__qb_clear();\n`;
             }
             // END
             else if (upperLine === 'END') {
                 jsCode += `${indent()}// END\n`;
             }
-            // INPUT statement (basic)
+            // INPUT statement (improved)
             else if (upperLine.startsWith('INPUT ')) {
-                const inputMatch = line.match(/INPUT\s+(.+?);\s*(.+)/i) || line.match(/INPUT\s+(.+)/i);
-                if (inputMatch) {
-                    const prompt = inputMatch[1] ? inputMatch[1].replace(/"/g, '') : '';
-                    const varName = inputMatch[2] || 'input';
-                    jsCode += `${indent()}// INPUT not fully implemented yet: ${line}\n`;
-                    jsCode += `${indent()}let ${varName} = prompt('${prompt}');\n`;
+                // Grab the remainder after 'INPUT'
+                const content = line.substring(5).trim();
+
+                // Try to find a quoted prompt first
+                let prompt = '';
+                let varsPart = content;
+                const quoteMatch = content.match(/"([^"]*)"/);
+                if (quoteMatch) {
+                    prompt = quoteMatch[1];
+                    // remove the matched quoted prompt from varsPart
+                    varsPart = (content.substring(0, quoteMatch.index) + content.substring(quoteMatch.index + quoteMatch[0].length)).trim();
+                }
+
+                // Normalize separators: semicolons -> commas; collapse multiple separators
+                varsPart = varsPart.replace(/;/g, ',').replace(/\s*,\s*/g, ',').trim();
+                // Remove leading/trailing commas
+                varsPart = varsPart.replace(/^,+|,+$/g, '').trim();
+
+                // Split variable names on commas; if none, split on whitespace
+                let vars = [];
+                if (varsPart.length > 0) {
+                    if (varsPart.indexOf(',') >= 0) {
+                        vars = varsPart.split(',').map(v => v.trim()).filter(Boolean);
+                    } else {
+                        vars = varsPart.split(/\s+/).map(v => v.trim()).filter(Boolean);
+                    }
+                }
+
+                if (vars.length === 0) {
+                    // Fallback: treat entire content as prompt if no vars found
+                    prompt = prompt || content.replace(/^,\s*/, '').replace(/,$/, '').trim();
+                    const varName = 'input';
+                    jsCode += `${indent()}// INPUT mapped to __qb_input helper (fallback)\n`;
+                    jsCode += `${indent()}let ${varName} = await __qb_input(${JSON.stringify(prompt)});\n`;
+                } else if (vars.length === 1) {
+                    const varName = vars[0];
+                    jsCode += `${indent()}// INPUT single variable mapped to __qb_input\n`;
+                    jsCode += `${indent()}let ${varName} = await __qb_input(${JSON.stringify(prompt)});\n`;
+                    // Basic conversion: if variable name does not end with '$', try to convert to Number
+                    if (!/\$$/.test(varName)) {
+                        jsCode += `${indent()}if (${varName} !== null && ${varName} !== '' && !isNaN(Number(${varName}))) ${varName} = Number(${varName});\n`;
+                    }
+                } else {
+                    // Multiple variables: prompt once, split on commas, assign in order
+                    jsCode += `${indent()}// INPUT multiple variables: prompt once, split by comma\n`;
+                    jsCode += `${indent()}const __qb_ans = await __qb_input(${JSON.stringify(prompt)});\n`;
+                    jsCode += `${indent()}const __qb_parts = (__qb_ans || '').split(',').map(s => s.trim());\n`;
+                    for (let vi = 0; vi < vars.length; vi++) {
+                        const v = vars[vi];
+                        if (/\$$/.test(v)) {
+                            jsCode += `${indent()}let ${v} = __qb_parts[${vi}] || '';\n`;
+                        } else {
+                            // numeric - try convert, fallback to 0
+                            jsCode += `${indent()}let ${v} = (__qb_parts[${vi}] !== undefined && __qb_parts[${vi}] !== '' && !isNaN(Number(__qb_parts[${vi}]))) ? Number(__qb_parts[${vi}]) : (__qb_parts[${vi}] || 0);\n`;
+                        }
+                    }
                 }
             }
             // LET statement (optional in QBasic)
@@ -984,38 +1480,63 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
     /**
      * Execute transpiled BASIC code and display output in terminal
      */
-    executeTranspiledBasic(jsCode) {
+    async executeTranspiledBasic(jsCode) {
         try {
-            // Capture console output
+            // Capture console output and write incrementally to the terminal
             const originalLog = console.log;
             const originalError = console.error;
             const originalWarn = console.warn;
-            let output = '';
+
+            const writeOutputLine = (line) => {
+                // Split by newline and write each line
+                const lines = String(line).split(/\r?\n/);
+                for (const l of lines) {
+                    this.terminal.writeln(l);
+                }
+            };
 
             const captureOutput = (...args) => {
-                output += args.map(arg =>
-                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-                ).join(' ') + '\n';
+                const text = args.map(arg => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg))).join(' ');
+                writeOutputLine(text);
             };
 
             console.log = captureOutput;
             console.error = captureOutput;
             console.warn = captureOutput;
 
-            // Execute the transpiled code
-            eval(jsCode);
+            // Provide __qb_input helper for async input via terminal
+            const self = this;
+            const __qb_input = (promptText) => {
+                return new Promise((resolve) => {
+                    // Show prompt
+                    if (promptText) {
+                        self.terminal.write(promptText + ' ');
+                    }
+                    self.waitingForInput = true;
+                    self.inputBuffer = '';
+                    self.inputResolver = (val) => {
+                        resolve(val);
+                    };
+                });
+            };
+
+            // Provide write helpers for transpiled code
+            const __qb_write = (text) => { try { self.terminal.write(String(text)); } catch (e) { /* ignore */ } };
+            const __qb_writeln = (text) => { try { self.terminal.writeln(String(text)); } catch (e) { /* ignore */ } };
+            const __qb_tab = (n) => { try { const spaces = ' '.repeat(Math.max(0, parseInt(n,10)||0)); self.terminal.write(spaces); } catch (e) { /* ignore */ } };
+            const __qb_clear = () => { try { self.terminal.clear(); } catch (e) { /* ignore */ } };
+
+            // Wrap code in an async IIFE and inject helpers
+            const wrapped = `(async function(__qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear){\n${jsCode}\n}).call(this, __qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear);`;
+
+            // Evaluate in current context with helpers available
+            const func = new Function('__qb_input', '__qb_write', '__qb_writeln', '__qb_tab', '__qb_clear', wrapped);
+            await func(__qb_input, __qb_write, __qb_writeln, __qb_tab, __qb_clear);
 
             // Restore console
             console.log = originalLog;
             console.error = originalError;
             console.warn = originalWarn;
-
-            // Display output in terminal
-            if (output.trim()) {
-                this.terminal.writeln('');
-                this.terminal.writeln('\x1b[1;32m📄 Program Output:\x1b[0m');
-                this.terminal.writeln(output.trim());
-            }
 
             this.terminal.writeln('');
             this.terminal.writeln('\x1b[1;32m✅ QBasic program completed successfully\x1b[0m');
@@ -1121,6 +1642,7 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
         }
         console.log('QBasic Terminal cleanup completed');
     }
+
 }
 
 // Export for use in NebulaDesktop
