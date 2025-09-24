@@ -1192,17 +1192,26 @@ END
      */
     async openFile() {
         try {
-            // Use NebulaDesktop file picker
-            const filePath = await this.showFilePicker('Open QBasic File', ['.bas', '.BAS']);
-
-            if (filePath) {
-                const content = await this.readFile(filePath);
-                if (this.editor) {
-                    this.editor.setValue(content);
-                }
-                this.currentCode = content;
-                this.updateStatus(`Opened: ${filePath.split('/').pop()}`);
+            // Prefer the new PickerApp API when available
+            let result = null;
+            if (window.PickerApp && typeof window.PickerApp.open === 'function') {
+                result = await window.PickerApp.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'open' });
+            } else if (window.NebulaFilePicker) {
+                const picker = new window.NebulaFilePicker();
+                result = await picker.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'open' });
             }
+
+            if (!result) {
+                // Fallback: use existing DOM picker
+                const filePath = await this.showFilePicker('Open QBasic File', ['.bas', '.BAS']);
+                if (!filePath) { this.updateStatus('Open cancelled'); return; }
+                result = filePath;
+            }
+
+            const content = await window.nebula.fs.readFile(result);
+            if (this.editor) this.editor.setValue(content);
+            this.currentCode = content;
+            this.updateStatus(`Opened: ${result.split('/').pop()}`);
         } catch (error) {
             console.error('Failed to open file:', error);
             this.updateStatus('Failed to open file');
@@ -1215,14 +1224,23 @@ END
     async saveFile() {
         try {
             const code = this.editor ? this.editor.getValue() : this.currentCode;
-
-            // Use NebulaDesktop file save dialog
-            const filePath = await this.showSaveDialog('Save QBasic File', '.bas');
-
-            if (filePath) {
-                await this.writeFile(filePath, code);
-                this.updateStatus(`Saved: ${filePath.split('/').pop()}`);
+            // Prefer PickerApp for save dialog
+            let result = null;
+            if (window.PickerApp && typeof window.PickerApp.open === 'function') {
+                result = await window.PickerApp.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'save' });
+            } else if (window.NebulaFilePicker) {
+                const picker = new window.NebulaFilePicker();
+                result = await picker.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'save' });
             }
+
+            if (!result) {
+                const filePath = await this.showSaveDialog('Save QBasic File', '.bas');
+                if (!filePath) { this.updateStatus('Save cancelled'); return; }
+                result = filePath;
+            }
+
+            await window.nebula.fs.writeFile(result, code);
+            this.updateStatus('Saved: ' + (result.split('/').pop() || result));
         } catch (error) {
             console.error('Failed to save file:', error);
             this.updateStatus('Failed to save file');
@@ -1328,24 +1346,7 @@ name$ = LEFT$("Hello", 3)
 
 CREDITS:
 • Custom JavaScript transpiler
-• Monaco Editor: https://microsoft.github.io/monaco-editor/
-• xterm.js terminal: https://xtermjs.org/
-• Monaco editor: https://microsoft.com/en-us/monaco
-
-For more QBasic documentation, visit:
-https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/visual-basic-6-documentation
         `;
-
-        // Show help in a modal dialog
-        alert(helpText);
-    }
-
-    /**
-     * Simple BASIC to JavaScript transpiler (Phase 1)
-     * Handles basic QBasic constructs for educational purposes
-     */
-    transpileBasicToJavaScript(basicCode) {
-        console.log('🔄 Transpiling QBasic code:', basicCode.substring(0, 100) + (basicCode.length > 100 ? '...' : ''));
 
         let jsCode = '';
         let indentLevel = 0;
@@ -1738,6 +1739,13 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
     async showFilePicker(title, extensions) {
         // TODO: Integrate with NebulaDesktop file picker
         // For now, return a mock path
+        // If NebulaFilePicker is available, use it
+        if (window.NebulaFilePicker) {
+            const picker = new window.NebulaFilePicker();
+            const res = await picker.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'open' });
+            return res;
+        }
+
         return new Promise((resolve) => {
             const input = document.createElement('input');
             input.type = 'file';
@@ -1755,40 +1763,59 @@ https://docs.microsoft.com/en-us/previous-versions/visualstudio/visual-basic-6/v
     }
 
     async showSaveDialog(title, extension) {
-        // TODO: Integrate with NebulaDesktop save dialog
+        // If NebulaFilePicker is available, use it for save
+        if (window.NebulaFilePicker) {
+            const picker = new window.NebulaFilePicker();
+            const res = await picker.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'save' });
+            return res;
+        }
+
         const filename = prompt(`${title}:`, `program${extension}`);
         return filename ? `/home/brad/Documents/NebulaDesktop/${filename}` : null;
     }
 
     async readFile(filePath) {
-        // TODO: Integrate with NebulaDesktop file system
-        return new Promise((resolve, reject) => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsText(file);
-                } else {
-                    reject(new Error('No file selected'));
-                }
-            };
-            input.click();
-        });
+        // Prefer main process fs API via preload
+        try {
+            const data = await window.nebula.fs.readFile(filePath);
+            return data;
+        } catch (e) {
+            // Fallback to DOM file read (rare)
+            return new Promise((resolve, reject) => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.onchange = (ev) => {
+                    const file = ev.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsText(file);
+                    } else {
+                        reject(new Error('No file selected'));
+                    }
+                };
+                input.click();
+            });
+        }
     }
 
     async writeFile(filePath, content) {
-        // TODO: Integrate with NebulaDesktop file system
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filePath.split('/').pop();
-        a.click();
-        URL.revokeObjectURL(url);
+        // Use main process writeFile if available
+        try {
+            await window.nebula.fs.writeFile(filePath, content);
+            return true;
+        } catch (e) {
+            // Fallback: trigger download
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filePath.split('/').pop();
+            a.click();
+            URL.revokeObjectURL(url);
+            return true;
+        }
     }
 
     /**
