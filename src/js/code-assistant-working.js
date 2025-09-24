@@ -58,6 +58,12 @@ class NebulaCodeAssistant {
                 description: 'Progressive Web App template',
                 path: '../src/Templates/NebulaApp-PWA.js'
             }
+            ,
+            'visual-gui': {
+                name: 'Visual GUI Designer',
+                description: 'WYSIWYG GUI builder with live preview and component palette',
+                path: '../src/Templates/NebulaApp-VisualGUI.js'
+            }
         };
 
         // AI Services (enhanced with LM Studio)
@@ -353,6 +359,7 @@ class NebulaCodeAssistant {
                 <option value="single-app">🎯 Single Window App</option>
                 <option value="tabbed-app">📑 Tabbed Window App</option>
                 <option value="PWA-app">🌐 Progressive Web App</option>
+                <option value="visual-gui">🎨 Visual GUI Designer</option>
             </select>
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>

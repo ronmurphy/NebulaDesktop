@@ -78,6 +78,12 @@ class NebulaCodeAssistant {
                 description: 'Progressive Web App template',
                 path: '../src/Templates/NebulaApp-PWA.js'
             }
+            ,
+            'visual-gui': {
+                name: 'Visual GUI Designer',
+                description: 'WYSIWYG GUI builder with live preview and component palette',
+                path: '../src/Templates/NebulaApp-VisualGUI.js'
+            }
         };
 
         // AI Services (enhanced with LM Studio)
@@ -98,6 +104,69 @@ class NebulaCodeAssistant {
         // Only auto-init if explicitly requested (not on script load)
         if (window.CODE_ASSISTANT_AUTO_INIT) {
             this.init();
+        }
+    }
+
+    // Serialize current canvas components into an HTML snippet
+    generateDesignedHTML() {
+        const windowId = this.windowId;
+        const canvas = document.getElementById(`designCanvas-${windowId}`);
+        if (!canvas) return '';
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'visual-gui-root';
+
+        const comps = canvas.querySelectorAll('.gui-component');
+        comps.forEach(c => {
+            const clone = c.cloneNode(true);
+            clone.removeAttribute('data-component-id');
+            clone.removeAttribute('data-type');
+            clone.classList.remove('selected');
+            const handles = clone.querySelectorAll('.drag-handle');
+            handles.forEach(h => h.remove());
+            wrapper.appendChild(clone);
+        });
+
+        return wrapper.innerHTML;
+    }
+
+    // Apply the generated design HTML into any open template dialog (#designHtml)
+    async applyDesignToTemplate() {
+        const html = this.generateDesignedHTML();
+        this.latestDesignHtml = html;
+
+        const textareas = document.querySelectorAll('textarea#designHtml');
+        if (textareas.length) {
+            textareas.forEach(t => {
+                t.value = html;
+                t.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            this.writeOutput('✅ Design applied to template dialog', 'success');
+            return;
+        }
+
+        // No template modal open — generate the full template and place it into the editor
+        try {
+            const formData = {
+                appName: 'Visual GUI',
+                developerName: 'Nebula Designer',
+                className: this.generateClassName('Visual GUI'),
+                appIcon: '🎨',
+                description: 'Generated from Visual Designer',
+                designHtml: html
+            };
+
+            const customizedCode = await this.loadAndCustomizeTemplate('visual-gui', formData);
+            if (customizedCode && this.monacoEditor) {
+                // Replace current editor content (no confirmation)
+                this.monacoEditor.setValue(customizedCode);
+                this.writeOutput('✅ Design applied and template set in editor', 'success');
+            } else {
+                this.writeOutput('❌ Failed to set design into editor', 'error');
+            }
+        } catch (err) {
+            console.error('applyDesignToTemplate error:', err);
+            this.writeOutput(`❌ Error generating template: ${err.message}`, 'error');
         }
     }
 
@@ -414,6 +483,7 @@ class NebulaCodeAssistant {
                 <option value="single-app">🎯 Single Window App</option>
                 <option value="tabbed-app">📑 Tabbed Window App</option>
                 <option value="PWA-app">🌐 Progressive Web App</option>
+                <option value="visual-gui">🎨 Visual GUI Designer</option>
             </select>
             
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
@@ -504,8 +574,13 @@ class NebulaCodeAssistant {
                 <span class="material-symbols-outlined">code</span>
             </button>
             
-            <button id="designModeBtn-${this.windowId}" class="code-toolbar-btn" title="Design Mode - Visual UI Builder">
+            <!-- Legacy Design Mode button commented out - replaced by improved Visual Designer -->
+            <!-- <button id="designModeBtn-${this.windowId}" class="code-toolbar-btn" title="Design Mode - Visual UI Builder">
                 <span class="material-symbols-outlined">design_services</span>
+            </button> -->
+
+            <button id="visualDesignerBtn-${this.windowId}" class="code-toolbar-btn" title="Visual Designer">
+                <span class="material-symbols-outlined">palette</span>
             </button>
             
             <button id="copyAllBtn-${this.windowId}" class="code-toolbar-btn title="Copy All Code">
@@ -897,8 +972,9 @@ document.getElementById(`diffMergeBtn-${this.windowId}`)?.addEventListener('clic
             this.formatCode();
         });
 
-        document.getElementById(`designModeBtn-${this.windowId}`)?.addEventListener('click', () => {
-            this.toggleDesignMode();
+        // Legacy design button replaced by `visualDesignerBtn`.
+        document.getElementById(`visualDesignerBtn-${this.windowId}`)?.addEventListener('click', () => {
+            this.openVisualDesigner();
         });
 
         document.getElementById(`copyAllBtn-${this.windowId}`)?.addEventListener('click', () => {
@@ -6058,6 +6134,12 @@ getTemplateDefaults(templateKey) {
             className: 'NebulaMyWebApp',
             icon: '🌐',
             description: 'A Progressive Web App with clean interface'
+            },
+            'visual-gui': {
+                appName: 'Visual GUI',
+                className: 'NebulaVisualGUIDesigner',
+                icon: '🎨',
+                description: 'WYSIWYG GUI builder with Shoelace components and live preview'
         }
     };
 
@@ -6130,7 +6212,16 @@ getTemplateSpecificFieldsHTML(templateKey) {
             </div>
         `;
     }
-    
+    if (templateKey === 'visual-gui') {
+        return `
+            <div class="form-group" style="margin-bottom:20px;">
+                <label style="display:block;color:var(--nebula-text-primary);font-weight:600;font-size:13px;margin-bottom:6px;text-transform:uppercase;">Initial Design HTML</label>
+                <textarea id="designHtml" placeholder="Paste or write initial HTML for the app's design" style="width:100%;min-height:120px;padding:12px;border:1px solid var(--nebula-border);border-radius:var(--nebula-radius-md);background:var(--nebula-bg-primary);color:var(--nebula-text-primary);font-family:monospace;"></textarea>
+                <small style="color:var(--nebula-text-secondary);">This HTML will be injected into the visual app's content area.</small>
+            </div>
+        `;
+    }
+
     return ''; // No extra fields for other templates
 }
 
@@ -6244,6 +6335,12 @@ async createCustomTemplate(modal, templateKey) {
     createBtn.disabled = true;
 
     try {
+        // Capture design HTML for visual-gui templates
+        if (templateKey === 'visual-gui') {
+            const designHtml = dialog.querySelector('#designHtml')?.value || '';
+            formData.designHtml = designHtml;
+        }
+
         // Load and customize template
         const customizedCode = await this.loadAndCustomizeTemplate(templateKey, formData);
         
@@ -6389,8 +6486,15 @@ ${formData.description ? `// Description: ${formData.description}\n` : ''}// Gen
 
 `;
 
+    // For visual-gui templates, inject user-provided HTML into the placeholder
+    if (templateKey === 'visual-gui' && formData.designHtml) {
+        const injected = customized.replace('<!-- __VISUAL_GUI_HTML__ -->', formData.designHtml);
+        return header + injected;
+    }
+
     return header + customized;
 }
+
 
 /**
  * Additional helper method to ensure proper class registration
@@ -6464,8 +6568,35 @@ class ${formData.className} {
 window.${formData.className} = ${formData.className};`;
     }
 
-    // Similar for other templates...
-    return `// ${formData.appName} - Generated Template`;
+        if (templateKey === 'visual-gui') {
+            return `// ${formData.appName}
+    // Created by: ${formData.developerName}
+    ${formData.description ? `// Description: ${formData.description}\n` : ''}
+    class ${formData.className} {
+        constructor() {
+            this.windowId = null;
+            this.init();
+        }
+        async init() {
+            if (!window.windowManager) return;
+            this.windowId = window.windowManager.createWindow({ title: '${formData.appName}', width: 1200, height: 800 });
+            window.windowManager.loadApp(this.windowId, this);
+        }
+        render() {
+            const container = document.createElement('div');
+            container.innerHTML = '<h1>${formData.appName}</h1><p>Visual GUI Designer (embedded fallback)</p>';
+            return container;
+        }
+        getTitle() { return '${formData.appName}'; }
+        getIcon() { return '${formData.appIcon}'; }
+        cleanup() {}
+    }
+
+    window.${formData.className} = ${formData.className};`;
+        }
+
+        // Similar for other templates...
+        return `// ${formData.appName} - Generated Template`;
 }
 
 /**
@@ -6972,6 +7103,19 @@ closeModal(modal) {
         }
     }
 
+    // New entrypoint for the toolbar Visual Designer button. Keeps behavior
+    // stable by delegating to the existing designer, but provides a clear
+    // location to enhance or replace the designer implementation later.
+    openVisualDesigner() {
+        // Future: replace with improved designer UI. For now, reuse existing.
+        if (typeof this.openDesignMode === 'function') {
+            this.openDesignMode();
+            console.log('Visual Designer opened (wrapper)');
+        } else {
+            console.warn('Visual Designer not available');
+        }
+    }
+
     openDesignMode() {
         // Check if designer is already open
         if (document.getElementById(`gui-designer-${this.windowId}`)) {
@@ -7013,16 +7157,7 @@ closeModal(modal) {
                 
                 <div style="flex: 1;"></div>
                 
-                <button id="generateGuiCode-${this.windowId}" style="
-                    background: var(--nebula-primary);
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 12px;
-                    font-weight: 500;
-                ">Generate visualGui() Method</button>
+                <!-- Generate visualGui() Method removed - use Save & Apply instead -->
                 
                 <button id="aiAnalyzeGui-${this.windowId}" style="
                     background: var(--nebula-accent);
@@ -7034,7 +7169,18 @@ closeModal(modal) {
                     font-size: 12px;
                     font-weight: 500;
                 ">AI Suggest Where to Place</button>
-                
+
+                <button id="saveApplyDesigner-${this.windowId}" style="
+                    background: var(--nebula-success);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 500;
+                ">Save & Apply</button>
+
                 <button id="closeDesigner-${this.windowId}" style="
                     background: var(--nebula-surface);
                     color: var(--nebula-text-primary);
@@ -7265,6 +7411,7 @@ closeModal(modal) {
         const propertiesPanel = document.getElementById(`propertiesPanel-${windowId}`);
         const generateBtn = document.getElementById(`generateGuiCode-${windowId}`);
         const aiBtn = document.getElementById(`aiAnalyzeGui-${windowId}`);
+    const saveApplyBtn = document.getElementById(`saveApplyDesigner-${windowId}`);
         const closeBtn = document.getElementById(`closeDesigner-${windowId}`);
 
         // Component drag and drop
@@ -7279,6 +7426,11 @@ closeModal(modal) {
         // Generate visualGui() method
         generateBtn?.addEventListener('click', () => {
             this.generateVisualGuiMethod();
+        });
+
+        // Save & apply designed HTML to template modal (if open)
+        saveApplyBtn?.addEventListener('click', () => {
+            this.applyDesignToTemplate();
         });
 
         // AI placement analysis

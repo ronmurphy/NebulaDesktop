@@ -36,10 +36,52 @@
         }
     </style>
 
-    <!-- Shoelace -->
+    <!-- Shoelace (explicit component imports - autoloader avoided) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
-    <script type="module"
-        src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
+    <!-- Individual Shoelace components (listed explicitly so autoloader is not required) -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/button/button.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/input/input.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/textarea/textarea.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/select/select.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/checkbox/checkbox.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/radio/radio.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/icon/icon.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/icon-button/icon-button.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/dropdown/dropdown.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/components/dialog/dialog.js"></script>
+
+    <!-- Inject a small CSS bridge to map Nebula theme variables into Shoelace custom properties -->
+    <script>
+        // Run after the main styles load so computed values are available
+        function injectShoelaceBridge() {
+            try {
+                const rootStyles = getComputedStyle(document.documentElement);
+                const map = {
+                    '--sl-color-primary-600': rootStyles.getPropertyValue('--nebula-primary') || '#0b84ff',
+                    '--sl-color-primary-500': rootStyles.getPropertyValue('--nebula-accent') || '#0ea5ff',
+                    '--sl-color-neutral-0': rootStyles.getPropertyValue('--nebula-surface') || '#ffffff',
+                    '--sl-color-neutral-900': rootStyles.getPropertyValue('--nebula-text-primary') || '#111827',
+                    '--sl-color-background': rootStyles.getPropertyValue('--nebula-bg-primary') || '#f5f7fb',
+                    '--sl-border-color': rootStyles.getPropertyValue('--nebula-border') || '#e5e7eb'
+                };
+
+                const css = ':root { ' + Object.entries(map).map(([k, v]) => `${k}: ${v.trim()};`).join(' ') + ' }';
+
+                let el = document.getElementById('shoelace-nebula-bridge');
+                if (!el) {
+                    el = document.createElement('style');
+                    el.id = 'shoelace-nebula-bridge';
+                    document.head.appendChild(el);
+                }
+                el.textContent = css;
+            } catch (err) {
+                console.warn('Shoelace bridge injection failed', err);
+            }
+        }
+
+        // Ensure it runs after a small delay so Nebula CSS variables are available
+        window.addEventListener('load', () => setTimeout(injectShoelaceBridge, 60));
+    </script>
 
     <!-- Our CSS -->
     <link rel="stylesheet" href="css/style.css">
