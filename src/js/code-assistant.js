@@ -184,7 +184,7 @@ class NebulaCodeAssistant {
                 designHtml: html
             };
 
-            const customizedCode = await this.loadAndCustomizeTemplate('visual-gui', formData);
+            const customizedCode = await this.loadAndCustomizeTemplate('visual-gui', formData); // Load the visual-gui template
             if (customizedCode && this.monacoEditor) {
                 // Replace current editor content (no confirmation)
                 this.monacoEditor.setValue(customizedCode);
@@ -364,7 +364,7 @@ class NebulaCodeAssistant {
         }
 
         this.windowId = window.windowManager.createWindow({
-            title: '💻 Code Assistant Pro',
+            title: 'Code Assistant Pro',
             width: 1400,
             height: 900,
             resizable: true,
@@ -537,7 +537,16 @@ class NebulaCodeAssistant {
                 <button id="hotReloadBtn-${this.windowId}" class="code-toolbar-btn" title="Hot Reload File">
                     <span class="material-symbols-outlined">refresh</span>
                 </button>
-            
+                <button id="linkModeToggle-${this.windowId}" style="
+                    background: var(--nebula-surface);
+                    color: var(--nebula-text-primary);
+                    border: 1px solid var(--nebula-border);
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                ">Link Mode</button>
+
             <div class="toolbar-separator" style="width: 1px; height: 20px; background: var(--nebula-border); margin: 0 4px;"></div>
             
             <!-- NEW: Monaco Features -->
@@ -7516,8 +7525,20 @@ closeModal(modal) {
         const propertiesPanel = document.getElementById(`propertiesPanel-${windowId}`);
         const generateBtn = document.getElementById(`generateGuiCode-${windowId}`);
         const aiBtn = document.getElementById(`aiAnalyzeGui-${windowId}`);
-    const saveApplyBtn = document.getElementById(`saveApplyDesigner-${windowId}`);
+        const saveApplyBtn = document.getElementById(`saveApplyDesigner-${windowId}`);
         const closeBtn = document.getElementById(`closeDesigner-${windowId}`);
+        const linkToggle = document.getElementById(`linkModeToggle-${windowId}`);
+
+        // Create an SVG overlay on the main design canvas for links
+        let designerSvg = document.getElementById(`designer-link-svg-${windowId}`);
+        if (!designerSvg) {
+            designerSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            designerSvg.id = `designer-link-svg-${windowId}`;
+            designerSvg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:50;';
+            const canvasContainer = document.getElementById(`designCanvas-${windowId}`);
+            canvasContainer.style.position = 'relative';
+            canvasContainer.appendChild(designerSvg);
+        }
 
         // Component drag and drop
         const componentItems = document.querySelectorAll('.component-item');
@@ -7555,6 +7576,25 @@ closeModal(modal) {
                 this.selectComponent(null, propertiesPanel);
             }
         });
+
+        // Link Mode toggle
+        if (linkToggle) {
+            linkToggle.addEventListener('click', () => {
+                const on = linkToggle.dataset.on === '1';
+                if (on) {
+                    linkToggle.dataset.on = '0';
+                    linkToggle.style.background = 'var(--nebula-surface)';
+                    linkToggle.textContent = 'Link Mode';
+                    this.disableLinkMode(windowId);
+                } else {
+                    linkToggle.dataset.on = '1';
+                    linkToggle.style.background = 'var(--nebula-accent)';
+                    linkToggle.style.color = '#fff';
+                    linkToggle.textContent = 'Link Mode: ON';
+                    this.enableLinkMode(windowId);
+                }
+            });
+        }
     }
 
     addComponentToCanvas(type, canvas, propertiesPanel) {
@@ -7601,6 +7641,17 @@ closeModal(modal) {
         }
 
         component.appendChild(frame);
+    // Attach port placeholders for linking (top input, bottom output)
+    const inputPort = document.createElement('div');
+    inputPort.className = 'component-port input-port';
+    inputPort.dataset.port = 'input';
+    inputPort.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:-8px;width:12px;height:12px;border-radius:8px;background:#fff;border:2px solid #666;display:none;pointer-events:auto;z-index:60;';
+    const outputPort = document.createElement('div');
+    outputPort.className = 'component-port output-port';
+    outputPort.dataset.port = 'output';
+    outputPort.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;width:12px;height:12px;border-radius:8px;background:#fff;border:2px solid #1f8cff;display:none;pointer-events:auto;z-index:60;';
+    frame.appendChild(inputPort);
+    frame.appendChild(outputPort);
         
         // Store component data
         this.designedComponents.push({
@@ -7621,6 +7672,12 @@ closeModal(modal) {
             e.stopPropagation();
             this.selectComponent(componentId, propertiesPanel);
         });
+
+        // store port references in componentData for link rendering
+        const compData = this.designedComponents.find(c => c.id === componentId);
+        if (compData) {
+            compData.portEls = { input: inputPort, output: outputPort };
+        }
 
         canvas.appendChild(component);
         this.selectComponent(componentId, propertiesPanel);
@@ -7856,6 +7913,12 @@ closeModal(modal) {
                 return {
                     html: `<sl-toast>Notification</sl-toast>`,
                     properties: { text: 'Notification' }
+                };
+
+            case 'nebula-filepicker':
+                return {
+                    html: `<div data-nebula-filepicker="true" style="display:inline-block; padding:8px 10px; border-radius:6px; background: rgba(0,0,0,0.04);">NebulaFilePicker</div>`,
+                    properties: { provider: 'nebula-filepicker' }
                 };
             
             default:
@@ -8372,8 +8435,427 @@ closeModal(modal) {
     }
 
     openLinkEditor(component) {
-        // Placeholder: simple modal that will be replaced by the node editor later
-        alert('Link editor coming soon — will allow you to connect events between components.');
+        // Open a Link Editor modal to visually connect component events -> actions
+        const id = `link-editor-${this.windowId}`;
+        if (document.getElementById(id)) return; // already open
+
+        // Prepare basic data structures
+        if (!this.designerLinks) this.designerLinks = [];
+        if (!this.designerNodes) this.designerNodes = [];
+
+        // Build modal
+        const modal = document.createElement('div');
+        modal.id = id;
+        modal.style.cssText = `position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:900px;height:600px;background:var(--nebula-surface);border:1px solid var(--nebula-border);z-index:60000;box-shadow:0 12px 40px rgba(0,0,0,0.2);display:flex;flex-direction:row;`;
+
+        // Left: component list
+        const list = document.createElement('div');
+        list.style.cssText = 'width:240px;padding:12px;border-right:1px solid var(--nebula-border);overflow:auto;';
+        list.innerHTML = `<div style="font-weight:600;margin-bottom:8px;color:var(--nebula-text-primary);">Components</div>`;
+
+        // Populate components as nodes (click to add to canvas)
+        this.designedComponents.forEach(c => {
+            const row = document.createElement('div');
+            row.style.cssText = 'padding:8px;border:1px solid transparent;border-radius:4px;margin-bottom:6px;cursor:pointer;';
+            row.textContent = `${c.type} (${c.id})`;
+            row.addEventListener('click', () => {
+                this.addLinkNodeToCanvas(c);
+            });
+            list.appendChild(row);
+        });
+
+        // Center: node canvas with svg for links
+        const canvasWrap = document.createElement('div');
+        canvasWrap.style.cssText = 'flex:1;position:relative;overflow:hidden;background:var(--nebula-bg-primary);';
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;';
+        svg.setAttribute('id','link-editor-svg');
+        canvasWrap.appendChild(svg);
+
+        const nodesLayer = document.createElement('div');
+        nodesLayer.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto;';
+        canvasWrap.appendChild(nodesLayer);
+
+        // Right: controls
+        const right = document.createElement('div');
+        right.style.cssText = 'width:240px;padding:12px;border-left:1px solid var(--nebula-border);overflow:auto;';
+        right.innerHTML = `<div style="font-weight:600;margin-bottom:8px;color:var(--nebula-text-primary);">Links</div><div id="linkList-${this.windowId}"></div><div style="margin-top:12px;"><button id="saveLinks-${this.windowId}" style="padding:8px 10px;margin-right:8px;">Save</button><button id="closeLinks-${this.windowId}" style="padding:8px 10px;">Close</button></div>`;
+
+        modal.appendChild(list);
+        modal.appendChild(canvasWrap);
+        modal.appendChild(right);
+        document.body.appendChild(modal);
+
+        // store references
+        this.linkEditor = { modal, svg, nodesLayer, rightPanel: right };
+
+        // Populate existing nodes/links on load
+        this.designerNodes = this.designerNodes || [];
+        this.designerLinks = this.designerLinks || [];
+        this.designerNodes.forEach(n => this.renderLinkNode(n));
+        this.designerLinks.forEach(l => this.renderLink(l));
+
+        // Save/Close handlers
+        document.getElementById(`saveLinks-${this.windowId}`).addEventListener('click', () => {
+            // Save data; keep in memory for now
+            this.showNotification('✅ Links saved in designer (in-memory).', 'success');
+            this.updateLinkListUI();
+        });
+
+        document.getElementById(`closeLinks-${this.windowId}`).addEventListener('click', () => {
+            modal.remove();
+        });
+    }
+
+    addLinkNodeToCanvas(component) {
+        // create a node object and render it in the link-editor canvas
+        const id = `node_${component.id}_${Date.now()}`;
+        const grid = 20;
+        const x = Math.round(40 / grid) * grid;
+        const y = Math.round(40 / grid) * grid;
+        const node = { id, compId: component.id, type: component.type, x, y, width: 160, height: 80 };
+        this.designerNodes.push(node);
+        this.renderLinkNode(node);
+    }
+
+    renderLinkNode(node) {
+        if (!this.linkEditor) return;
+        const nodesLayer = this.linkEditor.nodesLayer;
+        const nEl = document.createElement('div');
+        nEl.className = 'link-node';
+        nEl.id = node.id;
+        nEl.style.cssText = `position:absolute;left:${node.x}px;top:${node.y}px;width:${node.width}px;height:${node.height}px;border:1px solid var(--nebula-border);background:var(--nebula-surface);border-radius:6px;box-shadow:0 6px 14px rgba(0,0,0,0.06);`;
+
+        // Node HTML: title, top input port, body, bottom output port
+        nEl.innerHTML = `
+            <div class="node-header" style="cursor:grab;padding:8px;border-bottom:1px solid rgba(0,0,0,0.03);font-weight:600;font-size:13px;">${node.type}</div>
+            <div class="node-input-port" data-port="input" style="position:absolute;left:50%;transform:translateX(-50%);top:-8px;width:14px;height:14px;border-radius:8px;background:#fff;border:2px solid #666;box-shadow:0 1px 3px rgba(0,0,0,0.15);"></div>
+            <div class="node-body" style="padding:8px;font-size:12px;color:var(--nebula-text-secondary);">${node.compId}</div>
+            <div class="node-output-port" data-port="output" style="position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;width:14px;height:14px;border-radius:8px;background:#fff;border:2px solid #1f8cff;box-shadow:0 1px 3px rgba(0,0,0,0.15);"></div>
+        `;
+        nodesLayer.appendChild(nEl);
+
+        // Grid snap & drag
+        const grid = 20;
+        let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+        const header = nEl.querySelector('.node-header');
+        header.addEventListener('mousedown', (e) => {
+            dragging = true; sx = e.clientX; sy = e.clientY; ox = node.x; oy = node.y; header.style.cursor = 'grabbing'; e.preventDefault();
+        });
+
+        const onMouseMove = (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - sx; const dy = e.clientY - sy;
+            node.x = Math.round((ox + dx) / grid) * grid;
+            node.y = Math.round((oy + dy) / grid) * grid;
+            nEl.style.left = node.x + 'px'; nEl.style.top = node.y + 'px';
+            this.updateLinksSVG();
+        };
+
+        const onMouseUp = () => { dragging = false; header.style.cursor = 'grab'; };
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        // Port interaction: start/connect links via ports
+        const svg = this.linkEditor.svg;
+        const getPortCenter = (portEl) => {
+            const r = portEl.getBoundingClientRect();
+            const svgR = svg.getBoundingClientRect();
+            return { x: r.left + r.width / 2 - svgR.left, y: r.top + r.height / 2 - svgR.top };
+        };
+
+        nEl.querySelectorAll('[data-port]').forEach(port => {
+            port.addEventListener('mousedown', (e) => {
+                e.stopPropagation(); e.preventDefault();
+                const type = port.dataset.port; // 'input' or 'output'
+                // Start linking only from output ports
+                if (type !== 'output') return;
+
+                // create temp path
+                this._linking = this._linking || {};
+                if (this._linking.tempPath) { this._linking.tempPath.remove(); }
+                const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+                p.setAttribute('stroke','#1f8cff'); p.setAttribute('stroke-width','3'); p.setAttribute('fill','none'); p.setAttribute('opacity','0.95');
+                svg.appendChild(p);
+                this._linking = { fromNodeId: node.id, fromPort: 'output', tempPath: p };
+
+                const movefn = (ev) => {
+                    const svgRect = svg.getBoundingClientRect();
+                    const from = getPortCenter(port);
+                    const toX = ev.clientX - svgRect.left;
+                    const toY = ev.clientY - svgRect.top;
+                    const cx = (from.x + toX) / 2;
+                    const d = `M ${from.x} ${from.y} C ${cx} ${from.y} ${cx} ${toY} ${toX} ${toY}`;
+                    p.setAttribute('d', d);
+                };
+
+                const upfn = (ev) => {
+                    document.removeEventListener('mousemove', movefn);
+                    document.removeEventListener('mouseup', upfn);
+                    // detect target input port
+                    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+                    if (el && el.dataset && el.dataset.port === 'input') {
+                        const targetNodeEl = el.closest('.link-node');
+                        if (targetNodeEl && targetNodeEl.id !== node.id) {
+                            const link = { id: `link_${Date.now()}`, from: { nodeId: node.id, io: 'output' }, to: { nodeId: targetNodeEl.id, io: 'input' } };
+                            this.designerLinks.push(link);
+                            this.updateLinksSVG();
+                            this.updateLinkListUI();
+                        }
+                    }
+                    // cleanup temp
+                    if (p && p.parentNode) p.remove();
+                    this._linking = null;
+                };
+
+                document.addEventListener('mousemove', movefn);
+                document.addEventListener('mouseup', upfn);
+            });
+        });
+    }
+
+    createLinkStub(node, io) {
+        // Deprecated - legacy helper kept for compatibility: add direct link from node -> next node if present
+        const other = this.designerNodes.find(n => n.id !== node.id);
+        if (other) {
+            const link = { id: `link_${Date.now()}`, from: { nodeId: node.id, io }, to: { nodeId: other.id, io: io === 'output' ? 'input' : 'output' } };
+            this.designerLinks.push(link);
+            this.updateLinksSVG();
+            this.updateLinkListUI();
+        } else {
+            this.showNotification('Add another node to connect to.', 'info');
+        }
+    }
+
+    renderLink(link) {
+        // kept for backward compatibility: single-line render (not used by new renderer)
+        this.updateLinksSVG();
+    }
+
+    updateLinksSVG() {
+        // Use modal svg when Link Editor modal is open, otherwise use designer svg overlay
+        const svg = (this.linkEditor && this.linkEditor.svg) || document.getElementById(`designer-link-svg-${this.windowId}`);
+        if (!svg) return;
+        // clear existing
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        // render each link as a smooth cubic bezier path
+        this.designerLinks.forEach(l => {
+            const fromNode = this.designerNodes.find(n => n.id === l.from.nodeId);
+            const toNode = this.designerNodes.find(n => n.id === l.to.nodeId);
+            if (!fromNode || !toNode) return;
+
+            // find port elements
+            const fromEl = document.getElementById(fromNode.id)?.querySelector('[data-port="output"]');
+            const toEl = document.getElementById(toNode.id)?.querySelector('[data-port="input"]');
+            if (!fromEl || !toEl) return;
+
+            const svgRect = svg.getBoundingClientRect();
+            const fRect = fromEl.getBoundingClientRect();
+            const tRect = toEl.getBoundingClientRect();
+            const x1 = fRect.left + fRect.width / 2 - svgRect.left;
+            const y1 = fRect.top + fRect.height / 2 - svgRect.top;
+            const x2 = tRect.left + tRect.width / 2 - svgRect.left;
+            const y2 = tRect.top + tRect.height / 2 - svgRect.top;
+
+            const cx = (x1 + x2) / 2;
+            const d = `M ${x1} ${y1} C ${cx} ${y1} ${cx} ${y2} ${x2} ${y2}`;
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+            path.setAttribute('d', d);
+            path.setAttribute('stroke','#888');
+            path.setAttribute('stroke-width','3');
+            path.setAttribute('fill','none');
+            path.setAttribute('data-link-id', l.id);
+            path.style.cursor = 'pointer';
+            svg.appendChild(path);
+
+            // click to remove link
+            path.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // open inspector for this link
+                this.showLinkInspector(l, e.clientX, e.clientY);
+            });
+        });
+    }
+
+    showLinkInspector(link, x = 100, y = 100) {
+        // Remove any existing inspector
+        const existing = document.getElementById(`link-inspector-${this.windowId}`);
+        if (existing) existing.remove();
+
+        const inspector = document.createElement('div');
+        inspector.id = `link-inspector-${this.windowId}`;
+        inspector.style.cssText = `position:fixed;left:${x}px;top:${y}px;transform:translate(-50%,-50%);background:var(--nebula-surface);border:1px solid var(--nebula-border);padding:12px;border-radius:8px;z-index:60001;min-width:260px;`;
+
+        // basic form: event, action, payload
+        const events = ['click','input','change','submit'];
+        const actions = ['setText','setValue','openDialog','showToast'];
+
+        inspector.innerHTML = `
+            <div style="font-weight:600;margin-bottom:8px;">Edit Link</div>
+            <label style="font-size:12px;color:var(--nebula-text-secondary);">Event</label>
+            <select id="link-event" style="width:100%;padding:6px;margin-bottom:8px;"></select>
+            <label style="font-size:12px;color:var(--nebula-text-secondary);">Action</label>
+            <select id="link-action" style="width:100%;padding:6px;margin-bottom:8px;"></select>
+            <label style="font-size:12px;color:var(--nebula-text-secondary);">Payload</label>
+            <input id="link-payload" style="width:100%;padding:6px;margin-bottom:8px;" />
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button id="link-cancel" style="padding:6px 8px;">Cancel</button>
+                <button id="link-save" style="padding:6px 8px;background:var(--nebula-accent);color:#fff;border-radius:4px;">Save</button>
+            </div>
+        `;
+
+        document.body.appendChild(inspector);
+
+        const eventSel = inspector.querySelector('#link-event');
+        const actionSel = inspector.querySelector('#link-action');
+        const payloadInput = inspector.querySelector('#link-payload');
+
+        events.forEach(ev => { const o = document.createElement('option'); o.value = ev; o.textContent = ev; if (link.event === ev) o.selected = true; eventSel.appendChild(o); });
+        actions.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; if (link.action === a) o.selected = true; actionSel.appendChild(o); });
+
+        // payload display
+        if (link.payload) {
+            if (link.payload.kind === 'const') payloadInput.value = link.payload.value;
+            else if (link.payload.kind === 'sourceValue') payloadInput.value = '{{source.value}}';
+            else if (link.payload.kind === 'template') payloadInput.value = link.payload.value;
+        }
+
+        inspector.querySelector('#link-cancel').addEventListener('click', () => inspector.remove());
+        inspector.querySelector('#link-save').addEventListener('click', () => {
+            const ev = eventSel.value;
+            const act = actionSel.value;
+            let payloadVal = payloadInput.value || '';
+            let payloadObj = { kind: 'const', value: payloadVal };
+            if (payloadVal.trim() === '{{source.value}}') payloadObj = { kind: 'sourceValue' };
+            else if (payloadVal.includes('{{')) payloadObj = { kind: 'template', value: payloadVal };
+
+            // Update link
+            link.event = ev; link.action = act; link.payload = payloadObj;
+            this.updateLinksSVG();
+            this.updateLinkListUI();
+            inspector.remove();
+        });
+    }
+
+    enableLinkMode(windowId) {
+        this.linkMode = true;
+        this._linkHandlers = this._linkHandlers || {};
+        const svg = document.getElementById(`designer-link-svg-${windowId}`);
+        // Show ports for all components and attach mousedown for output ports
+        this.designedComponents.forEach(comp => {
+            const els = comp.portEls;
+            if (!els) return;
+            els.input.style.display = 'block';
+            els.output.style.display = 'block';
+
+            // Avoid double-binding
+            if (this._linkHandlers[comp.id]) return;
+
+            const mousedownHandler = (e) => {
+                e.stopPropagation(); e.preventDefault();
+                // only start from output
+                const port = e.currentTarget;
+                if (port.dataset.port !== 'output') return;
+
+                // create temp path
+                if (!svg) return;
+                const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+                p.setAttribute('stroke','#1f8cff'); p.setAttribute('stroke-width','3'); p.setAttribute('fill','none'); p.setAttribute('opacity','0.95');
+                svg.appendChild(p);
+                this._linking = { fromNodeId: comp.id, fromPort: 'output', tempPath: p };
+
+                const getPortCenter = (portEl) => {
+                    const r = portEl.getBoundingClientRect();
+                    const svgR = svg.getBoundingClientRect();
+                    return { x: r.left + r.width / 2 - svgR.left, y: r.top + r.height / 2 - svgR.top };
+                };
+
+                const movefn = (ev) => {
+                    const from = getPortCenter(port);
+                    const svgRect = svg.getBoundingClientRect();
+                    const toX = ev.clientX - svgRect.left;
+                    const toY = ev.clientY - svgRect.top;
+                    const cx = (from.x + toX) / 2;
+                    const d = `M ${from.x} ${from.y} C ${cx} ${from.y} ${cx} ${toY} ${toX} ${toY}`;
+                    p.setAttribute('d', d);
+                };
+
+                const upfn = (ev) => {
+                    document.removeEventListener('mousemove', movefn);
+                    document.removeEventListener('mouseup', upfn);
+                    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+                    // find closest component element
+                    const targetCompEl = el && el.closest ? el.closest('.gui-component') : null;
+                    if (targetCompEl) {
+                        const targetId = targetCompEl.dataset.componentId;
+                        if (targetId && targetId !== comp.id) {
+                            // choose a sensible default payload: if source is an input-like component, use its value
+                            const sourceComp = this.designedComponents.find(d => d.id === comp.id);
+                            let defaultPayload = { kind: 'const', value: 'Hello' };
+                            if (sourceComp && ['input','sl-input','sl-textarea','select'].includes(sourceComp.type)) {
+                                defaultPayload = { kind: 'sourceValue' };
+                            }
+                            const link = { id: `link_${Date.now()}`, from: { nodeId: comp.id, io: 'output' }, to: { nodeId: targetId, io: 'input' }, event: 'click', action: 'setText', payload: defaultPayload };
+                            this.designerLinks.push(link);
+                            this.updateLinksSVG();
+                            this.updateLinkListUI();
+                            // Open inspector right after creation to let user fine-tune
+                            this.showLinkInspector(link, ev.clientX, ev.clientY);
+                        }
+                    }
+                    // cleanup temp
+                    if (p && p.parentNode) p.remove();
+                    this._linking = null;
+                };
+
+                document.addEventListener('mousemove', movefn);
+                document.addEventListener('mouseup', upfn);
+            };
+
+            els.output.addEventListener('mousedown', mousedownHandler);
+            this._linkHandlers[comp.id] = mousedownHandler;
+        });
+    }
+
+    disableLinkMode(windowId) {
+        this.linkMode = false;
+        // Hide ports and remove handlers
+        this.designedComponents.forEach(comp => {
+            const els = comp.portEls;
+            if (!els) return;
+            els.input.style.display = 'none';
+            els.output.style.display = 'none';
+            const handler = this._linkHandlers && this._linkHandlers[comp.id];
+            if (handler) {
+                try { els.output.removeEventListener('mousedown', handler); } catch(e){}
+                delete this._linkHandlers[comp.id];
+            }
+        });
+        // Remove any temp path
+        const svg = document.getElementById(`designer-link-svg-${windowId}`);
+        if (svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+        this._linking = null;
+    }
+
+    updateLinkListUI() {
+        const container = document.getElementById(`linkList-${this.windowId}`);
+        if (!container) return;
+        container.innerHTML = '';
+        this.designerLinks.forEach(l => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:6px;border-bottom:1px solid var(--nebula-border);display:flex;align-items:center;justify-content:space-between;';
+            const txt = document.createElement('div'); txt.textContent = `${l.from.nodeId} → ${l.to.nodeId}`;
+            const del = document.createElement('button'); del.textContent = 'Delete'; del.style.cssText = 'padding:6px 8px;';
+            del.addEventListener('click', () => {
+                this.designerLinks = this.designerLinks.filter(x => x.id !== l.id);
+                this.updateLinksSVG();
+                this.updateLinkListUI();
+            });
+            div.appendChild(txt); div.appendChild(del);
+            container.appendChild(div);
+        });
     }
 
     generateVisualGuiMethod() {
@@ -8524,7 +9006,13 @@ closeModal(modal) {
 
     buildVisualGuiMethod() {
         // Generate the complete visualGui() method with proper nesting
-        let methodCode = `    /**
+        // Persist designer metadata as a JSON comment so designs are round-trippable
+        const meta = {
+            nodes: (this.designedComponents || []).map(c => ({ id: c.id, type: c.type, position: c.position, properties: c.properties, parent: c.parent, children: c.children })),
+            links: (this.designerLinks || []).map(l => ({ id: l.id, from: l.from, to: l.to, event: l.event, action: l.action, payload: l.payload }))
+        };
+        const metaJson = JSON.stringify(meta, null, 2).replace(/\*\//g, '*\\/');
+        let methodCode = '/* __VISUAL_GUI_META__' + "\n" + metaJson + "\n*/\n" + `    /**
      * Visual GUI Method - Generated by NebulaDesktop GUI Designer
      * Call this method from createContentArea() or anywhere you need the GUI
      */
@@ -8585,10 +9073,88 @@ closeModal(modal) {
             }
         });
 
-        methodCode += `\n        return container;
-    }`;
+        // Generate wiring code from designerLinks (if any)
+        if (this.designerLinks && this.designerLinks.length > 0) {
+            methodCode += '\n        // Wiring generated from Designer Links\n';
+            this.designerLinks.forEach((link, idx) => {
+                const fromVar = componentVars.get(link.from.nodeId) || `/*missing:${link.from.nodeId}*/null`;
+                const toVar = componentVars.get(link.to.nodeId) || `/*missing:${link.to.nodeId}*/null`;
+                const event = link.event || (link.from && link.from.io === 'output' ? 'click' : 'input');
+                const action = (link.action || 'setText');
+                // payload handling
+                let payloadCode = 'undefined';
+                if (link.payload) {
+                    if (link.payload.kind === 'const') payloadCode = JSON.stringify(link.payload.value);
+                    else if (link.payload.kind === 'sourceValue') payloadCode = `${fromVar}.value`;
+                    else if (link.payload.kind === 'template') {
+                        const t = String(link.payload.value || '').replace(/{{\s*source.value\s*}}/g, `' + ${fromVar}.value + '`).replace(/'/g, "\\'");
+                        payloadCode = `'${t}'`;
+                    }
+                }
+
+                // Build action code
+                let actionSnippet = `// TODO: unsupported action ${action}`;
+                if (action === 'setText') actionSnippet = `${toVar}.textContent = ${payloadCode};`;
+                if (action === 'setValue') actionSnippet = `${toVar}.value = ${payloadCode};`;
+                if (action === 'openDialog') actionSnippet = `try { ${toVar}.show(); } catch (e) { ${toVar}.setAttribute('open',''); }`;
+                if (action === 'showToast') actionSnippet = `${toVar}.textContent = ${payloadCode}; try { ${toVar}.show(); } catch(e) { /* toast may be non-sl */ }`;
+
+                methodCode += `        try { ${fromVar}.addEventListener('${event}', () => { try { ${actionSnippet} } catch(e) { console.error('Link action failed', e); } }); } catch(e) { /* missing element for link ${link.id} */ }\n`;
+            });
+        }
+
+        methodCode += `\n        return container;\n    }`;
 
         return methodCode;
+    }
+
+    // Parse embedded visual GUI metadata from generated code
+    parseVisualGuiMeta(code) {
+        if (!code || typeof code !== 'string') return null;
+        const marker = '__VISUAL_GUI_META__';
+        const start = code.indexOf(marker);
+        if (start === -1) return null;
+
+        // Find the opening comment start before marker
+        const commentStart = code.lastIndexOf('/*', start);
+        const commentEnd = code.indexOf('*/', start);
+        if (commentStart === -1 || commentEnd === -1) return null;
+
+        const jsonText = code.substring(commentStart + 2, commentEnd).replace(marker, '').trim();
+        try {
+            const parsed = JSON.parse(jsonText);
+            return parsed;
+        } catch (e) {
+            console.warn('parseVisualGuiMeta: failed to parse JSON meta', e);
+            return null;
+        }
+    }
+
+    // Load designer metadata from a code string (e.g., editor content) and populate designer state
+    loadVisualGuiMetaFromCode(code) {
+        const meta = this.parseVisualGuiMeta(code);
+        if (!meta) return false;
+
+        // Map parsed nodes into internal shapes expected by the designer
+        this.designedComponents = (meta.nodes || []).map(n => ({
+            id: n.id,
+            type: n.type,
+            position: n.position || { x: 0, y: 0 },
+            properties: n.properties || {},
+            parent: n.parent || null,
+            children: n.children || []
+        }));
+
+        this.designerLinks = (meta.links || []).map(l => ({
+            id: l.id,
+            from: l.from,
+            to: l.to,
+            event: l.event,
+            action: l.action,
+            payload: l.payload
+        }));
+
+        return true;
     }
 
     generateComponentProperties(comp, varName) {
