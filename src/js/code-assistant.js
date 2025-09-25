@@ -152,8 +152,25 @@ class NebulaCodeAssistant {
             clone.classList.remove('selected');
             const handles = clone.querySelectorAll('.drag-handle');
             handles.forEach(h => h.remove());
+            // remove designer-only ports/outlines/placeholders so runtime HTML is clean
+            // If user set exportIncludePorts, we keep port elements present in the export
+            if (!this.exportIncludePorts) {
+                const ports = clone.querySelectorAll('[data-port], .component-port');
+                ports.forEach(p => p.remove());
+            }
+            const outlines = clone.querySelectorAll('.component-outline');
+            outlines.forEach(o => o.remove());
+            const ghosts = clone.querySelectorAll('.ghost-placeholder');
+            ghosts.forEach(g => g.remove());
             wrapper.appendChild(clone);
         });
+
+        // Optionally inject runtime CSS to hide ports while keeping them in DOM
+        if (this.exportHidePortsCSS) {
+            const style = document.createElement('style');
+            style.textContent = '.component-port, [data-port] { display: none !important; }';
+            wrapper.insertBefore(style, wrapper.firstChild);
+        }
 
         return wrapper.innerHTML;
     }
@@ -5301,6 +5318,10 @@ showDiffMergeDialog() {
                     📝 Select Diff/Modified File
                 </button>
                 <div style="flex: 1;"></div>
+                <div style="display:flex;gap:8px;align-items:center;margin-right:12px;font-size:12px;color:var(--nebula-text-secondary);">
+                    <label style="display:flex;align-items:center;gap:6px;">Include ports in export <input id="exportIncludePorts-${this.windowId}" type="checkbox" style="transform:scale(1.0);margin-left:4px;" /></label>
+                    <label style="display:flex;align-items:center;gap:6px;">Hide ports via CSS <input id="exportHidePortsCSS-${this.windowId}" type="checkbox" style="transform:scale(1.0);margin-left:4px;" /></label>
+                </div>
                 <button id="applyMergeBtn" class="diff-btn success" disabled>
                     ✅ Apply Merge to Current File
                 </button>
@@ -7457,8 +7478,8 @@ closeModal(modal) {
                     padding: 20px;
                 ">
                     <div id="designCanvas-${this.windowId}" style="
-                        width: 600px;
-                        height: 400px;
+                        width: 1000px;
+                        height: 700px;
                         background: white;
                         border: 2px solid #ddd;
                         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -7509,6 +7530,43 @@ closeModal(modal) {
         `;
 
         document.body.appendChild(designerModal);
+        // After inserting designer, try to size the canvas to match the target window/template size
+        try {
+            // Default desired size
+            let targetW = 1000, targetH = 700;
+            // If editor has template code loaded, try to parse createWindow width/height
+            const currentCode = this.monacoEditor?.getValue && this.monacoEditor.getValue() || '';
+            const match = currentCode.match(/createWindow\([^\)]*width\s*:\s*(\d+)\s*,\s*height\s*:\s*(\d+)/);
+            if (match) {
+                targetW = parseInt(match[1],10) || targetW;
+                targetH = parseInt(match[2],10) || targetH;
+            } else {
+                // fallback: try reading the VisualGUI template file for defaults
+                try {
+                    // Attempt to synchronously read known template file via fetch if available
+                    const tplPath = 'src/Templates/NebulaApp-VisualGUI.js';
+                    fetch(tplPath).then(resp => {
+                        if (!resp.ok) return;
+                        resp.text().then(text => {
+                            const m = text.match(/createWindow\([^\)]*width\s*:\s*(\d+)\s*,\s*height\s*:\s*(\d+)/);
+                            if (m) {
+                                targetW = parseInt(m[1],10) || targetW;
+                                targetH = parseInt(m[2],10) || targetH;
+                                const canvasEl = document.getElementById(`designCanvas-${this.windowId}`);
+                                if (canvasEl) { canvasEl.style.width = targetW + 'px'; canvasEl.style.height = targetH + 'px'; }
+                            }
+                        });
+                    }).catch(() => {});
+                } catch(e){}
+            }
+
+            const canvasEl = document.getElementById(`designCanvas-${this.windowId}`);
+            if (canvasEl) {
+                canvasEl.style.width = targetW + 'px';
+                canvasEl.style.height = targetH + 'px';
+            }
+        } catch (e) { /* ignore sizing if anything fails */ }
+
         this.setupGuiDesigner();
     }
 
@@ -7519,6 +7577,9 @@ closeModal(modal) {
         this.designedComponents = [];
         this.selectedComponent = null;
         this.componentIdCounter = 1;
+    // Export options
+    this.exportIncludePorts = this.exportIncludePorts || false;
+    this.exportHidePortsCSS = this.exportHidePortsCSS || false;
 
         // Get elements
         const canvas = document.getElementById(`designCanvas-${windowId}`);
@@ -7539,6 +7600,21 @@ closeModal(modal) {
             canvasContainer.style.position = 'relative';
             canvasContainer.appendChild(designerSvg);
         }
+
+        // Designer-level selected link id
+        this.selectedDesignerLinkId = null;
+
+        // Key handler for deleting selected links
+        this._designerKeyHandler = (e) => {
+            if (!document.getElementById(`gui-designer-${windowId}`)) return; // designer closed
+            if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedDesignerLinkId) {
+                this.designerLinks = (this.designerLinks || []).filter(l => l.id !== this.selectedDesignerLinkId);
+                this.selectedDesignerLinkId = null;
+                this.updateLinksSVG();
+                this.updateLinkListUI();
+            }
+        };
+        document.addEventListener('keydown', this._designerKeyHandler);
 
         // Component drag and drop
         const componentItems = document.querySelectorAll('.component-item');
@@ -7595,6 +7671,34 @@ closeModal(modal) {
                 }
             });
         }
+
+        // Wire export option checkboxes
+        const inclCheckbox = document.getElementById(`exportIncludePorts-${windowId}`);
+        const hideCssCheckbox = document.getElementById(`exportHidePortsCSS-${windowId}`);
+        if (inclCheckbox) {
+            inclCheckbox.checked = !!this.exportIncludePorts;
+            inclCheckbox.addEventListener('change', (e) => { this.exportIncludePorts = !!e.target.checked; });
+        }
+        if (hideCssCheckbox) {
+            hideCssCheckbox.checked = !!this.exportHidePortsCSS;
+            hideCssCheckbox.addEventListener('change', (e) => { this.exportHidePortsCSS = !!e.target.checked; });
+        }
+    }
+
+    // Show a small instruction toast inside the designer explaining how to link
+    showLinkModeToast(windowId) {
+        const id = `link-mode-toast-${windowId}`;
+        if (document.getElementById(id)) return; // already visible
+        const designer = document.getElementById(`gui-designer-${windowId}`);
+        if (!designer) return;
+        const toast = document.createElement('div');
+        toast.id = id;
+        toast.style.cssText = 'position:fixed;left:50%;top:72px;transform:translateX(-50%);background:var(--nebula-surface);border:1px solid var(--nebula-border);padding:10px 14px;border-radius:8px;z-index:60002;box-shadow:0 8px 30px rgba(0,0,0,0.12);display:flex;align-items:center;gap:12px;min-width:300px;';
+        toast.innerHTML = `<div style="flex:1;color:var(--nebula-text-primary);font-size:13px;">Link Mode ON — drag from a highlighted output port to another component to create a connection.</div><button id="linkModeToastOk-${windowId}" style="padding:6px 10px;border-radius:4px;border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);">Got it</button>`;
+        document.body.appendChild(toast);
+        document.getElementById(`linkModeToastOk-${windowId}`).addEventListener('click', () => {
+            toast.remove();
+        });
     }
 
     addComponentToCanvas(type, canvas, propertiesPanel) {
@@ -8243,8 +8347,8 @@ closeModal(modal) {
             html += `<div style="margin-top:8px;display:flex;gap:8px;"><button id="previewOpenDialog-${component.id}" style="padding:6px 10px;border-radius:4px;border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);">Open Dialog</button></div>`;
         }
 
-        // Add a small helper for linking events (placeholder for future node editor)
-        html += `<div style="margin-top:8px;"><button id="linkEventBtn-${component.id}" style="padding:6px 10px;border-radius:4px;border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);">Link to...</button></div>`;
+    // Add a small helper for linking events (now starts integrated link flow)
+    html += `<div style="margin-top:8px;"><button id="linkEventBtn-${component.id}" style="padding:6px 10px;border-radius:4px;border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);">Link to...</button></div>`;
 
         propertiesPanel.innerHTML = html;
 
@@ -8258,11 +8362,59 @@ closeModal(modal) {
             });
         });
 
-        // Link button (stub) for future node editor
+        // Link button: enable integrated in-canvas linking (preferred) or fall back to modal
         const linkBtn = propertiesPanel.querySelector(`#linkEventBtn-${component.id}`);
         if (linkBtn) {
-            linkBtn.addEventListener('click', () => {
-                this.openLinkEditor(component);
+            linkBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // If link mode is not active, enable it first
+                const windowId = this.windowId;
+                if (!this.linkMode) {
+                    this.enableLinkMode(windowId);
+                    // Inform the user briefly
+                    try { showNotification && showNotification('Link Mode', 'Link Mode enabled — drag from the highlighted output port to the target component.'); } catch(e) { /* ignore */ }
+                }
+
+                // Find the component record
+                const comp = this.designedComponents.find(c => c.id === component.id);
+                if (!comp) {
+                    // fallback to the modal editor
+                    this.openLinkEditor(component);
+                    return;
+                }
+
+                // If ports are visible and output port exists, flash it once and dispatch mousedown to start linking
+                const out = comp.portEls && comp.portEls.output;
+                if (out) {
+                    // One-time highlight per component per session
+                    this._linkHintShown = this._linkHintShown || {};
+                    if (!this._linkHintShown[comp.id]) {
+                        this._linkHintShown[comp.id] = true;
+                        // apply highlight style and remove after animation
+                        const origBorder = out.style.border;
+                        const origBox = out.style.boxShadow;
+                        out.style.transition = 'box-shadow 400ms ease, transform 400ms ease';
+                        out.style.boxShadow = '0 0 14px rgba(31,140,255,0.85)';
+                        out.style.transform = 'scale(1.25)';
+                        setTimeout(() => {
+                            out.style.boxShadow = origBox || '';
+                            out.style.transform = '';
+                        }, 600);
+                    }
+
+                    // synthesize a mousedown event on the output port element so user can immediately drag to target
+                    try {
+                        const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: out.getBoundingClientRect().left + 4, clientY: out.getBoundingClientRect().top + 4 });
+                        out.dispatchEvent(ev);
+                    } catch (err) {
+                        // If synthetic dispatch doesn't work, fall back to opening modal
+                        console.warn('Could not start in-canvas linking programmatically, opening Link Editor modal', err);
+                        this.openLinkEditor(component);
+                    }
+                } else {
+                    // No port element found - fallback to modal
+                    this.openLinkEditor(component);
+                }
             });
         }
 
@@ -8639,18 +8791,19 @@ closeModal(modal) {
         if (!svg) return;
         // clear existing
         while (svg.firstChild) svg.removeChild(svg.firstChild);
-        // render each link as a smooth cubic bezier path
-        this.designerLinks.forEach(l => {
+
+        // render each link as a smooth multi-segment cubic bezier path with label, midpoints and click-to-select
+        const svgRect = svg.getBoundingClientRect();
+        this.designerLinks.forEach((l, linkIdx) => {
             const fromNode = this.designerNodes.find(n => n.id === l.from.nodeId);
             const toNode = this.designerNodes.find(n => n.id === l.to.nodeId);
             if (!fromNode || !toNode) return;
 
-            // find port elements
+            // find port elements (may be in designer modal or in link-editor nodes)
             const fromEl = document.getElementById(fromNode.id)?.querySelector('[data-port="output"]');
             const toEl = document.getElementById(toNode.id)?.querySelector('[data-port="input"]');
             if (!fromEl || !toEl) return;
 
-            const svgRect = svg.getBoundingClientRect();
             const fRect = fromEl.getBoundingClientRect();
             const tRect = toEl.getBoundingClientRect();
             const x1 = fRect.left + fRect.width / 2 - svgRect.left;
@@ -8658,23 +8811,213 @@ closeModal(modal) {
             const x2 = tRect.left + tRect.width / 2 - svgRect.left;
             const y2 = tRect.top + tRect.height / 2 - svgRect.top;
 
-            const cx = (x1 + x2) / 2;
-            const d = `M ${x1} ${y1} C ${cx} ${y1} ${cx} ${y2} ${x2} ${y2}`;
+            // Build points sequence: start, midpoints..., end
+            const points = [{ x: x1, y: y1 }];
+            l.midpoints = l.midpoints || [];
+            // Convert stored normalized midpoints (0..1) to absolute pixel coordinates
+            l.midpoints.forEach(mp => {
+                if (mp && typeof mp.x === 'number' && typeof mp.y === 'number') {
+                    // if values look normalized (<=1), scale by svg size; otherwise assume absolute
+                    if (Math.abs(mp.x) <= 1 && Math.abs(mp.y) <= 1) {
+                        points.push({ x: (mp.x * svgRect.width), y: (mp.y * svgRect.height) });
+                    } else {
+                        points.push({ x: Number(mp.x) || 0, y: Number(mp.y) || 0 });
+                    }
+                }
+            });
+            points.push({ x: x2, y: y2 });
+
+            // Build path using multiple cubic segments between consecutive points
+            let d = '';
+            if (points.length > 0) {
+                d = `M ${points[0].x} ${points[0].y}`;
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p0 = points[i];
+                    const p1 = points[i + 1];
+                    const cx = (p0.x + p1.x) / 2;
+                    d += ` C ${cx} ${p0.y} ${cx} ${p1.y} ${p1.x} ${p1.y}`;
+                }
+            }
 
             const path = document.createElementNS('http://www.w3.org/2000/svg','path');
             path.setAttribute('d', d);
-            path.setAttribute('stroke','#888');
-            path.setAttribute('stroke-width','3');
+            path.setAttribute('stroke', this.selectedDesignerLinkId === l.id ? '#1f8cff' : '#888');
+            path.setAttribute('stroke-width', this.selectedDesignerLinkId === l.id ? '4' : '3');
             path.setAttribute('fill','none');
             path.setAttribute('data-link-id', l.id);
             path.style.cursor = 'pointer';
+            path.style.transition = 'stroke 160ms ease, stroke-width 160ms ease';
+            path.style.pointerEvents = 'auto';
             svg.appendChild(path);
 
-            // click to remove link
+            // Allow double-click on path to add a midpoint at clicked position
+            path.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                const svgR = svg.getBoundingClientRect();
+                const nx = e.clientX - svgR.left;
+                const ny = e.clientY - svgR.top;
+                l.midpoints = l.midpoints || [];
+                // store normalized coords (0..1) so midpoints survive canvas resize
+                const nxn = Math.max(0, Math.min(1, nx / svgR.width || 0));
+                const nyn = Math.max(0, Math.min(1, ny / svgR.height || 0));
+                l.midpoints.push({ x: nxn, y: nyn });
+                this.updateLinksSVG();
+                this.updateLinkListUI();
+            });
+
+            // Label at midpoint (prefer explicit label)
+            const midIndex = Math.floor(points.length / 2);
+            const midX = points[midIndex].x;
+            const midY = points[midIndex].y;
+            const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+            label.setAttribute('x', midX);
+            label.setAttribute('y', midY - 8);
+            label.setAttribute('fill', '#444');
+            label.setAttribute('font-size', '11');
+            label.setAttribute('text-anchor', 'middle');
+            label.textContent = (l.label && String(l.label).trim()) ? String(l.label) : ((l.event || 'click') + ' → ' + (l.action || 'setText'));
+            label.style.pointerEvents = 'auto';
+            svg.appendChild(label);
+
+            // Inline edit on double-click of the label
+            label.addEventListener('dblclick', (ev) => {
+                ev.stopPropagation();
+                // Create an input that follows the SVG label even with scroll/zoom/nested transforms
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = l.label || '';
+                input.style.position = 'fixed';
+                input.style.width = '160px';
+                input.style.padding = '6px';
+                input.style.zIndex = 70000;
+                document.body.appendChild(input);
+
+                // Helper to position input based on SVG text coords using getScreenCTM
+                const positionInput = () => {
+                    try {
+                        const svgNode = svg;
+                        if (svgNode && svgNode.createSVGPoint) {
+                            const pt = svgNode.createSVGPoint();
+                            pt.x = Number(label.getAttribute('x')) || 0;
+                            pt.y = Number(label.getAttribute('y')) || 0;
+                            const ctm = label.getCTM ? label.getCTM() : svgNode.getScreenCTM();
+                            const screenPt = pt.matrixTransform(ctm || svgNode.getScreenCTM());
+                            // screenPt is in screen coordinates
+                            input.style.left = (screenPt.x - (input.offsetWidth / 2)) + 'px';
+                            input.style.top = (screenPt.y - 18) + 'px';
+                        } else {
+                            // fallback to bounding rect
+                            const svgR = svg.getBoundingClientRect();
+                            input.style.left = (svgR.left + Number(label.getAttribute('x')) - 60) + 'px';
+                            input.style.top = (svgR.top + Number(label.getAttribute('y')) - 18) + 'px';
+                        }
+                    } catch (err) {
+                        const svgR = svg.getBoundingClientRect();
+                        input.style.left = (svgR.left + Number(label.getAttribute('x')) - 60) + 'px';
+                        input.style.top = (svgR.top + Number(label.getAttribute('y')) - 18) + 'px';
+                    }
+                };
+
+                positionInput();
+                input.focus();
+                // Reposition while typing to keep the input centered over the label when width changes
+                const onInputResize = () => positionInput();
+                input.addEventListener('input', onInputResize);
+
+                // Reposition on scroll/resize while editing
+                const onWindowChange = () => positionInput();
+                window.addEventListener('scroll', onWindowChange, true);
+                window.addEventListener('resize', onWindowChange);
+
+                const cleanup = () => {
+                    window.removeEventListener('scroll', onWindowChange, true);
+                    window.removeEventListener('resize', onWindowChange);
+                    input.removeEventListener('input', onInputResize);
+                    if (input && input.parentNode) input.parentNode.removeChild(input);
+                };
+
+                const commit = () => {
+                    l.label = input.value.trim() || null;
+                    cleanup();
+                    this.updateLinksSVG();
+                    this.updateLinkListUI();
+                };
+                const cancel = () => { cleanup(); };
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') commit();
+                    else if (e.key === 'Escape') cancel();
+                });
+                input.addEventListener('blur', () => commit());
+            });
+
+            // Path click selects / opens inspector
             path.addEventListener('click', (e) => {
                 e.stopPropagation();
-                // open inspector for this link
-                this.showLinkInspector(l, e.clientX, e.clientY);
+                if (this.selectedDesignerLinkId === l.id) {
+                    this.showLinkInspector(l, e.clientX, e.clientY);
+                } else {
+                    this.selectedDesignerLinkId = l.id;
+                    this.updateLinksSVG();
+                    this.updateLinkListUI();
+                }
+            });
+
+            // Render draggable midpoint handles
+            points.forEach((pt, idx) => {
+                // skip rendering handles for endpoints (idx 0 and last) unless there is a stored midpoint corresponding
+            });
+
+            // Render handles for stored midpoints only
+            l.midpoints.forEach((mp, midIdx) => {
+                let cx = 0, cy = 0;
+                if (mp && typeof mp.x === 'number' && typeof mp.y === 'number') {
+                    if (Math.abs(mp.x) <= 1 && Math.abs(mp.y) <= 1) {
+                        cx = mp.x * svgRect.width; cy = mp.y * svgRect.height;
+                    } else { cx = Number(mp.x) || 0; cy = Number(mp.y) || 0; }
+                }
+                const handle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+                handle.setAttribute('cx', cx);
+                handle.setAttribute('cy', cy);
+                handle.setAttribute('r', 6);
+                handle.setAttribute('fill', '#fff');
+                handle.setAttribute('stroke', '#1f8cff');
+                handle.setAttribute('stroke-width', '2');
+                handle.setAttribute('data-link-id', l.id);
+                handle.setAttribute('data-mid-index', midIdx);
+                handle.style.cursor = 'grab';
+                handle.style.pointerEvents = 'auto';
+                svg.appendChild(handle);
+
+                // Drag support for handle
+                let dragging = false;
+                let startX = 0, startY = 0;
+                const onDown = (ev) => {
+                    ev.stopPropagation(); ev.preventDefault();
+                    dragging = true; startX = ev.clientX; startY = ev.clientY; handle.style.cursor = 'grabbing';
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                };
+                const onMove = (ev) => {
+                    if (!dragging) return;
+                    const svgR = svg.getBoundingClientRect();
+                    const nx = ev.clientX - svgR.left;
+                    const ny = ev.clientY - svgR.top;
+                    handle.setAttribute('cx', nx); handle.setAttribute('cy', ny);
+                    // update data model (store normalized to svg dimensions)
+                    const nxn = Math.max(0, Math.min(1, nx / svgR.width || 0));
+                    const nyn = Math.max(0, Math.min(1, ny / svgR.height || 0));
+                    l.midpoints[midIdx] = { x: nxn, y: nyn };
+                    // update path/label positions
+                    this.updateLinksSVG();
+                };
+                const onUp = (ev) => {
+                    dragging = false; handle.style.cursor = 'grab';
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    this.updateLinkListUI();
+                };
+                handle.addEventListener('mousedown', onDown);
             });
         });
     }
@@ -8694,6 +9037,8 @@ closeModal(modal) {
 
         inspector.innerHTML = `
             <div style="font-weight:600;margin-bottom:8px;">Edit Link</div>
+            <label style="font-size:12px;color:var(--nebula-text-secondary);">Label</label>
+            <input id="link-label" style="width:100%;padding:6px;margin-bottom:8px;" placeholder="Optional short label (e.g. 'Submit → Save')" />
             <label style="font-size:12px;color:var(--nebula-text-secondary);">Event</label>
             <select id="link-event" style="width:100%;padding:6px;margin-bottom:8px;"></select>
             <label style="font-size:12px;color:var(--nebula-text-secondary);">Action</label>
@@ -8708,7 +9053,8 @@ closeModal(modal) {
 
         document.body.appendChild(inspector);
 
-        const eventSel = inspector.querySelector('#link-event');
+    const labelInput = inspector.querySelector('#link-label');
+    const eventSel = inspector.querySelector('#link-event');
         const actionSel = inspector.querySelector('#link-action');
         const payloadInput = inspector.querySelector('#link-payload');
 
@@ -8716,6 +9062,8 @@ closeModal(modal) {
         actions.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; if (link.action === a) o.selected = true; actionSel.appendChild(o); });
 
         // payload display
+        // label display
+        if (link.label) labelInput.value = link.label;
         if (link.payload) {
             if (link.payload.kind === 'const') payloadInput.value = link.payload.value;
             else if (link.payload.kind === 'sourceValue') payloadInput.value = '{{source.value}}';
@@ -8724,6 +9072,7 @@ closeModal(modal) {
 
         inspector.querySelector('#link-cancel').addEventListener('click', () => inspector.remove());
         inspector.querySelector('#link-save').addEventListener('click', () => {
+            const newLabel = labelInput.value || null;
             const ev = eventSel.value;
             const act = actionSel.value;
             let payloadVal = payloadInput.value || '';
@@ -8732,7 +9081,7 @@ closeModal(modal) {
             else if (payloadVal.includes('{{')) payloadObj = { kind: 'template', value: payloadVal };
 
             // Update link
-            link.event = ev; link.action = act; link.payload = payloadObj;
+            link.event = ev; link.action = act; link.payload = payloadObj; link.label = newLabel;
             this.updateLinksSVG();
             this.updateLinkListUI();
             inspector.remove();
@@ -8846,7 +9195,7 @@ closeModal(modal) {
         this.designerLinks.forEach(l => {
             const div = document.createElement('div');
             div.style.cssText = 'padding:6px;border-bottom:1px solid var(--nebula-border);display:flex;align-items:center;justify-content:space-between;';
-            const txt = document.createElement('div'); txt.textContent = `${l.from.nodeId} → ${l.to.nodeId}`;
+            const txt = document.createElement('div'); txt.textContent = l.label ? `${l.label} (${l.from.nodeId} → ${l.to.nodeId})` : `${l.from.nodeId} → ${l.to.nodeId}`;
             const del = document.createElement('button'); del.textContent = 'Delete'; del.style.cssText = 'padding:6px 8px;';
             del.addEventListener('click', () => {
                 this.designerLinks = this.designerLinks.filter(x => x.id !== l.id);
@@ -9009,7 +9358,8 @@ closeModal(modal) {
         // Persist designer metadata as a JSON comment so designs are round-trippable
         const meta = {
             nodes: (this.designedComponents || []).map(c => ({ id: c.id, type: c.type, position: c.position, properties: c.properties, parent: c.parent, children: c.children })),
-            links: (this.designerLinks || []).map(l => ({ id: l.id, from: l.from, to: l.to, event: l.event, action: l.action, payload: l.payload }))
+            // include label in link meta so labels round-trip with the generated code
+            links: (this.designerLinks || []).map(l => ({ id: l.id, from: l.from, to: l.to, event: l.event, action: l.action, payload: l.payload, label: l.label, midpoints: l.midpoints || [] }))
         };
         const metaJson = JSON.stringify(meta, null, 2).replace(/\*\//g, '*\\/');
         let methodCode = '/* __VISUAL_GUI_META__' + "\n" + metaJson + "\n*/\n" + `    /**
@@ -9099,7 +9449,9 @@ closeModal(modal) {
                 if (action === 'openDialog') actionSnippet = `try { ${toVar}.show(); } catch (e) { ${toVar}.setAttribute('open',''); }`;
                 if (action === 'showToast') actionSnippet = `${toVar}.textContent = ${payloadCode}; try { ${toVar}.show(); } catch(e) { /* toast may be non-sl */ }`;
 
-                methodCode += `        try { ${fromVar}.addEventListener('${event}', () => { try { ${actionSnippet} } catch(e) { console.error('Link action failed', e); } }); } catch(e) { /* missing element for link ${link.id} */ }\n`;
+                // Guarded listener: avoid immediate re-entrancy by using a short busy flag
+                const guardName = `guard_${idx}`;
+                methodCode += `        try { (function(){ var ${guardName} = false; try { ${fromVar}.addEventListener('${event}', function() { if (${guardName}) return; ${guardName} = true; try { ${actionSnippet} } catch(e) { console.error('Link action failed', e); } setTimeout(function(){ ${guardName} = false; }, 30); }); } catch(e){} })(); } catch(e) { /* missing element for link ${link.id} */ }\n`;
             });
         }
 
@@ -9135,6 +9487,31 @@ closeModal(modal) {
         const meta = this.parseVisualGuiMeta(code);
         if (!meta) return false;
 
+        // Helper: attempt to infer canvas size from code (createWindow(width,height) or template)
+        const inferCanvasSize = (src) => {
+            try {
+                if (!src || typeof src !== 'string') return { w: 1000, h: 700 };
+                // look for createWindow(x, y, ... ) or createWindow({ width: X, height: Y })
+                const cwMatch = src.match(/createWindow\s*\(\s*(\d{2,5})\s*,\s*(\d{2,5})/i);
+                if (cwMatch) return { w: Number(cwMatch[1]), h: Number(cwMatch[2]) };
+                const objMatch = src.match(/createWindow\s*\(\s*\{[^}]*width\s*:\s*(\d{2,5})[^}]*height\s*:\s*(\d{2,5})/i);
+                if (objMatch) return { w: Number(objMatch[1]), h: Number(objMatch[2]) };
+                // try to parse template file for visual-gui if available
+                try {
+                    const path = 'src/Templates/NebulaApp-VisualGUI.js';
+                    const t = require(path);
+                    // if template exports sizes, use them (best-effort)
+                    if (t && t.default && t.default.width && t.default.height) return { w: t.default.width, h: t.default.height };
+                } catch (e) {
+                    // ignore
+                }
+            } catch (e) {}
+            // fallback
+            return { w: 1000, h: 700 };
+        };
+
+        const canvasSize = inferCanvasSize(code);
+
         // Map parsed nodes into internal shapes expected by the designer
         this.designedComponents = (meta.nodes || []).map(n => ({
             id: n.id,
@@ -9145,14 +9522,31 @@ closeModal(modal) {
             children: n.children || []
         }));
 
-        this.designerLinks = (meta.links || []).map(l => ({
-            id: l.id,
-            from: l.from,
-            to: l.to,
-            event: l.event,
-            action: l.action,
-            payload: l.payload
-        }));
+        this.designerLinks = (meta.links || []).map(l => {
+            // migrate midpoints: if midpoints appear to be absolute pixel coords (>1), normalize
+            const inMps = l.midpoints || [];
+            const migrated = inMps.map(mp => {
+                if (!mp || typeof mp.x !== 'number' || typeof mp.y !== 'number') return mp;
+                // If values look like pixels (greater than 1 or unusually large), normalize
+                if (Math.abs(mp.x) > 1 || Math.abs(mp.y) > 1) {
+                    return { x: (mp.x / canvasSize.w), y: (mp.y / canvasSize.h) };
+                }
+                // already normalized
+                return mp;
+            });
+
+            return {
+                id: l.id,
+                from: l.from,
+                to: l.to,
+                event: l.event,
+                action: l.action,
+                payload: l.payload,
+                // preserve any user-provided label
+                label: l.label || null,
+                midpoints: migrated
+            };
+        });
 
         return true;
     }

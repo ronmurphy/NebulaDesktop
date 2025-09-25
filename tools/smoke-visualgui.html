@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Nebula Visual GUI Designer Smoke Test</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 16px; }
+    #canvasWrap { width: 1000px; height: 700px; border: 1px solid #ccc; position: relative; }
+    .gui-component { position: absolute; border: 1px dashed #999; padding: 8px; background: #fff; }
+  </style>
+</head>
+<body>
+  <h2>Visual GUI Smoke Test</h2>
+  <p>Open this file in the Nebula renderer (or a browser) and click "Open Demo Designer" to exercise the inline label edit and midpoint behaviors.</p>
+  <button id="open">Open Demo Designer</button>
+  <div id="canvasWrap"></div>
+
+  <script>
+    document.getElementById('open').addEventListener('click', () => {
+      const wrap = document.getElementById('canvasWrap');
+      wrap.innerHTML = '';
+      // Create two demo components
+      const a = document.createElement('div'); a.className = 'gui-component'; a.id = 'c1'; a.style.left = '100px'; a.style.top = '120px'; a.textContent = 'Button A'; wrap.appendChild(a);
+      const b = document.createElement('div'); b.className = 'gui-component'; b.id = 'c2'; b.style.left = '420px'; b.style.top = '300px'; b.textContent = 'Input B'; wrap.appendChild(b);
+      // Create an SVG overlay for links
+      const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('width','100%'); svg.setAttribute('height','100%'); svg.style.position='absolute'; svg.style.left='0'; svg.style.top='0'; svg.id='designer-link-svg-demo'; wrap.appendChild(svg);
+      // Add a simple path and label (mimic designer)
+      const p = document.createElementNS('http://www.w3.org/2000/svg','path'); p.setAttribute('d','M150 150 C 200 150 300 300 420 320'); p.setAttribute('stroke','#888'); p.setAttribute('fill','none'); p.setAttribute('stroke-width','3'); svg.appendChild(p);
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text'); t.setAttribute('x','280'); t.setAttribute('y','220'); t.textContent='demo label'; svg.appendChild(t);
+      t.addEventListener('dblclick', (e) => { const inpt = document.createElement('input'); inpt.value=t.textContent; inpt.style.position='fixed'; inpt.style.left='260px'; inpt.style.top='200px'; document.body.appendChild(inpt); inpt.focus(); inpt.addEventListener('blur', ()=>{ t.textContent = inpt.value; inpt.remove(); }); });
+      p.addEventListener('dblclick', (e) => { const rect = svg.getBoundingClientRect(); const nx = e.clientX-rect.left; const ny = e.clientY-rect.top; const c = document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('cx',nx); c.setAttribute('cy',ny); c.setAttribute('r',6); c.setAttribute('fill','#fff'); c.setAttribute('stroke','#1f8cff'); svg.appendChild(c); });
+    });
+  </script>
+</body>
+</html>
