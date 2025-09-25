@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced NebulaApp Image Editor - GLTF Models</title>
+    
+    <!-- Three.js Dependencies (REQUIRED - Load in this exact order) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #005a9e;
+            transform: translateY(-1px);
+        }
+        
+        .btn.reset {
+            background: #dc3545;
+        }
+        
+        .btn.reset:hover {
+            background: #c82333;
+        }
+        
+        .app-container {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+        
+        .features {
+            margin-top: 20px;
+            padding: 20px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        
+        .features h3 {
+            color: #007acc;
+            margin-top: 0;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .feature-item {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007acc;
+        }
+        
+        .feature-item h4 {
+            margin: 0 0 8px 0;
+            color: #ffffff;
+            font-size: 14px;
+        }
+        
+        .feature-item p {
+            margin: 0;
+            color: #cccccc;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .highlight {
+            background: linear-gradient(135deg, #FF6B35, #F7931E);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        
+        .new-feature {
+            border-left-color: #FF6B35;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+        
+        .status h4 {
+            color: #28a745;
+            margin: 0 0 10px 0;
+        }
+        
+        .status ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #cccccc;
+        }
+        
+        .status li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 Enhanced NebulaApp Image Editor</h1>
+        <p>Professional Digital Art Suite with <span class="highlight">Real GLTF 3D Models</span></p>
+    </div>
+    
+    <div class="controls">
+        <button class="btn" onclick="initializeApp()">🚀 Initialize Enhanced App</button>
+        <button class="btn reset" onclick="resetApp()">🔄 Reset</button>
+    </div>
+    
+    <div class="app-container" id="app-container">
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+            Click "Initialize Enhanced App" to start the image editor with real 3D models
+        </div>
+    </div>
+    
+    <div class="status">
+        <h4>✅ System Status</h4>
+        <ul>
+            <li id="threejs-status">Three.js: Loading...</li>
+            <li id="orbitcontrols-status">OrbitControls: Loading...</li>
+            <li id="gltfloader-status">GLTFLoader: Loading...</li>
+            <li id="models-status">3D Models: Ready</li>
+        </ul>
+    </div>
+    
+    <div class="features">
+        <h3>✨ Enhanced Features</h3>
+        <div class="feature-grid">
+            <div class="feature-item new-feature">
+                <h4>🎭 Real GLTF Models</h4>
+                <p>Professional rigged 3D models with realistic anatomy, skeletal animation, and proper proportions - no more stick figures!</p>
+            </div>
+            <div class="feature-item new-feature">
+                <h4>🌐 PoseMy.Art Integration</h4>
+                <p>Direct access to PoseMy.Art studio for professional pose references. Create poses there and import as reference layers.</p>
+            </div>
+            <div class="feature-item">
+                <h4>🧑‍🎨 Anime Characters</h4>
+                <p>Stylized anime-inspired models with large eyes, colorful hair, and distinctive features perfect for manga and anime art.</p>
+            </div>
+            <div class="feature-item">
+                <h4>🎨 Adobe-like Interface</h4>
+                <p>Professional dark theme with tabbed panels, comprehensive toolbars, and intuitive controls familiar to digital artists.</p>
+            </div>
+            <div class="feature-item">
+                <h4>🖌️ Advanced Drawing Tools</h4>
+                <p>Pressure-sensitive brushes, stabilizer system, multiple selection tools, and gradient support for professional artwork.</p>
+            </div>
+            <div class="feature-item">
+                <h4>📚 Layer Management</h4>
+                <p>Full layer system with visibility toggles, opacity controls, blending modes, and easy layer organization.</p>
+            </div>
+            <div class="feature-item new-feature">
+                <h4>🦴 Skeletal Animation</h4>
+                <p>Real bone-based rigging system with natural joint movement, pose presets, and smooth animation transitions.</p>
+            </div>
+            <div class="feature-item">
+                <h4>📸 Reference Capture</h4>
+                <p>Instantly capture 3D mannequin poses as reference layers in your artwork - perfect for anatomy studies and character design.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mock WindowManager for testing -->
+    <script>
+        // Check dependencies on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('threejs-status').textContent = 
+                    'Three.js: ' + (window.THREE ? '✅ Loaded' : '❌ Failed');
+                document.getElementById('orbitcontrols-status').textContent = 
+                    'OrbitControls: ' + (window.THREE && window.THREE.OrbitControls ? '✅ Loaded' : '❌ Failed');
+                document.getElementById('gltfloader-status').textContent = 
+                    'GLTFLoader: ' + (window.THREE && window.THREE.GLTFLoader ? '✅ Loaded' : '❌ Failed');
+            }, 1000);
+        });
+        
+        // Mock WindowManager for testing purposes
+        class MockWindowManager {
+            constructor() {
+                this.windows = new Map();
+                this.nextId = 1;
+            }
+            
+            createWindow(config) {
+                const id = this.nextId++;
+                this.windows.set(id, {
+                    id: id,
+                    title: config.title,
+                    icon: config.icon,
+                    width: config.width,
+                    height: config.height,
+                    element: null
+                });
+                return id;
+            }
+            
+            loadApp(windowId, app) {
+                const window = this.windows.get(windowId);
+                if (window && app) {
+                    const container = document.getElementById('app-container');
+                    container.innerHTML = '';
+                    const appElement = app.render();
+                    container.appendChild(appElement);
+                    window.element = appElement;
+                }
+            }
+            
+            closeWindow(windowId) {
+                this.windows.delete(windowId);
+            }
+        }
+        
+        // Initialize mock environment
+        window.windowManager = new MockWindowManager();
+        
+        let appInstance = null;
+        
+        function initializeApp() {
+            try {
+                // Check dependencies
+                if (!window.THREE) {
+                    alert('Three.js not loaded! Please refresh the page.');
+                    return;
+                }
+                
+                if (!window.THREE.GLTFLoader) {
+                    alert('GLTFLoader not loaded! Please refresh the page.');
+                    return;
+                }
+                
+                // Clear any existing instance
+                if (appInstance) {
+                    appInstance.cleanup();
+                }
+                
+                // Create new app instance
+                appInstance = new NebulaApp();
+                console.log('Enhanced NebulaApp Image Editor with GLTF models initialized successfully!');
+                
+                // Update button text
+                const btn = document.querySelector('.btn');
+                btn.textContent = '✅ App Running with Real 3D Models';
+                btn.style.background = '#28a745';
+                
+            } catch (error) {
+                console.error('Failed to initialize app:', error);
+                alert('Failed to initialize app. Check console for details.');
+            }
+        }
+        
+        function resetApp() {
+            const container = document.getElementById('app-container');
+            container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">Click "Initialize Enhanced App" to start the image editor with real 3D models</div>';
+            
+            if (appInstance) {
+                appInstance.cleanup();
+                appInstance = null;
+            }
+            
+            // Reset button
+            const btn = document.querySelector('.btn');
+            btn.textContent = '🚀 Initialize Enhanced App';
+            btn.style.background = '#007acc';
+        }
+    </script>
+    
+    <!-- Load the Enhanced NebulaApp Image Editor -->
+    <script src="./NebulaApp-ImageEditor-Enhanced.js"></script>
+</body>
+</html>
