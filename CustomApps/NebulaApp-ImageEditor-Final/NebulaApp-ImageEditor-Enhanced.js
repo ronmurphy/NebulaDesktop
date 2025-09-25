@@ -29,8 +29,11 @@ class NebulaApp {
         
         // Initialize the app
         this.init();
+
+        // Setup cleanup on window close
+        window.addEventListener('beforeunload', () => this.cleanup());
     }
-    
+
     init() {
         // Create window through WindowManager
         if (window.windowManager) {
@@ -1031,7 +1034,7 @@ class NebulaApp {
         this.lastPoint = { x, y };
     }
 
-    handleCanvasMouseUp(e) {
+    handleCanvasMouseUp(_e) {
         if (!this.isDrawing) return;
         
         this.isDrawing = false;
@@ -1058,40 +1061,87 @@ class NebulaApp {
 
     // Drawing methods
     startDrawing(x, y) {
-        const activeLayer = this.layerManager.getActiveLayer();
-        if (!activeLayer) return;
-        
-        const ctx = activeLayer.canvas.getContext('2d');
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        
-        // Apply tool settings
-        ctx.strokeStyle = this.toolManager.brushColor;
-        ctx.lineWidth = this.toolManager.brushSize;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.globalAlpha = this.toolManager.brushOpacity;
-        
-        if (this.currentTool === 'pencil') {
-            ctx.lineCap = 'square';
-            ctx.lineJoin = 'miter';
+        try {
+            const activeLayer = this.layerManager?.getActiveLayer();
+            if (!activeLayer) {
+                console.warn('Drawing: No active layer available');
+                return;
+            }
+
+            if (!activeLayer.canvas) {
+                console.error('Drawing: Active layer has no canvas');
+                return;
+            }
+
+            const ctx = activeLayer.canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Drawing: Failed to get canvas context');
+                return;
+            }
+
+            // Validate coordinates
+            if (typeof x !== 'number' || typeof y !== 'number' || isNaN(x) || isNaN(y)) {
+                console.warn('Drawing: Invalid coordinates provided:', { x, y });
+                return;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+
+            // Apply tool settings with validation
+            if (this.toolManager) {
+                ctx.strokeStyle = this.toolManager.brushColor || '#000000';
+                ctx.lineWidth = Math.max(1, this.toolManager.brushSize || 1);
+                ctx.globalAlpha = Math.max(0, Math.min(1, this.toolManager.brushOpacity || 1));
+            }
+
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (this.currentTool === 'pencil') {
+                ctx.lineCap = 'square';
+                ctx.lineJoin = 'miter';
+            }
+        } catch (error) {
+            console.error('Drawing: Critical error in startDrawing:', error);
+            this.showNotification?.('Drawing error occurred', 'error');
         }
     }
 
     continuDrawing(x, y) {
-        const activeLayer = this.layerManager.getActiveLayer();
-        if (!activeLayer || !this.lastPoint) return;
-        
-        const ctx = activeLayer.canvas.getContext('2d');
-        
-        // Use stylus stabilization if available
-        const stabilizedPoint = this.stylusManager?.stabilizePoint({ x, y }, this.currentPath) || { x, y };
-        
-        ctx.lineTo(stabilizedPoint.x, stabilizedPoint.y);
-        ctx.stroke();
-        
-        // Schedule a single compositing update for this frame instead of updating every sample
-        this._scheduleFlushMainCanvas();
+        try {
+            const activeLayer = this.layerManager?.getActiveLayer();
+            if (!activeLayer || !this.lastPoint || !activeLayer.canvas) return;
+
+            // Validate coordinates
+            if (typeof x !== 'number' || typeof y !== 'number' || isNaN(x) || isNaN(y)) {
+                console.warn('Drawing: Invalid coordinates in continuDrawing:', { x, y });
+                return;
+            }
+
+            const ctx = activeLayer.canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Drawing: Failed to get canvas context in continuDrawing');
+                return;
+            }
+
+            // Use stylus stabilization if available
+            const stabilizedPoint = this.stylusManager?.stabilizePoint({ x, y }, this.currentPath) || { x, y };
+
+            // Validate stabilized point
+            if (typeof stabilizedPoint.x !== 'number' || typeof stabilizedPoint.y !== 'number') {
+                console.warn('Drawing: Invalid stabilized point:', stabilizedPoint);
+                return;
+            }
+
+            ctx.lineTo(stabilizedPoint.x, stabilizedPoint.y);
+            ctx.stroke();
+
+            // Schedule a single compositing update for this frame instead of updating every sample
+            this._scheduleFlushMainCanvas();
+        } catch (error) {
+            console.error('Drawing: Error in continuDrawing:', error);
+        }
     }
 
     finishDrawing() {
@@ -1119,9 +1169,18 @@ class NebulaApp {
         this._isFlushScheduled = false;
         this._flushRafId = null;
         try {
-            this.layerManager && this.layerManager.updateMainCanvas();
-        } catch (e) {
-            console.warn('Error flushing main canvas', e);
+            if (this.layerManager && typeof this.layerManager.updateMainCanvas === 'function') {
+                this.layerManager.updateMainCanvas();
+            } else {
+                console.warn('Canvas flush: LayerManager not available or invalid');
+            }
+        } catch (error) {
+            console.error('Canvas flush: Critical error flushing main canvas:', error);
+            // Try to recover by clearing the schedule
+            if (this._flushRafId) {
+                cancelAnimationFrame(this._flushRafId);
+                this._flushRafId = null;
+            }
         }
     }
 
@@ -1665,34 +1724,99 @@ class NebulaApp {
     }
 
     cleanup() {
-        // Clean up resources when the app is closed
-        if (this.threejsModal) {
-            this.threejsModal.hide();
-        }
-        
-        // Remove event listeners
-        document.removeEventListener('keydown', this.handleKeyboard);
-        
-        // Clean up other resources
-        this.eventManager?.removeAllListeners();
-        // Cancel any pending rAF flush
-        try {
-            if (this._flushRafId) cancelAnimationFrame(this._flushRafId);
-        } catch (e) { /* ignore */ }
-        this._isFlushScheduled = false;
-        this._flushRafId = null;
+        console.log('ImageEditor: Starting cleanup...');
 
-        // Release ImageBitmaps stored on layers
         try {
-            if (this.layerManager && this.layerManager.layers) {
-                for (const layer of this.layerManager.layers) {
-                    if (layer._imageBitmap && typeof layer._imageBitmap.close === 'function') {
-                        try { layer._imageBitmap.close(); } catch(e){}
-                        layer._imageBitmap = null;
+            // Cancel any pending operations
+            if (this._flushRafId) {
+                cancelAnimationFrame(this._flushRafId);
+                this._flushRafId = null;
+            }
+            this._isFlushScheduled = false;
+
+            // Clean up 3D system resources
+            if (this.threejsModal) {
+                try {
+                    // Hide first (safer), then cleanup
+                    if (typeof this.threejsModal.hide === 'function') {
+                        this.threejsModal.hide();
                     }
+                    if (typeof this.threejsModal.cleanup === 'function') {
+                        this.threejsModal.cleanup();
+                    }
+                } catch (error) {
+                    console.warn('Error cleaning up 3D system:', error);
                 }
             }
-        } catch(e) { /* ignore */ }
+
+            // Clean up layer manager and all canvases
+            if (this.layerManager) {
+                try {
+                    this.layerManager.cleanup();
+                } catch (error) {
+                    console.warn('Error cleaning up layer manager:', error);
+                }
+            }
+
+            // Remove event listeners
+            try {
+                document.removeEventListener('keydown', this.handleKeyboard);
+
+                // Remove canvas event listeners
+                const mainCanvas = document.getElementById('main-canvas');
+                if (mainCanvas) {
+                    mainCanvas.removeEventListener('mousedown', this.handleCanvasMouseDown);
+                    mainCanvas.removeEventListener('mousemove', this.handleCanvasMouseMove);
+                    mainCanvas.removeEventListener('mouseup', this.handleCanvasMouseUp);
+                    mainCanvas.removeEventListener('wheel', this.handleCanvasWheel);
+                    mainCanvas.removeEventListener('touchstart', this.handleCanvasTouchStart);
+                    mainCanvas.removeEventListener('touchmove', this.handleCanvasTouchMove);
+                    mainCanvas.removeEventListener('touchend', this.handleCanvasTouchEnd);
+                }
+            } catch (error) {
+                console.warn('Error removing event listeners:', error);
+            }
+
+            // Clean up event manager
+            if (this.eventManager) {
+                try {
+                    this.eventManager.removeAllListeners();
+                } catch (error) {
+                    console.warn('Error cleaning up event manager:', error);
+                }
+            }
+
+            // Clean up undo/redo history to free memory
+            try {
+                this.undoStack = [];
+                this.redoStack = [];
+            } catch (error) {
+                console.warn('Error clearing undo history:', error);
+            }
+
+            // Clear references to prevent memory leaks
+            this.layerManager = null;
+            this.toolManager = null;
+            this.selectionManager = null;
+            this.gradientManager = null;
+            this.stylusManager = null;
+            this.threejsModal = null;
+            this.eventManager = null;
+
+            // Clear global reference
+            if (window.nebulaAppInstance === this) {
+                window.nebulaAppInstance = null;
+            }
+
+            console.log('ImageEditor: Cleanup completed');
+        } catch (error) {
+            console.error('ImageEditor: Critical error during cleanup:', error);
+        }
+    }
+
+    // Method to be called when the window/app is closed
+    destroy() {
+        this.cleanup();
     }
 }
 
@@ -1727,6 +1851,17 @@ class LayerManager {
         this.activeLayerId = null;
         this.mainCanvas = null;
         this.nextId = 1;
+
+        // Batching system for performance optimization
+        this._pendingUpdate = false;
+        this._updateRafId = null;
+        this._dirtyLayers = new Set();
+        this._lastUpdateTime = 0;
+        this._updateThreshold = 16; // ~60fps
+
+        // Cache for performance
+        this._compositeCache = null;
+        this._cacheValid = false;
     }
     
     setMainCanvas(canvas) {
@@ -1771,105 +1906,405 @@ class LayerManager {
         const layer = this.layers.find(l => l.id === layerId);
         if (layer) {
             layer.visible = !layer.visible;
-            this.updateMainCanvas();
+            this._markLayerDirty(layerId);
+            this._scheduleUpdate();
             console.log(`Toggled visibility for layer ${layerId}`);
         }
     }
-    
+
     setLayerOpacity(layerId, opacity) {
         const layer = this.layers.find(l => l.id === layerId);
         if (layer) {
-            layer.opacity = opacity;
-            this.updateMainCanvas();
+            layer.opacity = Math.max(0, Math.min(1, opacity));
+            this._markLayerDirty(layerId);
+            this._scheduleUpdate();
         }
     }
-    
+
     setLayerBlendMode(layerId, blendMode) {
         const layer = this.layers.find(l => l.id === layerId);
         if (layer) {
             layer.blendMode = blendMode;
-            this.updateMainCanvas();
+            this._markLayerDirty(layerId);
+            this._scheduleUpdate();
         }
+    }
+
+    // Batching system methods
+    _markLayerDirty(layerId) {
+        if (layerId) {
+            this._dirtyLayers.add(layerId);
+        }
+        this._cacheValid = false;
+    }
+
+    _scheduleUpdate() {
+        if (this._pendingUpdate) return;
+
+        const now = performance.now();
+        const timeSinceLastUpdate = now - this._lastUpdateTime;
+
+        if (timeSinceLastUpdate >= this._updateThreshold) {
+            // Update immediately if enough time has passed
+            this._executeUpdate();
+        } else {
+            // Schedule update for next animation frame
+            this._pendingUpdate = true;
+            this._updateRafId = requestAnimationFrame(() => this._executeUpdate());
+        }
+    }
+
+    _executeUpdate() {
+        this._pendingUpdate = false;
+        this._updateRafId = null;
+        this._lastUpdateTime = performance.now();
+
+        try {
+            // Only update if we have dirty layers or cache is invalid
+            if (this._dirtyLayers.size > 0 || !this._cacheValid) {
+                this.updateMainCanvas();
+                this._dirtyLayers.clear();
+                this._cacheValid = true;
+            }
+        } catch (error) {
+            console.error('LayerManager: Error in batched update:', error);
+            // Reset state on error
+            this._dirtyLayers.clear();
+            this._cacheValid = false;
+        }
+    }
+
+    // Force immediate update (bypass batching)
+    forceUpdate() {
+        if (this._updateRafId) {
+            cancelAnimationFrame(this._updateRafId);
+            this._updateRafId = null;
+            this._pendingUpdate = false;
+        }
+        this._executeUpdate();
     }
     
     updateMainCanvas() {
-        if (!this.mainCanvas) return;
-        
-        const ctx = this.mainCanvas.getContext('2d');
-        ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
-        
-        // Composite all visible layers
-        this.layers.forEach(layer => {
-            if (layer.visible) {
-                ctx.globalAlpha = layer.opacity;
-                ctx.globalCompositeOperation = layer.blendMode;
-                ctx.drawImage(layer.canvas, 0, 0);
+        if (!this.mainCanvas) {
+            console.warn('LayerManager: No main canvas available for update');
+            return;
+        }
+
+        try {
+            const ctx = this.mainCanvas.getContext('2d');
+            if (!ctx) {
+                console.error('LayerManager: Failed to get 2D context from main canvas');
+                return;
             }
-        });
-        
-        // Reset composite operation
-        ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = 'source-over';
+
+            // Clear the main canvas
+            try {
+                ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
+            } catch (error) {
+                console.error('LayerManager: Failed to clear main canvas:', error);
+                return;
+            }
+
+            // Composite all visible layers
+            this.layers.forEach((layer, index) => {
+                if (!layer.visible || !layer.canvas) return;
+
+                try {
+                    // Validate layer properties
+                    const opacity = Math.max(0, Math.min(1, layer.opacity || 1));
+                    const blendMode = layer.blendMode || 'source-over';
+
+                    // Set composite properties
+                    ctx.globalAlpha = opacity;
+                    ctx.globalCompositeOperation = blendMode;
+
+                    // Draw the layer
+                    ctx.drawImage(layer.canvas, 0, 0);
+                } catch (error) {
+                    console.error(`LayerManager: Failed to composite layer ${index} (${layer.name || 'unnamed'}):`, error);
+                    // Continue with other layers even if one fails
+                }
+            });
+
+            // Reset composite operation
+            try {
+                ctx.globalAlpha = 1;
+                ctx.globalCompositeOperation = 'source-over';
+            } catch (error) {
+                console.warn('LayerManager: Failed to reset composite operation:', error);
+            }
+        } catch (error) {
+            console.error('LayerManager: Critical error in updateMainCanvas:', error);
+        }
     }
     
     clear() {
-        this.layers = [];
-        this.activeLayerId = null;
-        this.nextId = 1;
-        
-        if (this.mainCanvas) {
-            const ctx = this.mainCanvas.getContext('2d');
-            ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
+        try {
+            // Clean up layer canvases to prevent memory leaks
+            this.layers.forEach(layer => {
+                if (layer.canvas) {
+                    try {
+                        const ctx = layer.canvas.getContext('2d');
+                        if (ctx) {
+                            ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+                        }
+                        // Clear any stored ImageBitmap
+                        if (layer._imageBitmap) {
+                            layer._imageBitmap.close();
+                            layer._imageBitmap = null;
+                        }
+                    } catch (error) {
+                        console.warn(`LayerManager: Error cleaning up layer canvas:`, error);
+                    }
+                }
+            });
+
+            this.layers = [];
+            this.activeLayerId = null;
+            this.nextId = 1;
+
+            if (this.mainCanvas) {
+                try {
+                    const ctx = this.mainCanvas.getContext('2d');
+                    if (ctx) {
+                        ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
+                    }
+                } catch (error) {
+                    console.error('LayerManager: Failed to clear main canvas:', error);
+                }
+            }
+        } catch (error) {
+            console.error('LayerManager: Critical error in clear method:', error);
         }
     }
     
     getState() {
         // Return serializable state for undo/redo
-        return {
-            layers: this.layers.map(layer => ({
-                ...layer,
-                imageData: layer.canvas.toDataURL()
-            })),
-            activeLayerId: this.activeLayerId
-        };
+        try {
+            const layersState = this.layers.map((layer, index) => {
+                try {
+                    if (!layer.canvas) {
+                        console.warn(`LayerManager: Layer ${index} has no canvas, skipping state capture`);
+                        return null;
+                    }
+
+                    return {
+                        ...layer,
+                        imageData: layer.canvas.toDataURL('image/png')
+                    };
+                } catch (error) {
+                    console.error(`LayerManager: Failed to capture state for layer ${index}:`, error);
+                    return null; // Skip corrupted layers
+                }
+            }).filter(layer => layer !== null); // Remove null entries
+
+            return {
+                layers: layersState,
+                activeLayerId: this.activeLayerId
+            };
+        } catch (error) {
+            console.error('LayerManager: Critical error in getState:', error);
+            return { layers: [], activeLayerId: null };
+        }
     }
     
     setState(state) {
         // Restore state from undo/redo
-        this.layers = [];
-        this.activeLayerId = state.activeLayerId;
-        
-        let loadedCount = 0;
-        const totalLayers = state.layers.length;
-        
-        state.layers.forEach(layerData => {
-            const layer = {
-                id: layerData.id,
-                name: layerData.name,
-                canvas: document.createElement('canvas'),
-                visible: layerData.visible,
-                opacity: layerData.opacity,
-                blendMode: layerData.blendMode,
-                metadata: layerData.metadata
-            };
-            
-            // Restore canvas content
-            const img = new Image();
-            img.onload = () => {
-                layer.canvas.width = img.width;
-                layer.canvas.height = img.height;
-                const ctx = layer.canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                
-                loadedCount++;
-                if (loadedCount === totalLayers) {
-                    this.updateMainCanvas();
+        try {
+            if (!state || !Array.isArray(state.layers)) {
+                console.error('LayerManager: Invalid state provided to setState');
+                return;
+            }
+
+            // Clear existing layers properly
+            this.clear();
+            this.activeLayerId = state.activeLayerId;
+
+            let loadedCount = 0;
+            const totalLayers = state.layers.length;
+
+            if (totalLayers === 0) {
+                // No layers to restore, just update main canvas
+                this.updateMainCanvas();
+                return;
+            }
+
+            state.layers.forEach((layerData, index) => {
+                try {
+                    if (!layerData || !layerData.imageData) {
+                        console.warn(`LayerManager: Invalid layer data at index ${index}`);
+                        loadedCount++;
+                        if (loadedCount === totalLayers) {
+                            this.updateMainCanvas();
+                        }
+                        return;
+                    }
+
+                    const layer = {
+                        id: layerData.id || `layer_${this.nextId++}`,
+                        name: layerData.name || 'Unnamed Layer',
+                        canvas: document.createElement('canvas'),
+                        visible: layerData.visible !== undefined ? layerData.visible : true,
+                        opacity: Math.max(0, Math.min(1, layerData.opacity || 1)),
+                        blendMode: layerData.blendMode || 'source-over',
+                        metadata: layerData.metadata || null
+                    };
+
+                    // Restore canvas content
+                    const img = new Image();
+
+                    img.onload = () => {
+                        try {
+                            if (img.width === 0 || img.height === 0) {
+                                console.warn(`LayerManager: Invalid image dimensions for layer ${layer.name}`);
+                                return;
+                            }
+
+                            layer.canvas.width = img.width;
+                            layer.canvas.height = img.height;
+                            const ctx = layer.canvas.getContext('2d');
+
+                            if (!ctx) {
+                                console.error(`LayerManager: Failed to get context for layer ${layer.name}`);
+                                return;
+                            }
+
+                            ctx.drawImage(img, 0, 0);
+
+                            loadedCount++;
+                            if (loadedCount === totalLayers) {
+                                this.updateMainCanvas();
+                            }
+                        } catch (error) {
+                            console.error(`LayerManager: Error loading layer ${layer.name}:`, error);
+                            loadedCount++;
+                            if (loadedCount === totalLayers) {
+                                this.updateMainCanvas();
+                            }
+                        }
+                    };
+
+                    img.onerror = (error) => {
+                        console.error(`LayerManager: Failed to load image for layer ${layer.name}:`, error);
+                        loadedCount++;
+                        if (loadedCount === totalLayers) {
+                            this.updateMainCanvas();
+                        }
+                    };
+
+                    // Set timeout to handle stuck loads
+                    setTimeout(() => {
+                        if (img.complete === false) {
+                            console.warn(`LayerManager: Timeout loading layer ${layer.name}`);
+                            img.onload = null;
+                            img.onerror = null;
+                            loadedCount++;
+                            if (loadedCount === totalLayers) {
+                                this.updateMainCanvas();
+                            }
+                        }
+                    }, 5000);
+
+                    img.src = layerData.imageData;
+                    this.layers.push(layer);
+
+                } catch (error) {
+                    console.error(`LayerManager: Error processing layer ${index}:`, error);
+                    loadedCount++;
+                    if (loadedCount === totalLayers) {
+                        this.updateMainCanvas();
+                    }
                 }
-            };
-            img.src = layerData.imageData;
-            
-            this.layers.push(layer);
-        });
+            });
+
+        } catch (error) {
+            console.error('LayerManager: Critical error in setState:', error);
+        }
+    }
+
+    cleanup() {
+        console.log('LayerManager: Starting cleanup...');
+
+        try {
+            // Clean up all layer canvases and ImageBitmaps
+            if (this.layers && Array.isArray(this.layers)) {
+                this.layers.forEach((layer, index) => {
+                    try {
+                        if (layer.canvas) {
+                            // Clear canvas context
+                            const ctx = layer.canvas.getContext('2d');
+                            if (ctx) {
+                                ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+                            }
+
+                            // Reset canvas size to free memory
+                            layer.canvas.width = 1;
+                            layer.canvas.height = 1;
+                        }
+
+                        // Close ImageBitmap if exists
+                        if (layer._imageBitmap && typeof layer._imageBitmap.close === 'function') {
+                            layer._imageBitmap.close();
+                            layer._imageBitmap = null;
+                        }
+
+                        // Clear canvas reference
+                        layer.canvas = null;
+                    } catch (error) {
+                        console.warn(`LayerManager: Error cleaning up layer ${index}:`, error);
+                    }
+                });
+            }
+
+            // Clean up main canvas
+            if (this.mainCanvas) {
+                try {
+                    const ctx = this.mainCanvas.getContext('2d');
+                    if (ctx) {
+                        ctx.clearRect(0, 0, this.mainCanvas.width, this.mainCanvas.height);
+                    }
+                    // Reset main canvas size
+                    this.mainCanvas.width = 1;
+                    this.mainCanvas.height = 1;
+                } catch (error) {
+                    console.warn('LayerManager: Error cleaning up main canvas:', error);
+                }
+            }
+
+            // Clean up batching system
+            if (this._updateRafId) {
+                cancelAnimationFrame(this._updateRafId);
+                this._updateRafId = null;
+            }
+            this._pendingUpdate = false;
+            this._dirtyLayers.clear();
+
+            // Dispose composite cache
+            if (this._compositeCache) {
+                try {
+                    const ctx = this._compositeCache.getContext('2d');
+                    if (ctx) {
+                        ctx.clearRect(0, 0, this._compositeCache.width, this._compositeCache.height);
+                    }
+                    this._compositeCache.width = 1;
+                    this._compositeCache.height = 1;
+                } catch (error) {
+                    console.warn('LayerManager: Error disposing composite cache:', error);
+                }
+                this._compositeCache = null;
+            }
+
+            // Clear all references
+            this.layers = [];
+            this.activeLayerId = null;
+            this.mainCanvas = null;
+            this.nextId = 1;
+            this._cacheValid = false;
+
+            console.log('LayerManager: Cleanup completed');
+        } catch (error) {
+            console.error('LayerManager: Critical error during cleanup:', error);
+        }
     }
 }
 
@@ -2014,19 +2449,11 @@ class IntegratedThreeJSModal {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
             script.onload = () => {
-                this.loadMannequinJS();
+                console.log('GLTFLoader loaded successfully');
+                this.initializeThreeJS();
             };
-            document.head.appendChild(script);
-        } else {
-            this.loadMannequinJS();
-        }
-    }
-    
-    loadMannequinJS() {
-        if (!window.Mannequin) {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/mannequin-js@5.2.3/src/mannequin.min.js';
-            script.onload = () => {
+            script.onerror = () => {
+                console.warn('Failed to load GLTFLoader, proceeding without it');
                 this.initializeThreeJS();
             };
             document.head.appendChild(script);
@@ -2411,23 +2838,52 @@ class IntegratedThreeJSModal {
         
         const loader = new THREE.GLTFLoader();
         
-        // Model URLs - try CDN first, then local fallback
+        // Enhanced model URLs with multiple fallbacks
         const modelUrls = {
             'male': [
+                // CDN sources (primary)
                 'https://threejs.org/examples/models/gltf/Soldier.glb',
-                './models/Soldier.glb'
+                'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BrainStem/glTF-Binary/BrainStem.glb',
+
+                // Local fallbacks (secondary)
+                './models/male/soldier.glb',
+                './models/male/male_base.glb',
+                './models/shared/basic_humanoid.glb',
+
+                // Alternative CDN sources (tertiary)
+                'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/Soldier.glb'
             ],
             'female': [
-                'https://threejs.org/examples/models/gltf/Xbot.glb', // Clean humanoid model
-                './models/Xbot.glb'
+                // CDN sources (primary)
+                'https://threejs.org/examples/models/gltf/Xbot.glb',
+
+                // Local fallbacks (secondary)
+                './models/female/xbot.glb',
+                './models/female/female_base.glb',
+                './models/shared/basic_humanoid.glb',
+
+                // Alternative CDN sources (tertiary)
+                'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/Xbot.glb'
             ],
             'anime-male': [
-                'https://threejs.org/examples/models/gltf/Xbot.glb', // Clean model for anime styling
-                './models/Xbot.glb'
+                // Local anime-styled models (primary)
+                './models/anime/anime_male.glb',
+                './models/anime/chibi_male.glb',
+
+                // Fallback to regular models with styling
+                'https://threejs.org/examples/models/gltf/Xbot.glb',
+                './models/male/male_base.glb',
+                './models/shared/basic_humanoid.glb'
             ],
             'anime-female': [
-                'https://threejs.org/examples/models/gltf/Xbot.glb', // Clean model for anime styling
-                './models/Xbot.glb'
+                // Local anime-styled models (primary)
+                './models/anime/anime_female.glb',
+                './models/anime/chibi_female.glb',
+
+                // Fallback to regular models with styling
+                'https://threejs.org/examples/models/gltf/Xbot.glb',
+                './models/female/female_base.glb',
+                './models/shared/basic_humanoid.glb'
             ]
         };
         
@@ -2440,28 +2896,133 @@ class IntegratedThreeJSModal {
     loadModelWithFallback(loader, urls, index, type) {
         if (index >= urls.length) {
             console.warn('All model URLs failed, using enhanced geometric fallback');
+            this.showModelLoadingStatus('All models failed, using geometric fallback', 'warning');
             this.createEnhancedMannequin(type);
             return;
         }
-        
+
         const url = urls[index];
-        console.log(`Attempting to load model from: ${url}`);
-        
+        const isLocal = url.startsWith('./');
+        const isBackup = index > 0;
+
+        console.log(`[${index + 1}/${urls.length}] Attempting to load model from: ${url}`);
+
+        if (isBackup) {
+            this.showModelLoadingStatus(`Trying fallback model ${index}...`, 'info');
+        } else {
+            this.showModelLoadingStatus('Loading 3D model...', 'info');
+        }
+
+        // Set timeout for model loading
+        const timeoutMs = isLocal ? 3000 : 10000; // Shorter timeout for local files
+        let loadingTimeout = setTimeout(() => {
+            console.warn(`Model loading timeout from ${url}`);
+            this.loadModelWithFallback(loader, urls, index + 1, type);
+        }, timeoutMs);
+
         loader.load(
             url,
             (gltf) => {
-                console.log(`Successfully loaded model from: ${url}`);
+                clearTimeout(loadingTimeout);
+
+                // Validate loaded model
+                if (!this.validateLoadedModel(gltf)) {
+                    console.warn(`Invalid model loaded from ${url}, trying next fallback`);
+                    this.loadModelWithFallback(loader, urls, index + 1, type);
+                    return;
+                }
+
+                console.log(`✅ Successfully loaded model from: ${url}`);
+                this.showModelLoadingStatus('Model loaded successfully!', 'success');
+
+                // Cache successful URL for next time
+                this.cacheSuccessfulModel(type, url, index);
+
                 this.setupGLTFModel(gltf, type);
             },
             (progress) => {
-                console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+                if (progress.lengthComputable) {
+                    const percent = Math.round((progress.loaded / progress.total) * 100);
+                    console.log(`Loading progress: ${percent}%`);
+                    this.showModelLoadingStatus(`Loading... ${percent}%`, 'info');
+                }
             },
             (error) => {
-                console.warn(`Failed to load from ${url}:`, error);
+                clearTimeout(loadingTimeout);
+                console.warn(`❌ Failed to load from ${url}:`, error.message || error);
+
+                // Provide specific error feedback
+                if (isLocal) {
+                    console.info(`💡 Tip: Place ${url} in your project directory for offline use`);
+                }
+
                 // Try next URL
                 this.loadModelWithFallback(loader, urls, index + 1, type);
             }
         );
+    }
+
+    validateLoadedModel(gltf) {
+        try {
+            // Basic validation
+            if (!gltf || !gltf.scene) {
+                console.warn('Model validation failed: No scene data');
+                return false;
+            }
+
+            // Check for minimum viable content
+            let meshCount = 0;
+            gltf.scene.traverse((child) => {
+                if (child.isMesh) meshCount++;
+            });
+
+            if (meshCount === 0) {
+                console.warn('Model validation failed: No meshes found');
+                return false;
+            }
+
+            console.log(`Model validation passed: ${meshCount} meshes found`);
+            return true;
+        } catch (error) {
+            console.warn('Model validation failed:', error);
+            return false;
+        }
+    }
+
+    cacheSuccessfulModel(type, url, index) {
+        try {
+            // Cache successful model info in localStorage for faster future loads
+            const cacheKey = 'nebula-3d-model-cache';
+            const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+
+            cache[type] = {
+                url: url,
+                index: index,
+                timestamp: Date.now()
+            };
+
+            // Keep cache small (max 10 entries)
+            const entries = Object.entries(cache);
+            if (entries.length > 10) {
+                // Remove oldest entries
+                entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+                entries.slice(5).forEach(([key]) => delete cache[key]);
+            }
+
+            localStorage.setItem(cacheKey, JSON.stringify(cache));
+            console.log(`Cached successful model: ${type} -> ${url}`);
+        } catch (error) {
+            console.warn('Failed to cache model info:', error);
+        }
+    }
+
+    showModelLoadingStatus(message, type = 'info') {
+        // Show loading status to user if possible
+        if (this.eventManager && typeof this.eventManager.showNotification === 'function') {
+            this.eventManager.showNotification(message, type);
+        } else {
+            console.log(`3D Model: ${message}`);
+        }
     }
     
     setupGLTFModel(gltf, type) {
@@ -2969,9 +3530,113 @@ class IntegratedThreeJSModal {
     }
     
     hide() {
-        this.modal.style.display = 'none';
-        this.isVisible = false;
-        window.removeEventListener('resize', this.handleResize.bind(this));
+        try {
+            if (this.modal && this.modal.style) {
+                this.modal.style.display = 'none';
+            }
+            this.isVisible = false;
+            window.removeEventListener('resize', this.handleResize.bind(this));
+        } catch (error) {
+            console.warn('ThreeJS Modal: Error in hide method:', error);
+        }
+    }
+
+    cleanup() {
+        console.log('ThreeJS Modal: Starting cleanup...');
+
+        try {
+            // Stop animation loop
+            this.isVisible = false;
+
+            // Clean up Three.js scene
+            if (this.scene) {
+                try {
+                    // Remove all objects from scene
+                    while (this.scene.children.length > 0) {
+                        const child = this.scene.children[0];
+                        this.scene.remove(child);
+
+                        // Dispose of geometries and materials
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(material => material.dispose());
+                            } else {
+                                child.material.dispose();
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('ThreeJS Modal: Error cleaning scene objects:', error);
+                }
+            }
+
+            // Clean up renderer
+            if (this.renderer) {
+                try {
+                    this.renderer.dispose();
+                    this.renderer.forceContextLoss();
+
+                    // Remove renderer DOM element
+                    if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+                        this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+                    }
+                } catch (error) {
+                    console.warn('ThreeJS Modal: Error cleaning renderer:', error);
+                }
+            }
+
+            // Clean up controls
+            if (this.controls) {
+                try {
+                    this.controls.dispose();
+                } catch (error) {
+                    console.warn('ThreeJS Modal: Error cleaning controls:', error);
+                }
+            }
+
+            // Stop all animations
+            if (this.mixer) {
+                try {
+                    this.mixer.stopAllAction();
+                } catch (error) {
+                    console.warn('ThreeJS Modal: Error stopping animations:', error);
+                }
+            }
+
+            // Remove event listeners
+            try {
+                window.removeEventListener('resize', this.handleResize);
+            } catch (error) {
+                console.warn('ThreeJS Modal: Error removing event listeners:', error);
+            }
+
+            // Remove modal from DOM
+            if (this.modal && this.modal.parentNode) {
+                try {
+                    this.modal.parentNode.removeChild(this.modal);
+                } catch (error) {
+                    console.warn('ThreeJS Modal: Error removing modal from DOM:', error);
+                }
+            }
+
+            // Clear all references
+            this.scene = null;
+            this.camera = null;
+            this.renderer = null;
+            this.controls = null;
+            this.mannequin = null;
+            this.mixer = null;
+            this.currentAction = null;
+            this.animationActions = {};
+            this.animations = [];
+            this.modal = null;
+            this.poseLibrary = {};
+
+            console.log('ThreeJS Modal: Cleanup completed');
+        } catch (error) {
+            console.error('ThreeJS Modal: Critical error during cleanup:', error);
+        }
     }
     
     handleResize() {
@@ -3068,59 +3733,566 @@ class IntegratedThreeJSModal {
         // For now, we'll open a new browser tab to a curated list of resources.
         // In a more integrated system, this would be an internal UI.
         const discoveryWindow = window.open('', '_blank');
-        discoveryWindow.document.write(`
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Mannequin Discovery</title>
-                <style>
-                    body { font-family: sans-serif; background: #1a1a1a; color: #ffffff; padding: 20px; }
-                    h1 { color: #007acc; }
-                    a { color: #007acc; text-decoration: none; }
-                    a:hover { text-decoration: underline; }
-                    .resource-list { list-style: none; padding: 0; }
-                    .resource-list li { margin-bottom: 10px; background: #2a2a2a; padding: 10px; border-radius: 5px; border: 1px solid #404040; }
-                    .resource-list li strong { color: #ffffff; }
-                    .resource-list li span { color: #cccccc; font-size: 0.9em; }
-                </style>
-            </head>
-            <body>
-                <h1>Mannequin Discovery Resources</h1>
-                <p>Here are some resources where you can find more 3D mannequin models and posing tools:</p>
-                <ul class="resource-list">
-                    <li>
-                        <strong>PoseMy.Art (Online Posing Tool)</strong><br>
-                        <span>An excellent free online tool for posing 3D models directly in your browser.</span><br>
-                        <a href="https://posemy.art/" target="_blank">Visit PoseMy.Art</a>
-                    </li>
-                    <li>
-                        <strong>Free3D (Downloadable Models)</strong><br>
-                        <span>Browse a wide variety of free 3D mannequin models for download.</span><br>
-                        <a href="https://free3d.com/3d-models/mannequin" target="_blank">Browse Free3D Mannequins</a>
-                    </li>
-                    <li>
-                        <strong>Sketchfab (Community Models)</strong><br>
-                        <span>Explore community-created 3D models, including many mannequins.</span><br>
-                        <a href="https://sketchfab.com/search?q=mannequin&type=models" target="_blank">Search Sketchfab</a>
-                    </li>
-                    <li>
-                        <strong>RenderPeople (High-Quality Scans)</strong><br>
-                        <span>Offers some free high-quality 3D scanned people models.</span><br>
-                        <a href="https://renderpeople.com/free-3d-models/" target="_blank">RenderPeople Free Models</a>
-                    </li>
-                    <li>
-                        <strong>CGTrader (Marketplace)</strong><br>
-                        <span>A large marketplace for 3D models, including many professional mannequins.</span><br>
-                        <a href="https://www.cgtrader.com/3d-models/character/man/mannequin" target="_blank">Browse CGTrader Mannequins</a>
-                    </li>
-                </ul>
-                <p>You can download models from these sites and potentially load them into the 3D studio (advanced feature) or use them as external reference.</p>
-            </body>
-            </html>
-        `);
-        discoveryWindow.document.close();
+
+        if (!discoveryWindow) {
+            console.warn('Failed to open discovery window - popup blocked?');
+            if (this.eventManager) {
+                this.eventManager.showNotification('Please allow popups to open the mannequin discovery window', 'warning');
+            }
+            return;
+        }
+
+        // Create document structure using modern DOM methods
+        const doc = discoveryWindow.document;
+
+        // Set up the document
+        doc.documentElement.innerHTML = '';
+        const html = doc.createElement('html');
+        html.lang = 'en';
+
+        // Create head
+        const head = doc.createElement('head');
+
+        const metaCharset = doc.createElement('meta');
+        metaCharset.charset = 'UTF-8';
+        head.appendChild(metaCharset);
+
+        const metaViewport = doc.createElement('meta');
+        metaViewport.name = 'viewport';
+        metaViewport.content = 'width=device-width, initial-scale=1.0';
+        head.appendChild(metaViewport);
+
+        const title = doc.createElement('title');
+        title.textContent = 'Mannequin Discovery';
+        head.appendChild(title);
+
+        const style = doc.createElement('style');
+        style.textContent = `
+            body { font-family: sans-serif; background: #1a1a1a; color: #ffffff; padding: 20px; }
+            h1 { color: #007acc; }
+            a { color: #007acc; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            .resource-list { list-style: none; padding: 0; }
+            .resource-list li { margin-bottom: 10px; background: #2a2a2a; padding: 10px; border-radius: 5px; border: 1px solid #404040; }
+            .resource-list li strong { color: #ffffff; }
+            .resource-list li span { color: #cccccc; font-size: 0.9em; }
+        `;
+        head.appendChild(style);
+
+        // Create body
+        const body = doc.createElement('body');
+
+        const h1 = doc.createElement('h1');
+        h1.textContent = 'Mannequin Discovery Resources';
+        body.appendChild(h1);
+
+        const intro = doc.createElement('p');
+        intro.textContent = 'Here are some resources where you can find more 3D mannequin models and posing tools:';
+        body.appendChild(intro);
+
+        const resourceList = doc.createElement('ul');
+        resourceList.className = 'resource-list';
+
+        // Define resources
+        const resources = [
+            {
+                name: 'PoseMy.Art (Online Posing Tool)',
+                description: 'An excellent free online tool for posing 3D models directly in your browser.',
+                url: 'https://posemy.art/',
+                linkText: 'Visit PoseMy.Art'
+            },
+            {
+                name: 'Free3D (Downloadable Models)',
+                description: 'Browse a wide variety of free 3D mannequin models for download.',
+                url: 'https://free3d.com/3d-models/mannequin',
+                linkText: 'Browse Free3D Mannequins'
+            },
+            {
+                name: 'Sketchfab (Community Models)',
+                description: 'Explore community-created 3D models, including many mannequins.',
+                url: 'https://sketchfab.com/search?q=mannequin&type=models',
+                linkText: 'Search Sketchfab'
+            },
+            {
+                name: 'RenderPeople (High-Quality Scans)',
+                description: 'Offers some free high-quality 3D scanned people models.',
+                url: 'https://renderpeople.com/free-3d-models/',
+                linkText: 'RenderPeople Free Models'
+            },
+            {
+                name: 'CGTrader (Marketplace)',
+                description: 'A large marketplace for 3D models, including many professional mannequins.',
+                url: 'https://www.cgtrader.com/3d-models/character/man/mannequin',
+                linkText: 'Browse CGTrader Mannequins'
+            }
+        ];
+
+        // Create resource list items
+        resources.forEach(resource => {
+            const li = doc.createElement('li');
+
+            const strong = doc.createElement('strong');
+            strong.textContent = resource.name;
+            li.appendChild(strong);
+
+            li.appendChild(doc.createElement('br'));
+
+            const span = doc.createElement('span');
+            span.textContent = resource.description;
+            li.appendChild(span);
+
+            li.appendChild(doc.createElement('br'));
+
+            const link = doc.createElement('a');
+            link.href = resource.url;
+            link.target = '_blank';
+            link.textContent = resource.linkText;
+            li.appendChild(link);
+
+            resourceList.appendChild(li);
+        });
+
+        body.appendChild(resourceList);
+
+        const outro = doc.createElement('p');
+        outro.textContent = 'You can download models from these sites and potentially load them into the 3D studio (advanced feature) or use them as external reference.';
+        body.appendChild(outro);
+
+        // Assemble the document
+        html.appendChild(head);
+        html.appendChild(body);
+        doc.appendChild(html);
+    }
+
+    // ===== POSE LIBRARY SYSTEM =====
+
+    loadPoseLibrary() {
+        // Initialize comprehensive pose library with categories
+        this.poseLibrary = {
+            // Basic Poses - Essential starting positions
+            'neutral': {
+                name: 'Neutral Standing',
+                category: 'basic',
+                description: 'Natural standing position',
+                transforms: {
+                    'body': { rotation: [0, 0, 0], position: [0, 0, 0] },
+                    'leftArm': { rotation: [0, 0, 0.1] },
+                    'rightArm': { rotation: [0, 0, -0.1] },
+                    'leftLeg': { rotation: [0, 0, 0] },
+                    'rightLeg': { rotation: [0, 0, 0] }
+                }
+            },
+            'tpose': {
+                name: 'T-Pose Reference',
+                category: 'basic',
+                description: 'Standard reference pose for anatomy',
+                transforms: {
+                    'body': { rotation: [0, 0, 0], position: [0, 0, 0] },
+                    'leftArm': { rotation: [0, 0, Math.PI/2] },
+                    'rightArm': { rotation: [0, 0, -Math.PI/2] },
+                    'leftLeg': { rotation: [0, 0, 0] },
+                    'rightLeg': { rotation: [0, 0, 0] }
+                }
+            },
+            'sitting': {
+                name: 'Sitting Pose',
+                category: 'basic',
+                description: 'Natural sitting position',
+                transforms: {
+                    'body': { rotation: [0, 0, 0], position: [0, -0.3, 0] },
+                    'leftArm': { rotation: [0, 0, 0.2] },
+                    'rightArm': { rotation: [0, 0, -0.2] },
+                    'leftLeg': { rotation: [Math.PI/2, 0, 0] },
+                    'rightLeg': { rotation: [Math.PI/2, 0, 0] }
+                }
+            },
+
+            // Action Poses - Dynamic movement
+            'walking': {
+                name: 'Walking Step',
+                category: 'action',
+                description: 'Mid-stride walking pose',
+                transforms: {
+                    'body': { rotation: [0.1, 0, 0], position: [0, 0, 0] },
+                    'leftArm': { rotation: [0.3, 0, 0.1] },
+                    'rightArm': { rotation: [-0.3, 0, -0.1] },
+                    'leftLeg': { rotation: [0.3, 0, 0] },
+                    'rightLeg': { rotation: [-0.2, 0, 0] }
+                }
+            },
+            'running': {
+                name: 'Running Sprint',
+                category: 'action',
+                description: 'High-energy running pose',
+                transforms: {
+                    'body': { rotation: [0.2, 0, 0], position: [0, 0.1, 0] },
+                    'leftArm': { rotation: [0.6, 0, 0.2] },
+                    'rightArm': { rotation: [-0.8, 0, -0.2] },
+                    'leftLeg': { rotation: [0.5, 0, 0] },
+                    'rightLeg': { rotation: [-0.3, 0, 0] }
+                }
+            },
+            'jumping': {
+                name: 'Jump Peak',
+                category: 'action',
+                description: 'Peak of a jump motion',
+                transforms: {
+                    'body': { rotation: [0, 0, 0], position: [0, 0.4, 0] },
+                    'leftArm': { rotation: [-0.5, 0, 0.8] },
+                    'rightArm': { rotation: [-0.5, 0, -0.8] },
+                    'leftLeg': { rotation: [0.2, 0, 0.1] },
+                    'rightLeg': { rotation: [0.2, 0, -0.1] }
+                }
+            },
+
+            // Artistic Poses - Dramatic and expressive
+            'dramatic': {
+                name: 'Dramatic Gesture',
+                category: 'artistic',
+                description: 'Theatrical dramatic pose',
+                transforms: {
+                    'body': { rotation: [0, 0.3, -0.1], position: [0, 0, 0] },
+                    'leftArm': { rotation: [-0.8, 0, 1.2] },
+                    'rightArm': { rotation: [0.2, 0, -0.3] },
+                    'leftLeg': { rotation: [0, 0, 0] },
+                    'rightLeg': { rotation: [0.1, 0, -0.1] }
+                }
+            },
+            'elegant': {
+                name: 'Elegant Stance',
+                category: 'artistic',
+                description: 'Graceful, refined pose',
+                transforms: {
+                    'body': { rotation: [0, -0.2, 0], position: [0, 0, 0] },
+                    'leftArm': { rotation: [0.1, 0, 0.4] },
+                    'rightArm': { rotation: [-0.1, 0, -0.6] },
+                    'leftLeg': { rotation: [0, 0, 0.1] },
+                    'rightLeg': { rotation: [0.1, 0, -0.1] }
+                }
+            },
+            'contemplative': {
+                name: 'Thinking Pose',
+                category: 'artistic',
+                description: 'Thoughtful, introspective pose',
+                transforms: {
+                    'body': { rotation: [0.1, 0.1, 0], position: [0, 0, 0] },
+                    'leftArm': { rotation: [0, 0, 0.2] },
+                    'rightArm': { rotation: [-1.2, 0, -0.8] }, // Hand to chin
+                    'leftLeg': { rotation: [0, 0, 0] },
+                    'rightLeg': { rotation: [0.05, 0, 0] }
+                }
+            },
+
+            // Reference Poses - For anatomy and gesture studies
+            'contrapposto': {
+                name: 'Contrapposto',
+                category: 'reference',
+                description: 'Classical contrapposto stance',
+                transforms: {
+                    'body': { rotation: [0, 0.1, -0.05], position: [0, 0, 0] },
+                    'leftArm': { rotation: [0.1, 0, 0.15] },
+                    'rightArm': { rotation: [0.05, 0, -0.2] },
+                    'leftLeg': { rotation: [0, 0, 0] },
+                    'rightLeg': { rotation: [0.1, 0, -0.05] }
+                }
+            },
+            'gesture_open': {
+                name: 'Open Gesture',
+                category: 'reference',
+                description: 'Welcoming, open arm gesture',
+                transforms: {
+                    'body': { rotation: [0, 0, 0], position: [0, 0, 0] },
+                    'leftArm': { rotation: [0.2, 0, 0.8] },
+                    'rightArm': { rotation: [0.2, 0, -0.8] },
+                    'leftLeg': { rotation: [0, 0, 0.05] },
+                    'rightLeg': { rotation: [0, 0, -0.05] }
+                }
+            }
+        };
+
+        // Load user-saved poses from localStorage
+        try {
+            const savedPoses = localStorage.getItem('nebula-3d-poses');
+            if (savedPoses) {
+                const userPoses = JSON.parse(savedPoses);
+                // Merge user poses with defaults
+                this.poseLibrary = { ...this.poseLibrary, ...userPoses };
+            }
+        } catch (error) {
+            console.warn('Failed to load saved poses:', error);
+        }
+
+        // Update UI
+        this.updatePoseLibraryUI();
+        console.log(`Loaded ${Object.keys(this.poseLibrary).length} poses in library`);
+    }
+
+    updatePoseLibraryUI() {
+        const select = document.getElementById('pose-library-select');
+        if (!select) return;
+
+        // Clear existing options
+        select.innerHTML = '';
+
+        // Group poses by category
+        const categories = {};
+        Object.entries(this.poseLibrary).forEach(([key, pose]) => {
+            const category = pose.category || 'custom';
+            if (!categories[category]) categories[category] = [];
+            categories[category].push({ key, ...pose });
+        });
+
+        // Add options grouped by category
+        Object.entries(categories).forEach(([categoryName, poses]) => {
+            // Add category header
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = categoryName.charAt(0).toUpperCase() + categoryName.slice(1) + ' Poses';
+
+            poses.sort((a, b) => a.name.localeCompare(b.name)).forEach(pose => {
+                const option = document.createElement('option');
+                option.value = pose.key;
+                option.textContent = pose.name;
+                option.title = pose.description || pose.name;
+                optgroup.appendChild(option);
+            });
+
+            select.appendChild(optgroup);
+        });
+
+        console.log(`Updated pose library UI with ${Object.keys(categories).length} categories`);
+    }
+
+    applyPose(poseKey) {
+        const pose = this.poseLibrary[poseKey];
+        if (!pose) {
+            console.warn(`Pose "${poseKey}" not found in library`);
+            this.showModelLoadingStatus(`Pose "${poseKey}" not found`, 'error');
+            return;
+        }
+
+        if (!this.mannequin) {
+            console.warn('No mannequin loaded to apply pose to');
+            this.showModelLoadingStatus('Load a mannequin first', 'warning');
+            return;
+        }
+
+        try {
+            console.log(`Applying pose: ${pose.name}`);
+            this.showModelLoadingStatus(`Applying pose: ${pose.name}`, 'info');
+
+            // Apply transformations to model parts
+            this.mannequin.traverse((child) => {
+                const childName = child.name.toLowerCase();
+
+                // Map bone names to our pose data
+                let poseKey = null;
+                if (childName.includes('spine') || childName.includes('torso')) poseKey = 'body';
+                else if (childName.includes('arm') && childName.includes('left')) poseKey = 'leftArm';
+                else if (childName.includes('arm') && childName.includes('right')) poseKey = 'rightArm';
+                else if (childName.includes('leg') && childName.includes('left')) poseKey = 'leftLeg';
+                else if (childName.includes('leg') && childName.includes('right')) poseKey = 'rightLeg';
+
+                if (poseKey && pose.transforms[poseKey]) {
+                    const transform = pose.transforms[poseKey];
+
+                    if (transform.rotation) {
+                        child.rotation.fromArray(transform.rotation);
+                    }
+                    if (transform.position) {
+                        child.position.fromArray(transform.position);
+                    }
+                }
+            });
+
+            // Also apply to main model if bone structure is different
+            if (pose.transforms.body) {
+                const bodyTransform = pose.transforms.body;
+                if (bodyTransform.rotation) {
+                    this.mannequin.rotation.fromArray(bodyTransform.rotation);
+                }
+                if (bodyTransform.position) {
+                    this.mannequin.position.fromArray(bodyTransform.position);
+                }
+            }
+
+            this.showModelLoadingStatus(`Pose "${pose.name}" applied successfully!`, 'success');
+            console.log(`Successfully applied pose: ${pose.name}`);
+
+        } catch (error) {
+            console.error(`Error applying pose "${pose.name}":`, error);
+            this.showModelLoadingStatus(`Error applying pose: ${error.message}`, 'error');
+        }
+    }
+
+    savePose(poseName) {
+        if (!poseName || !poseName.trim()) {
+            this.showModelLoadingStatus('Please enter a pose name', 'warning');
+            return;
+        }
+
+        if (!this.mannequin) {
+            this.showModelLoadingStatus('No mannequin loaded to save pose from', 'warning');
+            return;
+        }
+
+        try {
+            const sanitizedName = poseName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+
+            // Capture current pose transforms
+            const transforms = {};
+
+            // Capture main body transform
+            transforms.body = {
+                rotation: this.mannequin.rotation.toArray(),
+                position: this.mannequin.position.toArray()
+            };
+
+            // Capture bone transforms
+            this.mannequin.traverse((child) => {
+                const childName = child.name.toLowerCase();
+
+                if (childName.includes('arm') && childName.includes('left')) {
+                    transforms.leftArm = {
+                        rotation: child.rotation.toArray(),
+                        position: child.position.toArray()
+                    };
+                }
+                else if (childName.includes('arm') && childName.includes('right')) {
+                    transforms.rightArm = {
+                        rotation: child.rotation.toArray(),
+                        position: child.position.toArray()
+                    };
+                }
+                else if (childName.includes('leg') && childName.includes('left')) {
+                    transforms.leftLeg = {
+                        rotation: child.rotation.toArray(),
+                        position: child.position.toArray()
+                    };
+                }
+                else if (childName.includes('leg') && childName.includes('right')) {
+                    transforms.rightLeg = {
+                        rotation: child.rotation.toArray(),
+                        position: child.position.toArray()
+                    };
+                }
+            });
+
+            // Create pose object
+            const newPose = {
+                name: poseName.trim(),
+                category: 'custom',
+                description: `Custom pose created by user`,
+                transforms: transforms,
+                created: new Date().toISOString()
+            };
+
+            // Add to library
+            this.poseLibrary[sanitizedName] = newPose;
+
+            // Save to localStorage
+            try {
+                const userPoses = {};
+                Object.entries(this.poseLibrary).forEach(([key, pose]) => {
+                    if (pose.category === 'custom') {
+                        userPoses[key] = pose;
+                    }
+                });
+                localStorage.setItem('nebula-3d-poses', JSON.stringify(userPoses));
+            } catch (error) {
+                console.warn('Failed to save pose to localStorage:', error);
+            }
+
+            // Update UI
+            this.updatePoseLibraryUI();
+
+            // Select the newly saved pose
+            const select = document.getElementById('pose-library-select');
+            if (select) {
+                select.value = sanitizedName;
+            }
+
+            this.showModelLoadingStatus(`Pose "${poseName}" saved successfully!`, 'success');
+            console.log(`Saved pose: ${poseName} (${sanitizedName})`);
+
+        } catch (error) {
+            console.error(`Error saving pose "${poseName}":`, error);
+            this.showModelLoadingStatus(`Error saving pose: ${error.message}`, 'error');
+        }
+    }
+
+    resetCamera() {
+        if (!this.camera) return;
+
+        try {
+            // Reset camera to default position
+            this.camera.position.set(0, 1, 3);
+            this.camera.lookAt(0, 1, 0);
+
+            // Reset controls if available
+            if (this.controls) {
+                this.controls.reset();
+            }
+
+            this.showModelLoadingStatus('Camera reset to default position', 'info');
+            console.log('Camera reset successfully');
+
+        } catch (error) {
+            console.error('Error resetting camera:', error);
+            this.showModelLoadingStatus('Error resetting camera', 'error');
+        }
+    }
+
+    captureScene() {
+        if (!this.renderer || !this.scene || !this.camera) {
+            this.showModelLoadingStatus('3D scene not ready for capture', 'warning');
+            return;
+        }
+
+        try {
+            // Render the scene
+            this.renderer.render(this.scene, this.camera);
+
+            // Get the rendered image as data URL
+            const dataURL = this.renderer.domElement.toDataURL('image/png');
+
+            // Create a new layer with the 3D reference
+            if (this.layerManager) {
+                const layer = this.layerManager.addLayer('3D Reference');
+
+                // Load the image into the layer
+                const img = new Image();
+                img.onload = () => {
+                    const ctx = layer.canvas.getContext('2d');
+                    if (ctx) {
+                        // Resize layer canvas to match image
+                        layer.canvas.width = img.width;
+                        layer.canvas.height = img.height;
+
+                        // Draw the 3D reference
+                        ctx.drawImage(img, 0, 0);
+
+                        // Update main canvas
+                        this.layerManager.forceUpdate();
+
+                        // Emit event for main app
+                        if (this.eventManager) {
+                            this.eventManager.emit('3dReferenceLayerCreated', {
+                                layerId: layer.id,
+                                layerName: layer.name
+                            });
+                        }
+                    }
+                };
+                img.src = dataURL;
+
+                this.showModelLoadingStatus('3D reference captured as new layer!', 'success');
+                console.log('3D scene captured and added as layer');
+            }
+
+        } catch (error) {
+            console.error('Error capturing 3D scene:', error);
+            this.showModelLoadingStatus('Error capturing scene', 'error');
+        }
     }
 }
 
