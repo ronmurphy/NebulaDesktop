@@ -258,11 +258,15 @@ class ImageViewer {
             // Handle different data formats that might be returned
             let imageUrl;
             
+            // Revoke any previously created object URL for this viewer
+            try { if (this._currentImageUrl) { URL.revokeObjectURL(this._currentImageUrl); this._currentImageUrl = null; } } catch(e) {}
+
             if (imageData instanceof ArrayBuffer || imageData instanceof Uint8Array) {
                 // Binary data - create blob directly
                 console.log('Creating blob from binary data');
                 const blob = new Blob([imageData]);
                 imageUrl = URL.createObjectURL(blob);
+                this._currentImageUrl = imageUrl;
             } else if (typeof imageData === 'string') {
                 // Check if it's base64 encoded
                 if (imageData.startsWith('data:image/')) {
@@ -278,6 +282,7 @@ class ImageViewer {
                     }
                     const blob = new Blob([bytes]);
                     imageUrl = URL.createObjectURL(blob);
+                    this._currentImageUrl = imageUrl;
                 }
             } else {
                 throw new Error(`Unexpected data format: ${typeof imageData}`);
@@ -295,6 +300,9 @@ class ImageViewer {
                 setTimeout(() => this.fitToWindow(), 100);
                 
                 console.log(`Successfully loaded image: ${this.filename} (${width}x${height})`);
+
+                // Revoke object URL now that the image has been loaded into the element
+                try { if (this._currentImageUrl) { URL.revokeObjectURL(this._currentImageUrl); this._currentImageUrl = null; } } catch(e) { /* ignore */ }
             };
             
             image.onerror = (e) => {
@@ -302,6 +310,9 @@ class ImageViewer {
                 console.error('Failed image URL:', imageUrl);
                 imageInfo.textContent = 'Error loading image';
                 this.showErrorPlaceholder(image);
+
+                // Revoke blob URL if load failed
+                try { if (this._currentImageUrl) { URL.revokeObjectURL(this._currentImageUrl); this._currentImageUrl = null; } } catch(e) { /* ignore */ }
             };
             
             // Set the image source

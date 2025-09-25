@@ -968,8 +968,12 @@ function saveObject() {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(dataBlob);
     link.download = `${currentObject.name || 'object'}.shapeforge.json`;
+    // Append to DOM, trigger click, then clean up and revoke URL to avoid leaks
+    document.body.appendChild(link);
     link.click();
-    
+    document.body.removeChild(link);
+    try { URL.revokeObjectURL(link.href); } catch (e) { /* ignore */ }
+
     console.log(`💾 Saved object: ${currentObject.name}`);
 }
 

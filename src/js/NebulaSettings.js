@@ -2331,8 +2331,11 @@ class NebulaSettings {
         const a = document.createElement('a');
         a.href = url;
         a.download = `${themeData.name.replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.nebulatheme`;
+        // Append to DOM, trigger download, then cleanup and revoke URL
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
         
         this.showNotification('💾 Theme file downloaded to your Downloads folder');
     }

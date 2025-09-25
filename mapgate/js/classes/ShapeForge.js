@@ -3627,9 +3627,11 @@ case 'multiDistribute':
           const a = document.createElement('a');
           a.href = url;
           a.download = filename;
+          // Append, trigger click, then cleanup to avoid leaking the blob URL
+          document.body.appendChild(a);
           a.click();
-
-          URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
 
           // Show success message
           const toast = document.createElement('sl-alert');

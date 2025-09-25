@@ -404,8 +404,27 @@ class PickerApp {
             if (data instanceof Uint8Array || (data && data.buffer && data.buffer instanceof ArrayBuffer)) {
                 const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
                 const blob = new Blob([bytes]);
+                // Try to use createImageBitmap for faster decode and no object URL retention
+                if (typeof createImageBitmap === 'function') {
+                    try {
+                        const bitmap = await createImageBitmap(blob);
+                        const imgEl = document.createElement('canvas');
+                        imgEl.style.maxWidth = '100%'; imgEl.style.maxHeight = '100%';
+                        imgEl.width = bitmap.width; imgEl.height = bitmap.height;
+                        const ctx = imgEl.getContext('2d');
+                        ctx.drawImage(bitmap, 0, 0);
+                        try { if (bitmap && typeof bitmap.close === 'function') bitmap.close(); } catch(e){}
+                        preview.innerHTML = ''; preview.appendChild(imgEl);
+                        return;
+                    } catch (e) {
+                        // fallback to object URL
+                    }
+                }
                 const url = URL.createObjectURL(blob);
-                const img = document.createElement('img'); img.style.maxWidth='100%'; img.style.maxHeight='100%'; img.src = url; img.onload = ()=> URL.revokeObjectURL(url);
+                const img = document.createElement('img'); img.style.maxWidth='100%'; img.style.maxHeight='100%';
+                img.onload = () => { try { URL.revokeObjectURL(url); } catch(e){} };
+                img.onerror = () => { try { URL.revokeObjectURL(url); } catch(e){} };
+                img.src = url;
                 preview.innerHTML = ''; preview.appendChild(img);
             } else if (typeof data === 'string') {
                 const pre = document.createElement('pre'); pre.style.whiteSpace='pre-wrap'; pre.style.margin=0; pre.textContent = data.slice(0,2000);

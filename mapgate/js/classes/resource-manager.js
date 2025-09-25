@@ -1307,31 +1307,81 @@ async addTexture(file, category, options = {}) {
     }
 
     async createThumbnail(file) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
+    return new Promise(async (resolve, reject) => {
+      // Prefer createImageBitmap for faster decoding and GPU-friendly bitmaps
+      if (typeof createImageBitmap === 'function') {
+        try {
+          const bitmap = await createImageBitmap(file);
+          try {
+            const ratio = bitmap.width / bitmap.height;
+            let width = this.thumbnailSize;
+            let height = this.thumbnailSize;
 
-                // Calculate thumbnail dimensions maintaining aspect ratio
-                const ratio = img.width / img.height;
-                let width = this.thumbnailSize;
-                let height = this.thumbnailSize;
+            if (ratio > 1) {
+              height = Math.round(width / ratio);
+            } else {
+              width = Math.round(height * ratio);
+            }
 
-                if (ratio > 1) {
-                    height = width / ratio;
-                } else {
-                    width = height * ratio;
-                }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bitmap, 0, 0, width, height);
 
-                canvas.width = width;
-                canvas.height = height;
-                ctx.drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/webp', 0.8));
-            };
-            img.onerror = reject;
-            img.src = URL.createObjectURL(file);
-        });
+            // Close the ImageBitmap if supported
+            try { if (bitmap && typeof bitmap.close === 'function') bitmap.close(); } catch (e) { }
+
+            resolve(canvas.toDataURL('image/webp', 0.8));
+            return;
+          } catch (e) {
+            try { if (bitmap && typeof bitmap.close === 'function') bitmap.close(); } catch (err) {}
+            // fallthrough to older approach
+          }
+        } catch (e) {
+          // createImageBitmap failed - fall back to object URL approach
+          // continue below
+        }
+      }
+
+      // Fallback for environments without createImageBitmap or on error
+      const img = new Image();
+      let createdUrl = null;
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          // Calculate thumbnail dimensions maintaining aspect ratio
+          const ratio = img.width / img.height;
+          let width = this.thumbnailSize;
+          let height = this.thumbnailSize;
+
+          if (ratio > 1) {
+            height = Math.round(width / ratio);
+          } else {
+            width = Math.round(height * ratio);
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Revoke the temporary object URL now that the image data is in the canvas
+          try { if (createdUrl) { URL.revokeObjectURL(createdUrl); createdUrl = null; } } catch (e) { }
+          resolve(canvas.toDataURL('image/webp', 0.8));
+        } catch (e) {
+          try { if (createdUrl) { URL.revokeObjectURL(createdUrl); createdUrl = null; } } catch (ee) { }
+          reject(e);
+        }
+      };
+      img.onerror = (e) => {
+        try { if (createdUrl) { URL.revokeObjectURL(createdUrl); createdUrl = null; } } catch (e) { }
+        reject(e);
+      };
+      createdUrl = URL.createObjectURL(file);
+      img.src = createdUrl;
+    });
     }
 
     getTexture(id, category) {
@@ -7296,14 +7346,26 @@ showMonsterDetails(monsterData) {
     async getSoundDuration(file) {
         return new Promise((resolve) => {
             const audio = new Audio();
-            audio.addEventListener('loadedmetadata', () => {
-                resolve(audio.duration);
-            });
-            audio.addEventListener('error', () => {
-                console.warn('Could not get audio duration');
-                resolve(0);
-            });
-            audio.src = URL.createObjectURL(file);
+      let createdUrl = null;
+      const cleanup = () => {
+        try { if (createdUrl) { URL.revokeObjectURL(createdUrl); createdUrl = null; } } catch(e) {}
+        try { audio.src = ''; } catch(e) {}
+      };
+
+      audio.addEventListener('loadedmetadata', () => {
+        const dur = audio.duration || 0;
+        cleanup();
+        resolve(dur);
+      }, { once: true });
+
+      audio.addEventListener('error', () => {
+        console.warn('Could not get audio duration');
+        cleanup();
+        resolve(0);
+      }, { once: true });
+
+      createdUrl = URL.createObjectURL(file);
+      audio.src = createdUrl;
         });
     }
 

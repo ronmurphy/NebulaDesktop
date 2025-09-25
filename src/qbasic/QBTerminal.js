@@ -1812,8 +1812,10 @@ CREDITS:
             const a = document.createElement('a');
             a.href = url;
             a.download = filePath.split('/').pop();
+            document.body.appendChild(a);
             a.click();
-            URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            try { URL.revokeObjectURL(url); } catch(e) { /* ignore */ }
             return true;
         }
     }

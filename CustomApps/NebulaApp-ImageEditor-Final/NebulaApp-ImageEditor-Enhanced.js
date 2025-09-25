@@ -18,6 +18,11 @@ class NebulaApp {
         this.undoStack = [];
         this.redoStack = [];
         this.maxUndoSteps = 50;
+    // Performance: rAF batching for pointer drawing
+    this._pendingDrawPoints = [];
+    this._isFlushScheduled = false;
+    this._flushRafId = null;
+    // ImageBitmap cache per-layer (stored on layer as layer._imageBitmap when used)
         
         // Store reference for debugging
         window.nebulaAppInstance = this;
@@ -1085,8 +1090,8 @@ class NebulaApp {
         ctx.lineTo(stabilizedPoint.x, stabilizedPoint.y);
         ctx.stroke();
         
-        // Update main canvas
-        this.layerManager.updateMainCanvas();
+        // Schedule a single compositing update for this frame instead of updating every sample
+        this._scheduleFlushMainCanvas();
     }
 
     finishDrawing() {
@@ -1101,6 +1106,23 @@ class NebulaApp {
         
         // Add to history
         this.addToHistory(`${this.currentTool} stroke`);
+    }
+
+    // Schedule a single compositing call per animation frame to batch expensive redraws
+    _scheduleFlushMainCanvas() {
+        if (this._isFlushScheduled) return;
+        this._isFlushScheduled = true;
+        this._flushRafId = requestAnimationFrame(() => this._flushMainCanvas());
+    }
+
+    _flushMainCanvas() {
+        this._isFlushScheduled = false;
+        this._flushRafId = null;
+        try {
+            this.layerManager && this.layerManager.updateMainCanvas();
+        } catch (e) {
+            console.warn('Error flushing main canvas', e);
+        }
     }
 
     startErasing(x, y) {
@@ -1123,9 +1145,8 @@ class NebulaApp {
         const ctx = activeLayer.canvas.getContext('2d');
         ctx.lineTo(x, y);
         ctx.stroke();
-        
-        // Update main canvas
-        this.layerManager.updateMainCanvas();
+        // Batch compositing
+        this._scheduleFlushMainCanvas();
     }
 
     finishErasing() {
@@ -1357,35 +1378,65 @@ class NebulaApp {
     loadImageFile(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                // Create new layer with the image
-                const layer = this.layerManager.addLayer(file.name);
-                const ctx = layer.canvas.getContext('2d');
-                
-                // Resize canvas to fit image
-                layer.canvas.width = img.width;
-                layer.canvas.height = img.height;
-                
-                // Also resize main canvas
-                if (this.layerManager.mainCanvas) {
-                    this.layerManager.mainCanvas.width = img.width;
-                    this.layerManager.mainCanvas.height = img.height;
+            // Create ImageBitmap from the data URL for faster drawing and reuse
+            const dataUrl = e.target.result;
+            createImageBitmap && createImageBitmap(new Blob([dataUrl]))
+                .then(() => {
+                    // Some environments don't accept Blob constructed from dataUrl string directly,
+                    // fallback to using Image element if createImageBitmap fails silently
+                }).catch(() => {});
+
+            // Safer approach: create an Image and then createImageBitmap from it
+            const tempImg = new Image();
+            tempImg.onload = async () => {
+                try {
+                    const bitmap = await (typeof createImageBitmap === 'function' ? createImageBitmap(tempImg) : Promise.resolve(null));
+                    // Create new layer with the image
+                    const layer = this.layerManager.addLayer(file.name);
+                    const ctx = layer.canvas.getContext('2d');
+
+                    // Resize canvas to fit image
+                    layer.canvas.width = tempImg.width;
+                    layer.canvas.height = tempImg.height;
+
+                    // Also resize main canvas
+                    if (this.layerManager.mainCanvas) {
+                        this.layerManager.mainCanvas.width = tempImg.width;
+                        this.layerManager.mainCanvas.height = tempImg.height;
+                    }
+
+                    // Store bitmap for reuse if available, otherwise draw the image directly
+                    if (bitmap) {
+                        layer._imageBitmap = bitmap;
+                        ctx.drawImage(bitmap, 0, 0);
+                    } else {
+                        ctx.drawImage(tempImg, 0, 0);
+                    }
+
+                    // Update main canvas
+                    this.layerManager.updateMainCanvas();
+                    this.updateAllPanels();
+                    this.addToHistory(`Open ${file.name}`);
+                    this.showNotification(`Loaded ${file.name}`, 'success');
+                } catch (err) {
+                    console.warn('createImageBitmap failed, falling back to Image draw', err);
+                    const layer = this.layerManager.addLayer(file.name);
+                    const ctx = layer.canvas.getContext('2d');
+                    layer.canvas.width = tempImg.width;
+                    layer.canvas.height = tempImg.height;
+                    if (this.layerManager.mainCanvas) {
+                        this.layerManager.mainCanvas.width = tempImg.width;
+                        this.layerManager.mainCanvas.height = tempImg.height;
+                    }
+                    ctx.drawImage(tempImg, 0, 0);
+                    this.layerManager.updateMainCanvas();
+                    this.updateAllPanels();
                 }
-                
-                // Draw image
-                ctx.drawImage(img, 0, 0);
-                
-                // Update main canvas
-                this.layerManager.updateMainCanvas();
-                this.updateAllPanels();
-                this.addToHistory(`Open ${file.name}`);
-                this.showNotification(`Loaded ${file.name}`, 'success');
             };
-            img.onerror = () => {
+            tempImg.onerror = () => {
                 this.showNotification('Failed to load image file', 'error');
             };
-            img.src = e.target.result;
+            tempImg.src = e.target.result;
         };
         reader.onerror = () => {
             this.showNotification('Failed to read file', 'error');
@@ -1624,6 +1675,24 @@ class NebulaApp {
         
         // Clean up other resources
         this.eventManager?.removeAllListeners();
+        // Cancel any pending rAF flush
+        try {
+            if (this._flushRafId) cancelAnimationFrame(this._flushRafId);
+        } catch (e) { /* ignore */ }
+        this._isFlushScheduled = false;
+        this._flushRafId = null;
+
+        // Release ImageBitmaps stored on layers
+        try {
+            if (this.layerManager && this.layerManager.layers) {
+                for (const layer of this.layerManager.layers) {
+                    if (layer._imageBitmap && typeof layer._imageBitmap.close === 'function') {
+                        try { layer._imageBitmap.close(); } catch(e){}
+                        layer._imageBitmap = null;
+                    }
+                }
+            }
+        } catch(e) { /* ignore */ }
     }
 }
 
