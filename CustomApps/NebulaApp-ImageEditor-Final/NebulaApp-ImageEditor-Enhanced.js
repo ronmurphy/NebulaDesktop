@@ -1255,16 +1255,53 @@ class NebulaApp {
     }
 
     openProject() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*,.psd,.xcf';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                this.loadImageFile(file);
-            }
-        };
-        input.click();
+        // Prefer in-app PickerApp when available so we can pass image filters
+        const imageFilters = [{ name: 'Images', extensions: ['png','jpg','jpeg','webp','gif','bmp','tiff','svg','psd','xcf'] }];
+        (async ()=>{
+            try {
+                if (window.PickerApp && typeof window.PickerApp.canUse === 'function' ? window.PickerApp.canUse() : (window.PickerApp && typeof window.PickerApp.open === 'function')) {
+                    const result = await window.PickerApp.open({ pickType: 'open', filters: imageFilters, preferFilter: 0 });
+                    if (result) {
+                        // PickerApp returns a path string for filesystem files; read via nebula.fs if available
+                        if (window.nebula && window.nebula.fs && typeof window.nebula.fs.readFile === 'function') {
+                            try {
+                                const data = await window.nebula.fs.readFile(result);
+                                // create a File-like object using Blob for compatibility with loadImageFile
+                                const blob = new Blob([data]);
+                                const fileName = result.split('/').pop();
+                                const file = new File([blob], fileName);
+                                this.loadImageFile(file);
+                                return;
+                            } catch (e) { console.warn('Picker readFile failed, falling back to input file chooser', e); }
+                        } else {
+                            // If no nebula.fs, try to fetch via file:// URL (best-effort)
+                            try {
+                                const resp = await fetch('file://' + result);
+                                if (resp.ok) {
+                                    const blob = await resp.blob();
+                                    const fileName = result.split('/').pop();
+                                    const file = new File([blob], fileName);
+                                    this.loadImageFile(file);
+                                    return;
+                                }
+                            } catch(e) { /* ignore */ }
+                        }
+                    }
+                }
+            } catch (err) { console.warn('Picker open failed', err); }
+
+            // Fallback: use plain input element for browsers or when PickerApp unavailable
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,.psd,.xcf';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    this.loadImageFile(file);
+                }
+            };
+            input.click();
+        })();
     }
 
     saveProject() {
@@ -1276,10 +1313,42 @@ class NebulaApp {
             return;
         }
         
-        const link = document.createElement('a');
-        link.download = 'image-editor-project.png';
-        link.href = canvas.toDataURL();
-        link.click();
+        // Prefer in-app PickerApp save dialog when available so user can choose location
+        (async ()=>{
+            try {
+                const imageFilters = [{ name: 'PNG', extensions: ['png'] }, { name: 'JPEG', extensions: ['jpg','jpeg'] }, { name: 'WebP', extensions: ['webp'] }];
+                if (window.PickerApp && typeof window.PickerApp.isAvailableDetail === 'function' ? window.PickerApp.isAvailableDetail().canUse : (window.PickerApp && typeof window.PickerApp.open === 'function')) {
+                    const result = await window.PickerApp.open({ pickType: 'save', filters: imageFilters, preferFilter: 0 });
+                    if (result) {
+                        // result is the path to save to; try to write via nebula.fs
+                        if (window.nebula && window.nebula.fs && typeof window.nebula.fs.writeFile === 'function') {
+                            try {
+                                // choose output format based on extension
+                                const ext = (result.split('.').pop() || '').toLowerCase();
+                                let mime = 'image/png';
+                                if (['jpg','jpeg'].includes(ext)) mime = 'image/jpeg';
+                                else if (['webp'].includes(ext)) mime = 'image/webp';
+                                else if (['png'].includes(ext)) mime = 'image/png';
+                                // get data url accordingly
+                                const dataUrl = canvas.toDataURL(mime);
+                                const base64 = dataUrl.split(',')[1];
+                                const bytes = Uint8Array.from(atob(base64), c=>c.charCodeAt(0));
+                                await window.nebula.fs.writeFile(result, bytes);
+                                this.addToHistory('Save Project');
+                                this.showNotification('Project saved successfully!', 'success');
+                                return;
+                            } catch(e) { console.warn('Picker writeFile failed', e); }
+                        }
+                    }
+                }
+            } catch(e) { console.warn('Picker save failed', e); }
+
+            // Fallback: download link (defaults to PNG)
+            const link = document.createElement('a');
+            link.download = 'image-editor-project.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        })();
         
         this.addToHistory('Save Project');
         this.showNotification('Project saved successfully!', 'success');

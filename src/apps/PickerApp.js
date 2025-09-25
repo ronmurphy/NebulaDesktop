@@ -13,7 +13,21 @@ class PickerApp {
         this._closing = false;
         // filters: expect options.filters = [{name:'BASIC', extensions:['bas']}, ...]
         this.filters = this.options.filters || [];
+        // default active filter: 'all' or index into this.filters as string
         this.activeFilter = 'all';
+        // If options specify filters and a preferred filter index/name, try to set it
+        if (this.options.filters && Array.isArray(this.options.filters) && this.options.preferFilter != null) {
+            // preferFilter can be an index or a name
+            if (typeof this.options.preferFilter === 'number' && this.options.preferFilter >= 0 && this.options.preferFilter < this.options.filters.length) {
+                this.activeFilter = String(this.options.preferFilter);
+            } else if (typeof this.options.preferFilter === 'string') {
+                const idx = this.options.filters.findIndex(f => (f.name || '').toLowerCase() === this.options.preferFilter.toLowerCase());
+                if (idx >= 0) this.activeFilter = String(idx);
+            }
+        } else if (this.options.filters && Array.isArray(this.options.filters) && this.options.filters.length === 1) {
+            // If caller provided a single filter, auto-select it
+            this.activeFilter = '0';
+        }
     }
 
     // Open the picker as a transient app window and return a Promise that resolves
@@ -21,6 +35,33 @@ class PickerApp {
     static open(options = {}) {
         const picker = new PickerApp(options);
         return picker._openWindow();
+    }
+
+    // Small runtime helper to let callers detect whether PickerApp is usable
+    // Returns true when the PickerApp.open function is present and callable.
+    static canUse() {
+        try {
+            return !!(window.PickerApp && typeof window.PickerApp.open === 'function');
+        } catch (e) { return false; }
+    }
+
+    // Return detailed availability info: { canUse: boolean, reason: string|null }
+    // Reasons: missing windowManager, incomplete windowManager API, missing nebula.fs (warning), or null when fully usable.
+    static isAvailableDetail() {
+        try {
+            if (typeof window === 'undefined') return { canUse: false, reason: 'no window object' };
+            if (!window.windowManager) return { canUse: false, reason: 'windowManager not available' };
+            if (typeof window.windowManager.createWindow !== 'function' || typeof window.windowManager.loadApp !== 'function') {
+                return { canUse: false, reason: 'windowManager API incomplete' };
+            }
+            // nebula.fs is strongly recommended for filesystem-backed picker features, but absence is not a hard blocker
+            if (!(window.nebula && window.nebula.fs && typeof window.nebula.fs.readDir === 'function')) {
+                return { canUse: true, reason: 'nebula.fs not available — filesystem operations may be limited' };
+            }
+            return { canUse: true, reason: null };
+        } catch (e) {
+            return { canUse: false, reason: String(e) };
+        }
     }
 
     async _openWindow() {
@@ -87,6 +128,9 @@ class PickerApp {
                 const opt = document.createElement('option'); opt.value = String(idx); opt.textContent = f.name ? `${f.name} (*.${(f.extensions||[]).join(',*.')})` : `Filter ${idx+1}`; filterSelect.appendChild(opt);
             });
         }
+        // reflect pre-selected active filter
+        try { filterSelect.value = this.activeFilter; } catch(e) {}
+        filterSelect.addEventListener('change', (e)=>{ this.activeFilter = e.target.value; this.renderEntries(); });
         toolbarRight.appendChild(filterSelect);
 
         // quick access bar (home, desktop, documents, downloads)

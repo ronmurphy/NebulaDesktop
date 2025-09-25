@@ -4577,7 +4577,18 @@ function createAmazingApp() {
     async openFile() {
         try {
             // Use native file dialog if available, fallback to custom dialog
-            if (window.nebula?.dialog?.openFile) {
+            if (window.PickerApp && typeof window.PickerApp.open === 'function') {
+                const resultPath = await window.PickerApp.open({
+                    title: 'Open File',
+                    startPath: await window.nebula.fs.getHomeDir(),
+                    pickType: 'open',
+                    filters: [{ name: 'Code', extensions: ['html','css','md','txt','qbasic','bas','js','ts','json'] }],
+                    preferFilter: 0
+                });
+                if (!resultPath) return;
+                await this.loadFileContent(resultPath);
+                return;
+            } else if (window.nebula?.dialog?.openFile) {
                 const result = await window.nebula.dialog.openFile({
                     title: 'Open File',
                     defaultPath: await window.nebula.fs.getHomeDir()

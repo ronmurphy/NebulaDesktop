@@ -1062,13 +1062,78 @@ class NebulaImageEditor {
     }
     
     openDocument() {
-        // TODO: Implement file opening
-        this.updateStatus('Open document - not implemented yet');
+        const imageFilters = [{ name: 'Images', extensions: ['png','jpg','jpeg','webp','gif','bmp','tiff','svg','psd','xcf'] }];
+        (async ()=>{
+            try {
+                if (window.PickerApp && typeof window.PickerApp.canUse === 'function' ? window.PickerApp.canUse() : (window.PickerApp && typeof window.PickerApp.open === 'function')) {
+                    const result = await window.PickerApp.open({ pickType: 'open', filters: imageFilters, preferFilter: 0 });
+                    if (result) {
+                        if (window.nebula && window.nebula.fs && typeof window.nebula.fs.readFile === 'function') {
+                            try {
+                                const data = await window.nebula.fs.readFile(result);
+                                const blob = new Blob([data]);
+                                const fileName = result.split('/').pop();
+                                const file = new File([blob], fileName);
+                                this.loadImageFile?.(file);
+                                this.updateStatus('Opened ' + fileName);
+                                return;
+                            } catch(e) { console.warn('Picker readFile failed', e); }
+                        }
+                    }
+                }
+            } catch(e) { console.warn('Picker open failed', e); }
+
+            // Fallback: show HTML file input
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,.psd,.xcf';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    this.loadImageFile?.(file);
+                    this.updateStatus('Opened ' + file.name);
+                }
+            };
+            input.click();
+        })();
     }
     
     saveDocument() {
-        // TODO: Implement file saving
-        this.updateStatus('Save document - not implemented yet');
+        const canvas = this.canvas || document.getElementById('main-canvas');
+        if (!canvas) { this.updateStatus('No canvas to save'); return; }
+
+        (async ()=>{
+            try {
+                const imageFilters = [{ name: 'PNG', extensions: ['png'] }, { name: 'JPEG', extensions: ['jpg','jpeg'] }, { name: 'WebP', extensions: ['webp'] }];
+                if (window.PickerApp && typeof window.PickerApp.isAvailableDetail === 'function' ? window.PickerApp.isAvailableDetail().canUse : (window.PickerApp && typeof window.PickerApp.open === 'function')) {
+                    const result = await window.PickerApp.open({ pickType: 'save', filters: imageFilters, preferFilter: 0 });
+                    if (result) {
+                        if (window.nebula && window.nebula.fs && typeof window.nebula.fs.writeFile === 'function') {
+                            try {
+                                const ext = (result.split('.').pop() || '').toLowerCase();
+                                let mime = 'image/png';
+                                if (['jpg','jpeg'].includes(ext)) mime = 'image/jpeg';
+                                else if (['webp'].includes(ext)) mime = 'image/webp';
+                                else if (['png'].includes(ext)) mime = 'image/png';
+                                const dataUrl = canvas.toDataURL(mime);
+                                const base64 = dataUrl.split(',')[1];
+                                const bytes = Uint8Array.from(atob(base64), c=>c.charCodeAt(0));
+                                await window.nebula.fs.writeFile(result, bytes);
+                                this.updateStatus('Saved ' + result.split('/').pop());
+                                return;
+                            } catch(e) { console.warn('Picker writeFile failed', e); }
+                        }
+                    }
+                }
+            } catch(e) { console.warn('Picker save failed', e); }
+
+            // Fallback: download link
+            const a = document.createElement('a');
+            a.href = canvas.toDataURL();
+            a.download = 'ollie-image.png';
+            a.click();
+            this.updateStatus('Saved (download)');
+        })();
     }
     
     undo() {

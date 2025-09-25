@@ -1195,7 +1195,7 @@ END
             // Prefer the new PickerApp API when available
             let result = null;
             if (window.PickerApp && typeof window.PickerApp.open === 'function') {
-                result = await window.PickerApp.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'open' });
+                result = await window.PickerApp.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'open', filters: [{ name: 'QBasic', extensions: ['bas'] }], preferFilter: 0 });
             } else if (window.NebulaFilePicker) {
                 const picker = new window.NebulaFilePicker();
                 result = await picker.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'open' });
@@ -1227,7 +1227,7 @@ END
             // Prefer PickerApp for save dialog
             let result = null;
             if (window.PickerApp && typeof window.PickerApp.open === 'function') {
-                result = await window.PickerApp.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'save' });
+                result = await window.PickerApp.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'save', filters: [{ name: 'QBasic', extensions: ['bas'] }], preferFilter: 0 });
             } else if (window.NebulaFilePicker) {
                 const picker = new window.NebulaFilePicker();
                 result = await picker.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'save' });

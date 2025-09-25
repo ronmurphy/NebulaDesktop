@@ -4200,7 +4200,8 @@ function createAmazingApp() {
             if (window.nebula?.dialog?.openFile) {
                 const result = await window.nebula.dialog.openFile({
                     title: 'Open File',
-                    defaultPath: await window.nebula.fs.getHomeDir()
+                    defaultPath: await window.nebula.fs.getHomeDir(),
+                    filters: [{ name: 'Code', extensions: ['js','ts','py','java','rb','go','c','cpp','h','html','css','json','md','bas'] }]
                 });
 
                 if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
