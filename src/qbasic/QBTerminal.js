@@ -1033,7 +1033,7 @@ class NebulaQBasicTerminal {
     // Observe changes to documentElement to re-define themes when Nebula variables change
     watchNebulaThemeChanges() {
         try {
-            const observer = new MutationObserver((mutations) => {
+            const observer = new MutationObserver(() => {
                 // Simple heuristic: any attribute change -> recompute themes
                 this.redefineThemesFromCSS();
             });
@@ -1312,8 +1312,7 @@ END
      * Show help
      */
     showHelp() {
-        const helpText = `
-QBasic Terminal Help
+        const helpText = `QBasic Terminal Help
 ===================
 
 This terminal runs QBasic programs using a custom JavaScript transpiler.
@@ -1345,9 +1344,15 @@ COLOR 2, 0: PRINT "Green text"
 name$ = LEFT$("Hello", 3)
 
 CREDITS:
-• Custom JavaScript transpiler
-        `;
+• Custom JavaScript transpiler`;
 
+        this.terminal.writeln(helpText);
+    }
+
+    /**
+     * Transpile QBasic code to JavaScript
+     */
+    transpileQBasic(basicCode) {
         let jsCode = '';
         let indentLevel = 0;
         const indent = () => '    '.repeat(indentLevel);
@@ -1675,12 +1680,12 @@ CREDITS:
             const __qb_mid = (str, start, length) => {
                 const s = String(str);
                 const st = Math.max(0, parseInt(start, 10) - 1); // QBasic is 1-based
-                return length !== undefined ? s.substr(st, parseInt(length, 10)) : s.substr(st);
+                return length !== undefined ? s.substring(st, st + parseInt(length, 10)) : s.substring(st);
             };
-            const __qb_left = (str, length) => String(str).substr(0, parseInt(length, 10));
+            const __qb_left = (str, length) => String(str).substring(0, parseInt(length, 10));
             const __qb_right = (str, length) => {
                 const s = String(str);
-                return s.substr(Math.max(0, s.length - parseInt(length, 10)));
+                return s.substring(Math.max(0, s.length - parseInt(length, 10)));
             };
             const __qb_chr = (code) => String.fromCharCode(parseInt(code, 10));
             const __qb_asc = (str) => String(str).charCodeAt(0) || 0;
@@ -1736,13 +1741,18 @@ CREDITS:
     /**
      * File system helpers (integrate with NebulaDesktop APIs)
      */
-    async showFilePicker(title, extensions) {
+    async showFilePicker(title = 'Select File', extensions = []) {
         // TODO: Integrate with NebulaDesktop file picker
         // For now, return a mock path
         // If NebulaFilePicker is available, use it
         if (window.NebulaFilePicker) {
             const picker = new window.NebulaFilePicker();
-            const res = await picker.open({ startPath: await window.nebula.fs.getHomeDir(), pickType: 'open' });
+            const res = await picker.open({
+                startPath: await window.nebula.fs.getHomeDir(),
+                pickType: 'open',
+                title,
+                extensions
+            });
             return res;
         }
 

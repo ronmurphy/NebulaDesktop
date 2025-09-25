@@ -4519,7 +4519,7 @@ class NebulaSettings {
         // Platform info
         const platformEl = container.querySelector('#platformInfo');
         if (platformEl) {
-            platformEl.textContent = navigator.platform || 'Web Platform';
+            platformEl.textContent = navigator.userAgent || 'Web Platform';
         }
         
         // Running apps count

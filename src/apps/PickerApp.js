@@ -98,94 +98,406 @@ class PickerApp {
 
     // NebulaApp render() API
     render() {
+        // Inject CSS styles for Nebula buttons if not already present
+        if (!document.querySelector('#picker-app-styles')) {
+            const style = document.createElement('style');
+            style.id = 'picker-app-styles';
+            style.textContent = `
+                .nebula-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: var(--nebula-space-xs, 4px);
+                    padding: var(--nebula-space-sm, 8px) var(--nebula-space-md, 16px);
+                    border-radius: var(--nebula-radius-sm, 6px);
+                    font-size: 14px;
+                    font-weight: 500;
+                    line-height: 1.5;
+                    text-decoration: none;
+                    cursor: pointer;
+                    border: 1px solid transparent;
+                    transition: var(--nebula-transition-fast, all 0.15s ease);
+                    min-height: 36px;
+                    white-space: nowrap;
+                }
+
+                .nebula-btn .material-symbols-outlined {
+                    font-size: 18px;
+                    margin: 0;
+                }
+
+                .nebula-btn-primary {
+                    background: var(--nebula-primary, #667eea);
+                    color: var(--nebula-text-on-primary, white);
+                    border-color: var(--nebula-primary, #667eea);
+                }
+
+                .nebula-btn-primary:hover {
+                    background: var(--nebula-accent, #4f46e5);
+                    border-color: var(--nebula-accent, #4f46e5);
+                    transform: translateY(-1px);
+                    box-shadow: var(--nebula-shadow-sm, 0 2px 8px rgba(0,0,0,0.15));
+                }
+
+                .nebula-btn-secondary {
+                    background: var(--nebula-bg-secondary, #f8fafc);
+                    color: var(--nebula-text-primary, #1e293b);
+                    border-color: var(--nebula-border, #e2e8f0);
+                }
+
+                .nebula-btn-secondary:hover {
+                    background: var(--nebula-surface-hover, #f1f5f9);
+                    border-color: var(--nebula-border-hover, #cbd5e1);
+                    transform: translateY(-1px);
+                    box-shadow: var(--nebula-shadow-sm, 0 2px 8px rgba(0,0,0,0.15));
+                }
+
+                .nebula-btn-outline {
+                    background: transparent;
+                    color: var(--nebula-primary, #667eea);
+                    border-color: var(--nebula-primary, #667eea);
+                }
+
+                .nebula-btn-outline:hover {
+                    background: var(--nebula-primary, #667eea);
+                    color: var(--nebula-text-on-primary, white);
+                    transform: translateY(-1px);
+                    box-shadow: var(--nebula-shadow-sm, 0 2px 8px rgba(0,0,0,0.15));
+                }
+
+                .nebula-btn-ghost {
+                    background: transparent;
+                    color: var(--nebula-text-secondary, #64748b);
+                    border-color: transparent;
+                    padding: var(--nebula-space-xs, 4px) var(--nebula-space-sm, 8px);
+                    min-height: 32px;
+                    justify-content: flex-start;
+                    width: 100%;
+                    text-align: left;
+                }
+
+                .nebula-btn-ghost:hover {
+                    background: var(--nebula-surface-hover, #f8fafc);
+                    color: var(--nebula-text-primary, #1e293b);
+                    border-color: var(--nebula-border, #e2e8f0);
+                }
+
+                .picker-app-container {
+                    font-family: system-ui, -apple-system, sans-serif;
+                }
+
+                .picker-filter {
+                    padding: var(--nebula-space-xs, 4px) var(--nebula-space-sm, 8px);
+                    border-radius: var(--nebula-radius-sm, 6px);
+                    border: 1px solid var(--nebula-border, #e2e8f0);
+                    background: var(--nebula-bg-primary, white);
+                    color: var(--nebula-text-primary, #1e293b);
+                    font-size: 14px;
+                    min-width: 120px;
+                }
+
+                .picker-entry:hover {
+                    transform: translateY(-1px);
+                    box-shadow: var(--nebula-shadow-sm, 0 2px 8px rgba(0,0,0,0.15));
+                }
+
+                .picker-entry.selected {
+                    background: var(--nebula-primary, #667eea) !important;
+                    color: var(--nebula-text-on-primary, white);
+                }
+
+                /* New design-specific styles */
+                .picker-breadcrumb {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--nebula-space-xs, 4px);
+                    padding: var(--nebula-space-sm, 8px) var(--nebula-space-md, 12px);
+                    background: var(--nebula-bg-primary, white);
+                    border: 1px solid var(--nebula-border, #e2e8f0);
+                    border-radius: var(--nebula-radius-sm, 6px);
+                    font-family: monospace;
+                    font-size: 13px;
+                }
+
+                .breadcrumb-segment {
+                    color: var(--nebula-primary, #667eea);
+                    cursor: pointer;
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                    transition: var(--nebula-transition-fast);
+                }
+
+                .breadcrumb-segment:hover {
+                    background: var(--nebula-surface-hover, #f8fafc);
+                }
+
+                .breadcrumb-separator {
+                    color: var(--nebula-text-muted, #94a3b8);
+                    font-size: 12px;
+                }
+
+                .picker-search {
+                    flex: 1;
+                    padding: var(--nebula-space-sm, 8px) var(--nebula-space-md, 12px);
+                    border: 1px solid var(--nebula-border, #e2e8f0);
+                    border-radius: var(--nebula-radius-sm, 6px);
+                    background: var(--nebula-bg-primary, white);
+                    color: var(--nebula-text-primary, #1e293b);
+                    font-size: 14px;
+                }
+
+                .picker-search:focus {
+                    outline: none;
+                    border-color: var(--nebula-primary, #667eea);
+                    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+                }
+
+                .quick-access-bar {
+                    display: flex;
+                    gap: var(--nebula-space-xs, 4px);
+                    padding: var(--nebula-space-sm, 8px);
+                    background: var(--nebula-bg-tertiary, #f1f5f9);
+                    border-radius: var(--nebula-radius-sm, 6px);
+                    border: 1px solid var(--nebula-border, #e2e8f0);
+                    overflow-x: auto;
+                }
+
+                .quick-access-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--nebula-space-xs, 4px);
+                    padding: var(--nebula-space-xs, 4px) var(--nebula-space-sm, 8px);
+                    background: var(--nebula-bg-primary, white);
+                    border: 1px solid transparent;
+                    border-radius: var(--nebula-radius-sm, 6px);
+                    color: var(--nebula-text-secondary, #64748b);
+                    cursor: pointer;
+                    transition: var(--nebula-transition-fast);
+                    white-space: nowrap;
+                    font-size: 13px;
+                }
+
+                .quick-access-btn:hover {
+                    background: var(--nebula-surface-hover, #f8fafc);
+                    color: var(--nebula-text-primary, #1e293b);
+                    border-color: var(--nebula-border, #e2e8f0);
+                    transform: translateY(-1px);
+                }
+
+                .preview-toggle {
+                    background: var(--nebula-bg-secondary, #f8fafc);
+                    border: 1px solid var(--nebula-border, #e2e8f0);
+                }
+
+                .preview-toggle.active {
+                    background: var(--nebula-primary, #667eea);
+                    color: var(--nebula-text-on-primary, white);
+                    border-color: var(--nebula-primary, #667eea);
+                }
+
+                .picker-main-area {
+                    transition: var(--nebula-transition, all 0.3s ease);
+                }
+
+                .preview-panel {
+                    width: 300px;
+                    background: var(--nebula-bg-secondary, #f8fafc);
+                    border-left: 1px solid var(--nebula-border, #e2e8f0);
+                    transform: translateX(100%);
+                    transition: transform var(--nebula-transition, 0.3s ease);
+                }
+
+                .preview-panel.visible {
+                    transform: translateX(0);
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
         const container = document.createElement('div');
         container.className = 'picker-app-container';
-        container.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;gap:8px;padding:8px;box-sizing:border-box;';
-        // Toolbar (view options, show hidden, new folder)
+        container.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;gap:var(--nebula-space-sm, 8px);padding:var(--nebula-space-md, 16px);box-sizing:border-box;';
+
+        // === HEADER SECTION ===
         const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px;border-bottom:1px solid var(--nebula-border);';
-        const title = document.createElement('div'); title.textContent = this.options.title || 'Nebula File Picker'; title.style.fontWeight='600';
-        const pathEl = document.createElement('div'); pathEl.className='picker-path'; pathEl.style.marginLeft='8px'; pathEl.style.opacity='0.9'; pathEl.style.fontSize='12px';
+        header.style.cssText = 'display:flex;flex-direction:column;gap:var(--nebula-space-sm, 8px);';
 
-        const toolbarRight = document.createElement('div');
-        toolbarRight.style.cssText = 'margin-left:auto;display:flex;gap:8px;align-items:center;';
+        // Title and breadcrumb row
+        const titleRow = document.createElement('div');
+        titleRow.style.cssText = 'display:flex;align-items:center;gap:var(--nebula-space-md, 16px);';
 
-        const btnViewToggle = document.createElement('button'); btnViewToggle.textContent = 'Grid'; btnViewToggle.title = 'Toggle Grid/List'; btnViewToggle.className='picker-btn-view';
-        const btnShowHidden = document.createElement('button'); btnShowHidden.textContent = 'Show hidden'; btnShowHidden.title = 'Toggle show hidden files'; btnShowHidden.className='picker-btn-hidden';
-        const btnNewFolder = document.createElement('button'); btnNewFolder.textContent = 'New Folder'; btnNewFolder.title = 'Create new folder'; btnNewFolder.className='picker-btn-newfolder';
+        const title = document.createElement('h2');
+        title.textContent = this.options.title || 'Select File';
+        title.style.cssText = 'margin:0;font-size:18px;font-weight:600;color:var(--nebula-text-primary);';
 
-        toolbarRight.appendChild(btnNewFolder);
-        toolbarRight.appendChild(btnViewToggle);
-        toolbarRight.appendChild(btnShowHidden);
+        const breadcrumb = document.createElement('div');
+        breadcrumb.className = 'picker-breadcrumb';
 
-        header.appendChild(title); header.appendChild(pathEl); header.appendChild(toolbarRight);
+        titleRow.appendChild(title);
+        titleRow.appendChild(breadcrumb);
 
-        // filter select (file type filters)
-        const filterSelect = document.createElement('select'); filterSelect.className = 'picker-filter';
-        const allOpt = document.createElement('option'); allOpt.value = 'all'; allOpt.textContent = 'All files (*.*)'; filterSelect.appendChild(allOpt);
+        // Controls row
+        const controlsRow = document.createElement('div');
+        controlsRow.style.cssText = 'display:flex;align-items:center;gap:var(--nebula-space-sm, 8px);';
+
+        const searchInput = document.createElement('input');
+        searchInput.className = 'picker-search';
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search files...';
+
+        const btnViewToggle = document.createElement('button');
+        btnViewToggle.innerHTML = '<span class="material-symbols-outlined">grid_view</span>';
+        btnViewToggle.title = 'Toggle Grid/List';
+        btnViewToggle.className='nebula-btn nebula-btn-secondary';
+
+        const btnShowHidden = document.createElement('button');
+        btnShowHidden.innerHTML = '<span class="material-symbols-outlined">visibility</span>';
+        btnShowHidden.title = 'Toggle show hidden files';
+        btnShowHidden.className='nebula-btn nebula-btn-secondary';
+
+        const previewToggle = document.createElement('button');
+        previewToggle.innerHTML = '<span class="material-symbols-outlined">preview</span>';
+        previewToggle.title = 'Toggle preview panel';
+        previewToggle.className='nebula-btn nebula-btn-secondary preview-toggle';
+
+        const filterSelect = document.createElement('select');
+        filterSelect.className = 'picker-filter';
+        const allOpt = document.createElement('option');
+        allOpt.value = 'all';
+        allOpt.textContent = 'All files';
+        filterSelect.appendChild(allOpt);
+
         if (this.filters && this.filters.length) {
             this.filters.forEach((f, idx)=>{
-                const opt = document.createElement('option'); opt.value = String(idx); opt.textContent = f.name ? `${f.name} (*.${(f.extensions||[]).join(',*.')})` : `Filter ${idx+1}`; filterSelect.appendChild(opt);
+                const opt = document.createElement('option');
+                opt.value = String(idx);
+                opt.textContent = f.name ? `${f.name}` : `Filter ${idx+1}`;
+                filterSelect.appendChild(opt);
             });
         }
-        // reflect pre-selected active filter
+
         try { filterSelect.value = this.activeFilter; } catch(e) {}
-        filterSelect.addEventListener('change', (e)=>{ this.activeFilter = e.target.value; this.renderEntries(); });
-        toolbarRight.appendChild(filterSelect);
 
-        // quick access bar (home, desktop, documents, downloads)
-        const quickBar = document.createElement('div'); quickBar.className = 'picker-quickbar'; quickBar.style.cssText = 'display:flex;gap:6px;margin-left:12px;align-items:center;';
-        header.appendChild(quickBar);
+        controlsRow.appendChild(searchInput);
+        controlsRow.appendChild(btnViewToggle);
+        controlsRow.appendChild(btnShowHidden);
+        controlsRow.appendChild(previewToggle);
+        controlsRow.appendChild(filterSelect);
 
-    // body layout: left quick-access column, main file grid, right preview column
-    const body = document.createElement('div'); body.style.cssText = 'flex:1;display:flex;gap:12px;padding:8px;overflow:hidden;';
-    const quickCol = document.createElement('div'); quickCol.className = 'picker-quickcol'; quickCol.style.cssText = 'width:160px;display:flex;flex-direction:column;gap:8px;';
-    const list = document.createElement('div'); list.className='picker-list';
-    // responsive grid: auto-fit columns with min width 160px
-    list.style.cssText = 'flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;overflow:auto;padding:8px;background:var(--nebula-bg-primary);border-radius:6px;';
-        const side = document.createElement('div'); side.style.cssText='width:260px;display:flex;flex-direction:column;gap:8px;';
-        const preview = document.createElement('div'); preview.className='picker-preview'; preview.style.cssText='flex:1;background:var(--nebula-bg-secondary);border-radius:6px;padding:8px;overflow:auto;';
-        const sysBtn = document.createElement('button'); sysBtn.textContent='System Picker'; sysBtn.className='picker-system-btn toolbar-btn';
-        side.appendChild(preview); side.appendChild(sysBtn);
+        header.appendChild(titleRow);
+        header.appendChild(controlsRow);
 
-        body.appendChild(quickCol); body.appendChild(list); body.appendChild(side);
+        // === QUICK ACCESS BAR ===
+        const quickAccessBar = document.createElement('div');
+        quickAccessBar.className = 'quick-access-bar';
 
-        const footer = document.createElement('div'); footer.style.cssText='display:flex;gap:8px;align-items:center;padding:8px;border-top:1px solid var(--nebula-border);';
-    const filename = document.createElement('input'); filename.className='picker-filename'; filename.placeholder = 'filename'; filename.style.cssText='flex:1;padding:6px;border-radius:6px;border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);color:var(--nebula-text-primary);';
-    const cancelBtn = document.createElement('button'); cancelBtn.textContent='Cancel'; cancelBtn.className='picker-cancel toolbar-btn';
-    const openBtn = document.createElement('button'); openBtn.textContent = this.options.pickType==='save' ? 'Save' : 'Open'; openBtn.className='picker-open toolbar-btn';
-        footer.appendChild(filename); footer.appendChild(cancelBtn); footer.appendChild(openBtn);
+        // === MAIN CONTENT AREA ===
+        const contentWrapper = document.createElement('div');
+        contentWrapper.style.cssText = 'flex:1;display:flex;gap:var(--nebula-space-md, 16px);overflow:hidden;background:var(--nebula-bg-primary);border-radius:var(--nebula-radius-md, 8px);border:1px solid var(--nebula-border);';
 
-        container.appendChild(header); container.appendChild(body); container.appendChild(footer);
+        const mainArea = document.createElement('div');
+        mainArea.className = 'picker-main-area';
+        mainArea.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;';
 
-    // store references
-    this._els = { container, list, preview, filename, pathEl, openBtn, cancelBtn, sysBtn, btnViewToggle, btnShowHidden, btnNewFolder, filterSelect, quickBar, quickCol };
+        const list = document.createElement('div');
+        list.className='picker-list';
+        list.style.cssText = 'flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--nebula-space-sm, 8px);overflow:auto;padding:var(--nebula-space-md, 16px);';
+
+        const preview = document.createElement('div');
+        preview.className='picker-preview preview-panel';
+        preview.style.cssText='display:flex;flex-direction:column;gap:var(--nebula-space-sm, 8px);padding:var(--nebula-space-md, 16px);overflow:auto;position:relative;';
+
+        const previewContent = document.createElement('div');
+        previewContent.className = 'preview-content';
+        previewContent.style.cssText = 'flex:1;background:var(--nebula-bg-primary);border-radius:var(--nebula-radius-sm, 6px);border:1px solid var(--nebula-border);padding:var(--nebula-space-md, 16px);overflow:auto;';
+        previewContent.innerHTML = '<div style="text-align:center;color:var(--nebula-text-muted);padding:2rem;">Select a file to preview</div>';
+
+        const sysBtn = document.createElement('button');
+        sysBtn.innerHTML = '<span class="material-symbols-outlined">folder_open</span> System Picker';
+        sysBtn.className='nebula-btn nebula-btn-outline';
+
+        preview.appendChild(previewContent);
+        preview.appendChild(sysBtn);
+
+        mainArea.appendChild(list);
+        contentWrapper.appendChild(mainArea);
+        contentWrapper.appendChild(preview);
+
+        // === FOOTER ===
+        const footer = document.createElement('div');
+        footer.style.cssText='display:flex;gap:var(--nebula-space-sm, 8px);align-items:center;padding:var(--nebula-space-md, 16px);background:var(--nebula-bg-secondary);border-radius:var(--nebula-radius-md, 8px);border:1px solid var(--nebula-border);';
+
+        const filename = document.createElement('input');
+        filename.className='picker-filename';
+        filename.placeholder = 'Enter filename...';
+        filename.style.cssText='flex:1;padding:var(--nebula-space-sm, 8px) var(--nebula-space-md, 12px);border-radius:var(--nebula-radius-sm, 6px);border:1px solid var(--nebula-border);background:var(--nebula-bg-primary);color:var(--nebula-text-primary);font-size:14px;';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.innerHTML = '<span class="material-symbols-outlined">cancel</span> Cancel';
+        cancelBtn.className='nebula-btn nebula-btn-secondary';
+
+        const openBtn = document.createElement('button');
+        const isOpenMode = this.options.pickType !== 'save';
+        openBtn.innerHTML = `<span class="material-symbols-outlined">${isOpenMode ? 'folder_open' : 'save'}</span> ${isOpenMode ? 'Open' : 'Save'}`;
+        openBtn.className='nebula-btn nebula-btn-primary';
+
+        footer.appendChild(filename);
+        footer.appendChild(cancelBtn);
+        footer.appendChild(openBtn);
+
+        // Assemble the layout
+        container.appendChild(header);
+        container.appendChild(quickAccessBar);
+        container.appendChild(contentWrapper);
+        container.appendChild(footer);
+
+    // store references for new layout
+    this._els = {
+        container,
+        list,
+        preview: previewContent,
+        filename,
+        breadcrumb,
+        openBtn,
+        cancelBtn,
+        sysBtn,
+        btnViewToggle,
+        btnShowHidden,
+        filterSelect,
+        searchInput,
+        previewToggle,
+        quickAccessBar
+    };
+
+    // Internal state
+    this.showPreview = false; // Preview panel hidden by default
 
     // internal state: hide dotfiles by default unless option showHidden true
     try { this.showHidden = JSON.parse(localStorage.getItem('nebula.picker.showHidden')) ?? !!this.options.showHidden; } catch(e) { this.showHidden = !!this.options.showHidden; }
     // view mode: 'grid' or 'list'
     this.viewMode = 'grid';
 
-        // wire events
-    cancelBtn.addEventListener('click', ()=> this.closeAndResolve(null));
-        openBtn.addEventListener('click', ()=> {
-            if (this.options.pickType==='save') {
-                const name = (filename.value||'').trim();
-                const final = name ? (this.currentPath.endsWith('/')? this.currentPath+name : this.currentPath+'/'+name) : null;
+        // === EVENT HANDLERS ===
+
+        // Action buttons
+        cancelBtn.addEventListener('click', () => this.closeAndResolve(null));
+
+        openBtn.addEventListener('click', () => {
+            if (this.options.pickType === 'save') {
+                const name = (filename.value || '').trim();
+                const final = name ? (this.currentPath.endsWith('/') ? this.currentPath + name : this.currentPath + '/' + name) : null;
                 this.closeAndResolve(final);
             } else {
                 this.closeAndResolve(this.selected || null);
             }
         });
 
-        sysBtn.addEventListener('click', async ()=>{
+        sysBtn.addEventListener('click', async () => {
             try {
                 const native = window.nebula && window.nebula.dialog && window.nebula.dialog.openFile;
                 if (typeof native === 'function') {
                     const res = await native(this.options || {});
-                    // normalize shapes
-                    if (res && res.filePaths && res.filePaths.length>0) return this.closeAndResolve(res.filePaths[0]);
-                    if (Array.isArray(res) && res.length>0) return this.closeAndResolve(res[0]);
+                    if (res && res.filePaths && res.filePaths.length > 0) return this.closeAndResolve(res.filePaths[0]);
+                    if (Array.isArray(res) && res.length > 0) return this.closeAndResolve(res[0]);
                     if (typeof res === 'string') return this.closeAndResolve(res);
                 }
             } catch (e) {
@@ -193,69 +505,109 @@ class PickerApp {
             }
         });
 
-        // toolbar button behaviors
-        btnViewToggle.addEventListener('click', ()=>{
+        // View controls
+        btnViewToggle.addEventListener('click', () => {
             this.viewMode = this.viewMode === 'grid' ? 'list' : 'grid';
-            btnViewToggle.textContent = this.viewMode === 'grid' ? 'Grid' : 'List';
+            const icon = this.viewMode === 'grid' ? 'grid_view' : 'view_list';
+            btnViewToggle.innerHTML = `<span class="material-symbols-outlined">${icon}</span>`;
+            btnViewToggle.title = `Switch to ${this.viewMode === 'grid' ? 'List' : 'Grid'} view`;
             this.renderEntries();
         });
 
-        btnShowHidden.addEventListener('click', ()=>{
+        btnShowHidden.addEventListener('click', () => {
             this.showHidden = !this.showHidden;
             try { localStorage.setItem('nebula.picker.showHidden', JSON.stringify(this.showHidden)); } catch(e) {}
-            btnShowHidden.textContent = this.showHidden ? 'Hide hidden' : 'Show hidden';
+            const icon = this.showHidden ? 'visibility_off' : 'visibility';
+            btnShowHidden.innerHTML = `<span class="material-symbols-outlined">${icon}</span>`;
+            btnShowHidden.title = this.showHidden ? 'Hide hidden files' : 'Show hidden files';
             this.renderEntries();
         });
 
-        btnNewFolder.addEventListener('click', async ()=>{
-            const name = prompt('New folder name:','New Folder');
-            if (!name) return;
-            const newPath = this.currentPath.endsWith('/') ? this.currentPath + name : this.currentPath + '/' + name;
-            try {
-                await window.nebula.fs.mkdir(newPath, { recursive: false });
-                this.updateStatus('Folder created');
-                await this.loadDir(this.currentPath);
-            } catch (e) {
-                this.updateStatus('Failed to create folder');
-                console.warn('mkdir failed', e);
-            }
+        // Preview toggle
+        previewToggle.addEventListener('click', () => {
+            this.showPreview = !this.showPreview;
+            previewToggle.classList.toggle('active', this.showPreview);
+            preview.classList.toggle('visible', this.showPreview);
+            previewToggle.title = this.showPreview ? 'Hide preview' : 'Show preview';
         });
 
-        // preview click handling delegated below by event delegation
-        list.addEventListener('click', async (ev)=>{
-            const el = ev.target.closest('.picker-entry'); if (!el) return;
-            const p = el.dataset.path; if (!p) return;
-            const item = this.entries.find(x=>x.path===p);
+        // Filter selection
+        filterSelect.addEventListener('change', (e) => {
+            this.activeFilter = e.target.value;
+            this.renderEntries();
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.toLowerCase();
+            this.renderEntries();
+        });
+
+        // File list interactions
+        list.addEventListener('click', async (ev) => {
+            const el = ev.target.closest('.picker-entry');
+            if (!el) return;
+            const p = el.dataset.path;
+            if (!p) return;
+            const item = this.entries.find(x => x.path === p);
+
             if (item && item.isDirectory) {
                 await this.loadDir(p);
                 return;
             }
+
             this.select(p, (item && item.name) || p.split('/').pop());
-            await this.showPreviewFor(p);
+            if (this.showPreview) {
+                await this.showPreviewFor(p);
+            }
         });
 
-        list.addEventListener('dblclick', (ev)=>{
-            const el = ev.target.closest('.picker-entry'); if (!el) return;
-            const p = el.dataset.path; if (!p) return;
-            const item = this.entries.find(x=>x.path===p);
-            if (item && !item.isDirectory) this.closeAndResolve(p);
+        list.addEventListener('dblclick', (ev) => {
+            const el = ev.target.closest('.picker-entry');
+            if (!el) return;
+            const p = el.dataset.path;
+            if (!p) return;
+            const item = this.entries.find(x => x.path === p);
+            if (item && !item.isDirectory) {
+                this.closeAndResolve(p);
+            }
         });
 
-        // keyboard navigation: arrows, Enter, Esc
+        // Breadcrumb navigation
+        breadcrumb.addEventListener('click', (ev) => {
+            const segment = ev.target.closest('.breadcrumb-segment');
+            if (segment) {
+                const path = segment.dataset.path;
+                if (path) {
+                    this.loadDir(path);
+                }
+            }
+        });
+
+        // Keyboard navigation
         container.tabIndex = 0;
-        container.addEventListener('keydown', (e)=>{
+        container.addEventListener('keydown', (e) => {
             try {
+                if (e.target.tagName === 'INPUT') return; // Don't interfere with input fields
+
                 const focusable = Array.from(this._els.list.querySelectorAll('.picker-entry:not(.picker-up)'));
                 if (!focusable.length) return;
-                const idx = focusable.findIndex(n=>n.classList.contains('selected'));
+                const idx = focusable.findIndex(n => n.classList.contains('selected'));
+
                 if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
                     e.preventDefault();
-                    const next = focusable[Math.min(focusable.length-1, Math.max(0, idx+1))];
-                    if (next) { next.click(); next.scrollIntoView({block:'nearest'}); }
+                    const next = focusable[Math.min(focusable.length - 1, Math.max(0, idx + 1))];
+                    if (next) {
+                        next.click();
+                        next.scrollIntoView({ block: 'nearest' });
+                    }
                 } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
                     e.preventDefault();
-                    const prev = focusable[Math.max(0, (idx===-1?0:idx)-1)];
-                    if (prev) { prev.click(); prev.scrollIntoView({block:'nearest'}); }
+                    const prev = focusable[Math.max(0, (idx === -1 ? 0 : idx) - 1)];
+                    if (prev) {
+                        prev.click();
+                        prev.scrollIntoView({ block: 'nearest' });
+                    }
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
                     if (this.selected) this.closeAndResolve(this.selected);
@@ -263,21 +615,67 @@ class PickerApp {
                     e.preventDefault();
                     this.closeAndResolve(null);
                 }
-            } catch (err) { console.warn('keyboard nav error', err); }
+            } catch (err) {
+                console.warn('keyboard nav error', err);
+            }
         });
 
-    // load initial directory
-    setTimeout(()=> this.loadDir(this.options.startPath || (window.nebula && window.nebula.fs && window.nebula.fs.getHomeDir? window.nebula.fs.getHomeDir() : '/')), 0);
-    setTimeout(()=> this._populateQuickAccess(), 100);
+        // Initialize
+        setTimeout(() => this.loadDir(this.options.startPath || (window.nebula && window.nebula.fs && window.nebula.fs.getHomeDir ? window.nebula.fs.getHomeDir() : '/')), 0);
+        setTimeout(() => this._populateQuickAccess(), 100);
 
         return container;
     }
 
+    // Generate breadcrumb navigation
+    updateBreadcrumb(path) {
+        const breadcrumb = this._els.breadcrumb;
+        breadcrumb.innerHTML = '';
+
+        const parts = path.split('/').filter(Boolean);
+        if (parts.length === 0) {
+            // Root directory
+            const segment = document.createElement('span');
+            segment.className = 'breadcrumb-segment';
+            segment.textContent = '/';
+            segment.dataset.path = '/';
+            breadcrumb.appendChild(segment);
+            return;
+        }
+
+        // Home segment
+        const homeSegment = document.createElement('span');
+        homeSegment.className = 'breadcrumb-segment';
+        homeSegment.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">home</span>';
+        homeSegment.dataset.path = '/';
+        breadcrumb.appendChild(homeSegment);
+
+        // Path segments
+        let currentPath = '';
+        parts.forEach((part) => {
+            // Add separator
+            const sep = document.createElement('span');
+            sep.className = 'breadcrumb-separator';
+            sep.textContent = '>';
+            breadcrumb.appendChild(sep);
+
+            currentPath += '/' + part;
+            const segment = document.createElement('span');
+            segment.className = 'breadcrumb-segment';
+            segment.textContent = part;
+            segment.dataset.path = currentPath;
+            breadcrumb.appendChild(segment);
+        });
+    }
+
     async loadDir(dirPath) {
         this.currentPath = await Promise.resolve(dirPath);
-        const { list, pathEl } = this._els;
-        pathEl.textContent = this.currentPath;
-        list.innerHTML = '<div class="picker-loading">Loading...</div>';
+        const { list } = this._els;
+
+        // Update breadcrumb
+        this.updateBreadcrumb(this.currentPath);
+
+        list.innerHTML = '<div class="picker-loading" style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--nebula-text-muted);">Loading...</div>';
 
         try {
             const names = await window.nebula.fs.readDir(this.currentPath);
@@ -297,95 +695,135 @@ class PickerApp {
         }
     }
 
-    // populate quick access buttons (Home, Desktop, Documents, Downloads)
+    // populate horizontal quick access bar
     async _populateQuickAccess() {
         try {
-            const col = this._els && this._els.quickCol;
-            if (!col) return;
+            const bar = this._els && this._els.quickAccessBar;
+            if (!bar) return;
+
             const home = await (window.nebula && window.nebula.fs && window.nebula.fs.getHomeDir ? window.nebula.fs.getHomeDir() : '/home');
             const quick = [
-                { name: 'Home', path: home },
-                { name: 'Desktop', path: (home.endsWith('/')?home:home+'/') + 'Desktop' },
-                { name: 'Documents', path: (home.endsWith('/')?home:home+'/') + 'Documents' },
-                { name: 'Downloads', path: (home.endsWith('/')?home:home+'/') + 'Downloads' }
+                { name: 'Home', path: home, icon: 'home' },
+                { name: 'Desktop', path: (home.endsWith('/') ? home : home + '/') + 'Desktop', icon: 'desktop_windows' },
+                { name: 'Documents', path: (home.endsWith('/') ? home : home + '/') + 'Documents', icon: 'description' },
+                { name: 'Downloads', path: (home.endsWith('/') ? home : home + '/') + 'Downloads', icon: 'download' },
+                { name: 'Pictures', path: (home.endsWith('/') ? home : home + '/') + 'Pictures', icon: 'image' },
+                { name: 'Music', path: (home.endsWith('/') ? home : home + '/') + 'Music', icon: 'music_note' }
             ];
-            col.innerHTML = '';
-            quick.forEach(q=>{
-                const b = document.createElement('button'); b.textContent = q.name; b.title = q.path; b.className='picker-quickbtn toolbar-btn';
-                b.addEventListener('click', ()=> this.loadDir(q.path));
-                col.appendChild(b);
+
+            bar.innerHTML = '';
+            quick.forEach(q => {
+                const b = document.createElement('button');
+                b.className = 'quick-access-btn';
+                b.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;">${q.icon}</span> ${q.name}`;
+                b.title = q.path;
+                b.addEventListener('click', () => this.loadDir(q.path));
+                bar.appendChild(b);
             });
 
-            // best-effort: try to read GTK bookmarks and show them below quick entries
-            const candidates = [
-                (home.endsWith('/')?home:home+'/') + '.config/gtk-3.0/bookmarks',
-                (home.endsWith('/')?home:home+'/') + '.config/gtk-4.0/bookmarks'
-            ];
-            for (const c of candidates) {
-                try {
-                    const raw = await window.nebula.fs.readFile(c);
-                    if (!raw) continue;
-                    const text = (typeof raw === 'string') ? raw : new TextDecoder().decode(raw);
-                    const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
-                    if (!lines.length) continue;
-                    const header = document.createElement('div'); header.textContent = 'Bookmarks'; header.style.fontSize='12px'; header.style.opacity='0.85'; header.style.marginTop='8px';
-                    col.appendChild(header);
-                    lines.forEach(l=>{
-                        // bookmarks format: file:///home/user/SomeFolder SomeName
-                        const parts = l.split(' ');
-                        const url = parts[0];
-                        let path = url.replace('file://','');
-                        const name = parts.slice(1).join(' ') || (path.split('/').pop() || path);
-                        const b = document.createElement('button'); b.textContent = name; b.title = path; b.className='picker-quickbtn toolbar-btn';
-                        b.addEventListener('click', ()=> this.loadDir(path));
-                        col.appendChild(b);
-                    });
-                    break; // load first bookmarks file found
-                } catch(e) { /* ignore missing files */ }
-            }
-        } catch(e){ console.warn('populateQuickAccess failed', e); }
+        } catch(e) {
+            console.warn('populateQuickAccess failed', e);
+        }
     }
 
     renderEntries() {
         const { list } = this._els;
         list.innerHTML = '';
+
+        // Add "up" directory entry
         if (this.currentPath && this.currentPath !== '/') {
-            const up = document.createElement('div'); up.className='picker-entry picker-up'; up.textContent='..'; up.addEventListener('click', ()=>{
-                const parent = this.currentPath.split('/').slice(0,-1).join('/') || '/'; this.loadDir(parent);
-            }); list.appendChild(up);
+            const up = document.createElement('div');
+            up.className = 'picker-entry picker-up';
+            up.dataset.path = '';
+            up.style.cssText = this.viewMode === 'grid'
+                ? 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;border-radius:var(--nebula-radius-sm);background:var(--nebula-bg-tertiary);cursor:pointer;border:2px dashed var(--nebula-border);color:var(--nebula-text-secondary);min-height:80px;'
+                : 'display:flex;gap:var(--nebula-space-sm);align-items:center;padding:var(--nebula-space-sm);border-radius:var(--nebula-radius-sm);background:var(--nebula-bg-tertiary);cursor:pointer;border:2px dashed var(--nebula-border);color:var(--nebula-text-secondary);min-height:48px;';
+
+            up.innerHTML = this.viewMode === 'grid'
+                ? '<span class="material-symbols-outlined" style="font-size:24px;">arrow_upward</span><div style="font-size:12px;margin-top:4px;">Up</div>'
+                : '<span class="material-symbols-outlined">arrow_back</span><div>Go up</div>';
+
+            up.addEventListener('click', () => {
+                const parent = this.currentPath.split('/').slice(0, -1).join('/') || '/';
+                this.loadDir(parent);
+            });
+
+            list.appendChild(up);
         }
 
+        // Filter and search entries
         const items = this.entries.filter(it => {
-            // hidden handling
+            // Hidden files handling
             if (!this.showHidden && it.name && it.name.startsWith('.')) return false;
-            // always show directories
+
+            // Search filtering
+            if (this.searchQuery && this.searchQuery.trim()) {
+                const query = this.searchQuery.toLowerCase();
+                if (!it.name.toLowerCase().includes(query)) return false;
+            }
+
+            // Always show directories
             if (it.isDirectory) return true;
-            // if a filter is active and not 'all', enforce extension matching
+
+            // File type filter
             if (this.activeFilter && this.activeFilter !== 'all' && this.filters && this.filters.length) {
-                const idx = parseInt(this.activeFilter,10);
+                const idx = parseInt(this.activeFilter, 10);
                 const filt = this.filters[idx];
                 if (filt && filt.extensions && filt.extensions.length) {
-                    const ext = (it.name||'').split('.').pop().toLowerCase();
-                    return filt.extensions.map(e=>e.toLowerCase()).includes(ext);
+                    const ext = (it.name || '').split('.').pop().toLowerCase();
+                    return filt.extensions.map(e => e.toLowerCase()).includes(ext);
                 }
             }
+
             return true;
         });
 
+        // Render entries
         for (const it of items) {
-            const el = document.createElement('div'); el.className='picker-entry'; el.dataset.path = it.path;
-            // entry layout
+            const el = document.createElement('div');
+            el.className = 'picker-entry';
+            el.dataset.path = it.path;
+
             if (this.viewMode === 'grid') {
-                el.style.cssText = 'display:flex;flex-direction:column;align-items:center;padding:12px;border-radius:6px;background:var(--nebula-bg-secondary);cursor:pointer;min-height:72px;';
+                el.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--nebula-space-md);border-radius:var(--nebula-radius-sm);background:var(--nebula-bg-secondary);cursor:pointer;min-height:100px;border:1px solid var(--nebula-border);transition:var(--nebula-transition-fast);';
+
+                const icon = document.createElement('div');
+                icon.innerHTML = it.isDirectory
+                    ? '<span class="material-symbols-outlined" style="font-size:32px;color:var(--nebula-primary);">folder</span>'
+                    : '<span class="material-symbols-outlined" style="font-size:32px;color:var(--nebula-text-secondary);">description</span>';
+
+                const name = document.createElement('div');
+                name.textContent = it.name;
+                name.style.cssText = 'margin-top:var(--nebula-space-xs);text-align:center;font-size:13px;line-height:1.3;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;';
+
+                el.appendChild(icon);
+                el.appendChild(name);
             } else {
-                el.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px;border-radius:6px;background:var(--nebula-bg-secondary);cursor:pointer;min-height:48px;';
+                el.style.cssText = 'display:flex;gap:var(--nebula-space-sm);align-items:center;padding:var(--nebula-space-sm) var(--nebula-space-md);border-radius:var(--nebula-radius-sm);background:var(--nebula-bg-secondary);cursor:pointer;min-height:48px;border:1px solid var(--nebula-border);transition:var(--nebula-transition-fast);';
+
+                const icon = document.createElement('div');
+                icon.innerHTML = it.isDirectory
+                    ? '<span class="material-symbols-outlined" style="font-size:20px;color:var(--nebula-primary);">folder</span>'
+                    : '<span class="material-symbols-outlined" style="font-size:20px;color:var(--nebula-text-secondary);">description</span>';
+                icon.style.cssText = 'min-width:24px;display:flex;align-items:center;justify-content:center;';
+
+                const name = document.createElement('div');
+                name.textContent = it.name;
+                name.style.cssText = 'flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+                el.appendChild(icon);
+                el.appendChild(name);
             }
-            const icon = document.createElement('div'); icon.textContent = it.isDirectory? '📁':'📄'; icon.style.width='28px'; icon.style.textAlign='center';
-            const name = document.createElement('div'); name.textContent = it.name; name.style.flex='1'; name.style.textAlign = this.viewMode === 'grid' ? 'center' : 'left';
-            // multiline/truncation: allow up to 2 lines with ellipsis
-            name.style.display = '-webkit-box'; name.style.webkitLineClamp = '2'; name.style.webkitBoxOrient = 'vertical'; name.style.overflow = 'hidden'; name.style.textOverflow = 'ellipsis';
-            el.appendChild(icon); el.appendChild(name);
+
             list.appendChild(el);
+        }
+
+        // Show message if no items found
+        if (items.length === 0) {
+            const message = document.createElement('div');
+            message.style.cssText = 'grid-column:1/-1;text-align:center;padding:3rem;color:var(--nebula-text-muted);';
+            message.textContent = this.searchQuery ? 'No files found matching your search' : 'This folder is empty';
+            list.appendChild(message);
         }
     }
 
@@ -398,56 +836,111 @@ class PickerApp {
     }
 
     async showPreviewFor(p) {
-        const preview = this._els.preview; preview.innerHTML = 'Loading preview...';
+        const preview = this._els.preview;
+        if (!preview) return;
+
+        preview.innerHTML = '<div style="text-align:center;color:var(--nebula-text-muted);padding:2rem;"><span class="material-symbols-outlined" style="display:block;font-size:32px;margin-bottom:8px;">hourglass_empty</span>Loading preview...</div>';
+
         try {
             const data = await window.nebula.fs.readFile(p);
+
             if (data instanceof Uint8Array || (data && data.buffer && data.buffer instanceof ArrayBuffer)) {
                 const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
                 const blob = new Blob([bytes]);
-                // Try to use createImageBitmap for faster decode and no object URL retention
+
+                // Try to create image preview
                 if (typeof createImageBitmap === 'function') {
                     try {
                         const bitmap = await createImageBitmap(blob);
                         const imgEl = document.createElement('canvas');
-                        imgEl.style.maxWidth = '100%'; imgEl.style.maxHeight = '100%';
-                        imgEl.width = bitmap.width; imgEl.height = bitmap.height;
+                        imgEl.style.cssText = 'max-width:100%;max-height:100%;border-radius:var(--nebula-radius-sm);';
+                        imgEl.width = bitmap.width;
+                        imgEl.height = bitmap.height;
                         const ctx = imgEl.getContext('2d');
                         ctx.drawImage(bitmap, 0, 0);
                         try { if (bitmap && typeof bitmap.close === 'function') bitmap.close(); } catch(e){}
-                        preview.innerHTML = ''; preview.appendChild(imgEl);
+
+                        const wrapper = document.createElement('div');
+                        wrapper.style.cssText = 'text-align:center;padding:1rem;';
+                        wrapper.appendChild(imgEl);
+
+                        const info = document.createElement('div');
+                        info.style.cssText = 'margin-top:8px;font-size:12px;color:var(--nebula-text-muted);';
+                        info.textContent = `${bitmap.width} × ${bitmap.height}`;
+                        wrapper.appendChild(info);
+
+                        preview.innerHTML = '';
+                        preview.appendChild(wrapper);
                         return;
                     } catch (e) {
                         // fallback to object URL
                     }
                 }
+
                 const url = URL.createObjectURL(blob);
-                const img = document.createElement('img'); img.style.maxWidth='100%'; img.style.maxHeight='100%';
+                const img = document.createElement('img');
+                img.style.cssText = 'max-width:100%;max-height:100%;border-radius:var(--nebula-radius-sm);';
                 img.onload = () => { try { URL.revokeObjectURL(url); } catch(e){} };
                 img.onerror = () => { try { URL.revokeObjectURL(url); } catch(e){} };
                 img.src = url;
-                preview.innerHTML = ''; preview.appendChild(img);
+
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'text-align:center;padding:1rem;';
+                wrapper.appendChild(img);
+                preview.innerHTML = '';
+                preview.appendChild(wrapper);
+
             } else if (typeof data === 'string') {
-                const pre = document.createElement('pre'); pre.style.whiteSpace='pre-wrap'; pre.style.margin=0; pre.textContent = data.slice(0,2000);
-                preview.innerHTML = ''; preview.appendChild(pre);
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'padding:1rem;';
+
+                const header = document.createElement('div');
+                header.style.cssText = 'font-weight:600;margin-bottom:8px;color:var(--nebula-text-primary);font-size:14px;';
+                header.textContent = 'Text Preview';
+
+                const pre = document.createElement('pre');
+                pre.style.cssText = 'white-space:pre-wrap;margin:0;font-size:12px;line-height:1.4;color:var(--nebula-text-secondary);background:var(--nebula-bg-tertiary);padding:12px;border-radius:var(--nebula-radius-sm);border:1px solid var(--nebula-border);overflow:auto;max-height:300px;';
+                pre.textContent = data.slice(0, 2000);
+
+                if (data.length > 2000) {
+                    const more = document.createElement('div');
+                    more.style.cssText = 'margin-top:8px;font-size:11px;color:var(--nebula-text-muted);font-style:italic;';
+                    more.textContent = `... and ${data.length - 2000} more characters`;
+                    wrapper.appendChild(more);
+                }
+
+                wrapper.appendChild(header);
+                wrapper.appendChild(pre);
+                preview.innerHTML = '';
+                preview.appendChild(wrapper);
+
             } else {
-                preview.innerHTML = '<div>Cannot preview this file</div>';
+                preview.innerHTML = '<div style="text-align:center;color:var(--nebula-text-muted);padding:2rem;"><span class="material-symbols-outlined" style="display:block;font-size:32px;margin-bottom:8px;">description</span>Cannot preview this file type</div>';
             }
         } catch (err) {
-            preview.innerHTML = `<div class="picker-error">Preview failed: ${err.message||err}</div>`;
+            preview.innerHTML = `<div style="text-align:center;color:var(--nebula-danger);padding:2rem;"><span class="material-symbols-outlined" style="display:block;font-size:32px;margin-bottom:8px;">error</span>Preview failed: ${err.message || err}</div>`;
         }
     }
 
     // centralized close that avoids double-resolve and always closes the window
     closeAndResolve(val) {
         if (this._closing) return; this._closing = true;
-        // close window first
-        try { if (window.windowManager && this.windowId) window.windowManager.close(this.windowId); } catch(e) {}
-        // call stored resolve if present
+
+        // call stored resolve first (before closing window to avoid race conditions)
         try {
             if (this._resolve) {
                 const r = this._resolve; this._resolve = null; r(val);
             }
         } catch(e) { console.warn('error resolving picker promise', e); }
+
+        // close window after resolving
+        try {
+            if (window.windowManager && this.windowId) {
+                window.windowManager.closeWindow(this.windowId);
+            }
+        } catch(e) {
+            console.warn('error closing picker window', e);
+        }
     }
 
     // Required API for WindowManager
