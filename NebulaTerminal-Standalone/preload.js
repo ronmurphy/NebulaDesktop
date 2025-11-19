@@ -2,34 +2,46 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose protected APIs to the renderer process
 contextBridge.exposeInMainWorld('terminal', {
-    // Create PTY terminal
+    // Create PTY terminal (returns { id, ... })
     create: (options) => ipcRenderer.invoke('terminal:create', options),
 
-    // Write data to PTY
-    write: (data) => ipcRenderer.send('terminal:write', data),
+    // Write data to specific PTY
+    write: (ptyId, data) => ipcRenderer.send('terminal:write', { ptyId, data }),
 
-    // Resize PTY
-    resize: (cols, rows) => ipcRenderer.send('terminal:resize', { cols, rows }),
+    // Resize specific PTY
+    resize: (ptyId, cols, rows) => ipcRenderer.send('terminal:resize', { ptyId, cols, rows }),
+
+    // Kill specific PTY
+    kill: (ptyId) => ipcRenderer.invoke('terminal:kill', ptyId),
 
     // Get terminal info
     info: () => ipcRenderer.invoke('terminal:info'),
 
-    // Listen for data from PTY
-    onData: (callback) => {
-        ipcRenderer.on('terminal:data', (event, data) => callback(data));
+    // Listen for data from specific PTY
+    onData: (ptyId, callback) => {
+        const handler = (event, data) => {
+            if (data.ptyId === ptyId) {
+                callback(data.data);
+            }
+        };
+        ipcRenderer.on('terminal:data', handler);
+        return () => ipcRenderer.removeListener('terminal:data', handler);
     },
 
     // Listen for terminal exit
-    onExit: (callback) => {
-        ipcRenderer.on('terminal:exit', (event, data) => callback(data));
+    onExit: (ptyId, callback) => {
+        const handler = (event, data) => {
+            if (data.ptyId === ptyId) {
+                callback(data);
+            }
+        };
+        ipcRenderer.on('terminal:exit', handler);
+        return () => ipcRenderer.removeListener('terminal:exit', handler);
     },
 
-    // Remove listeners
-    removeDataListener: () => {
+    // Remove all listeners
+    removeAllListeners: () => {
         ipcRenderer.removeAllListeners('terminal:data');
-    },
-
-    removeExitListener: () => {
         ipcRenderer.removeAllListeners('terminal:exit');
     }
 });
