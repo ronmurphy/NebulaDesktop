@@ -501,14 +501,18 @@ class InlineContentManager {
     // ===== FILE MANAGER =====
 
     async openFileManager(dirPath, pane) {
+        // Get home directory from terminal info
+        const terminalInfo = await window.terminal.info();
+        const homeDir = terminalInfo.home;
+
         // If no path specified, use pane's current working directory
         if (!dirPath) {
-            dirPath = pane.cwd || process.env.HOME;
+            dirPath = pane.cwd || homeDir;
         }
 
         // Resolve relative paths
         if (!dirPath.startsWith('/')) {
-            const basePath = pane.cwd || process.env.HOME;
+            const basePath = pane.cwd || homeDir;
             dirPath = basePath + '/' + dirPath;
         }
 
