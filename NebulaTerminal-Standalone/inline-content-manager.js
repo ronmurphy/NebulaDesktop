@@ -531,7 +531,9 @@ class InlineContentManager {
             searchQuery: '',
             allItems: [], // Store all items for search/filter
             filteredItems: [], // Items after filter/sort
-            selectedIndex: 0 // Currently selected item for keyboard nav
+            selectedIndex: 0, // Currently selected item for keyboard nav
+            selectedFiles: [], // Multi-select: array of selected file paths
+            contextMenu: null // Context menu element reference
         };
 
         await this.renderFileManager(newPane);

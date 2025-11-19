@@ -398,6 +398,52 @@ class NebulaTerminalApp {
                 return { success: false, error: error.message };
             }
         });
+
+        // File operations for file manager
+        ipcMain.handle('file:rename', async (event, { oldPath, newPath }) => {
+            try {
+                await fs.rename(oldPath, newPath);
+                return { success: true };
+            } catch (error) {
+                console.error('Failed to rename file:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('file:delete', async (event, filePath) => {
+            try {
+                const stats = await fs.stat(filePath);
+                if (stats.isDirectory()) {
+                    await fs.rmdir(filePath, { recursive: true });
+                } else {
+                    await fs.unlink(filePath);
+                }
+                return { success: true };
+            } catch (error) {
+                console.error('Failed to delete file:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('file:copy', async (event, { sourcePath, destPath }) => {
+            try {
+                await fs.copyFile(sourcePath, destPath);
+                return { success: true };
+            } catch (error) {
+                console.error('Failed to copy file:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('file:move', async (event, { sourcePath, destPath }) => {
+            try {
+                await fs.rename(sourcePath, destPath);
+                return { success: true };
+            } catch (error) {
+                console.error('Failed to move file:', error);
+                return { success: false, error: error.message };
+            }
+        });
     }
 
     init() {

@@ -52,7 +52,11 @@ contextBridge.exposeInMainWorld('fileAPI', {
     saveFile: (filePath, content) => ipcRenderer.invoke('file:save', { filePath, content }),
     selectFile: (extensions) => ipcRenderer.invoke('file:select', extensions),
     readDir: (dirPath) => ipcRenderer.invoke('file:readdir', dirPath),
-    stat: (filePath) => ipcRenderer.invoke('file:stat', filePath)
+    stat: (filePath) => ipcRenderer.invoke('file:stat', filePath),
+    rename: (oldPath, newPath) => ipcRenderer.invoke('file:rename', { oldPath, newPath }),
+    delete: (filePath) => ipcRenderer.invoke('file:delete', filePath),
+    copy: (sourcePath, destPath) => ipcRenderer.invoke('file:copy', { sourcePath, destPath }),
+    move: (sourcePath, destPath) => ipcRenderer.invoke('file:move', { sourcePath, destPath })
 });
 
 // Expose menu event listeners
