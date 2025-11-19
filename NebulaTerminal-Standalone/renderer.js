@@ -177,6 +177,7 @@ Features:
 🎨 Moveable Panes (Click-based)
 🌐 Inline Utilities (Image, Editor, Monaco, Web Browser!)
 💾 Layout Save/Load (Shareable JSON!)
+📁 Full File Manager (nfm) with Multi-Select!
 
 Nebula Commands (default: split mode):
 • nip <file> [--inline] - Image viewer
@@ -185,7 +186,8 @@ Nebula Commands (default: split mode):
 • niw <url> [--inline] - Full web browser!
 • nfm [path] - File manager with list/grid views
 
-Built with love using Electron & xterm.js`);
+Built with love using Electron & xterm.js
+Code by Claude 🤖✨`);
     }
 
     handleSaveLayout() {

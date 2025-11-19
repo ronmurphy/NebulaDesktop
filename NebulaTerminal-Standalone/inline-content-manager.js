@@ -1214,9 +1214,53 @@ window.fileManagerDeleteSelected = async function(paneId) {
 };
 
 window.fileManagerCopySelected = async function(paneId) {
-    alert('Copy to... (file picker not implemented yet)\n\nThis feature will let you select a destination folder.');
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    const selectedFiles = pane.fileManagerState.selectedFiles;
+    const destPath = prompt(`Copy ${selectedFiles.length} item${selectedFiles.length > 1 ? 's' : ''} to:\n\nEnter destination folder path:`, pane.fileManagerState.currentPath);
+
+    if (!destPath) return;
+
+    try {
+        for (const sourcePath of selectedFiles) {
+            const fileName = sourcePath.split('/').pop();
+            const newPath = destPath + '/' + fileName;
+            await window.fileAPI.copy(sourcePath, newPath);
+        }
+        alert(`✓ Copied ${selectedFiles.length} item${selectedFiles.length > 1 ? 's' : ''} successfully!`);
+        pane.fileManagerState.selectedFiles = [];
+        await tab.paneManager.inlineContentManager.renderFileManager(pane);
+    } catch (error) {
+        alert(`Copy failed: ${error.message}`);
+    }
 };
 
 window.fileManagerMoveSelected = async function(paneId) {
-    alert('Move to... (file picker not implemented yet)\n\nThis feature will let you select a destination folder.');
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    const selectedFiles = pane.fileManagerState.selectedFiles;
+    const destPath = prompt(`Move ${selectedFiles.length} item${selectedFiles.length > 1 ? 's' : ''} to:\n\nEnter destination folder path:`, pane.fileManagerState.currentPath);
+
+    if (!destPath) return;
+
+    try {
+        for (const sourcePath of selectedFiles) {
+            const fileName = sourcePath.split('/').pop();
+            const newPath = destPath + '/' + fileName;
+            await window.fileAPI.move(sourcePath, newPath);
+        }
+        alert(`✓ Moved ${selectedFiles.length} item${selectedFiles.length > 1 ? 's' : ''} successfully!`);
+        pane.fileManagerState.selectedFiles = [];
+        await tab.paneManager.inlineContentManager.renderFileManager(pane);
+    } catch (error) {
+        alert(`Move failed: ${error.message}`);
+    }
 };
