@@ -22,7 +22,8 @@ class NebulaTerminalApp {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                preload: path.join(__dirname, 'preload.js')
+                preload: path.join(__dirname, 'preload.js'),
+                webviewTag: true  // Enable webview for niw command
             }
         });
 

@@ -12,30 +12,39 @@ class InlineContentManager {
         // Trim and parse command
         const trimmed = input.trim();
 
-        // Image viewer: ip <file> [--split]
-        const ipMatch = trimmed.match(/^ip\s+(.+?)(\s+--split)?$/);
-        if (ipMatch) {
-            const filePath = ipMatch[1].trim();
-            const useSplit = !!ipMatch[2];
+        // nip <file> [--split] - Nebula Inline Picture
+        const nipMatch = trimmed.match(/^nip\s+(.+?)(\s+--split)?$/);
+        if (nipMatch) {
+            const filePath = nipMatch[1].trim();
+            const useSplit = !!nipMatch[2];
             this.openImageViewer(filePath, pane, useSplit);
             return true;
         }
 
-        // Simple text editor: ie <file> [--split]
-        const ieMatch = trimmed.match(/^ie\s+(.+?)(\s+--split)?$/);
-        if (ieMatch) {
-            const filePath = ieMatch[1].trim();
-            const useSplit = !!ieMatch[2];
+        // nie <file> [--split] - Nebula Inline Editor
+        const nieMatch = trimmed.match(/^nie\s+(.+?)(\s+--split)?$/);
+        if (nieMatch) {
+            const filePath = nieMatch[1].trim();
+            const useSplit = !!nieMatch[2];
             this.openTextEditor(filePath, pane, useSplit);
             return true;
         }
 
-        // Monaco editor: id <file> [--split]
-        const idMatch = trimmed.match(/^id\s+(.+?)(\s+--split)?$/);
-        if (idMatch) {
-            const filePath = idMatch[1].trim();
-            const useSplit = !!idMatch[2];
+        // nid <file> [--split] - Nebula Inline Developer (Monaco)
+        const nidMatch = trimmed.match(/^nid\s+(.+?)(\s+--split)?$/);
+        if (nidMatch) {
+            const filePath = nidMatch[1].trim();
+            const useSplit = !!nidMatch[2];
             this.openMonacoEditor(filePath, pane, useSplit);
+            return true;
+        }
+
+        // niw <url> [--split] - Nebula Inline Web
+        const niwMatch = trimmed.match(/^niw\s+(.+?)(\s+--split)?$/);
+        if (niwMatch) {
+            const url = niwMatch[1].trim();
+            const useSplit = !!niwMatch[2];
+            this.openWebViewer(url, pane, useSplit);
             return true;
         }
 
@@ -77,7 +86,6 @@ class InlineContentManager {
         container.appendChild(inlineDiv.firstElementChild);
 
         pane.term.write(`\x1b[32m✓ Image viewer opened: ${filePath}\x1b[0m\r\n`);
-        pane.term.write('$ ');
     }
 
     renderImageInPane(filePath, pane) {
@@ -132,7 +140,6 @@ class InlineContentManager {
         container.appendChild(inlineDiv.firstElementChild);
 
         pane.term.write(`\r\n\x1b[32m✓ Text editor opened: ${filePath}\x1b[0m\r\n`);
-        pane.term.write('$ ');
     }
 
     renderTextEditorInPane(filePath, content, pane) {
@@ -216,6 +223,78 @@ class InlineContentManager {
         // Add Ctrl+S handler
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KEY_S, () => {
             this.saveMonaco(editorId, filePath);
+        });
+    }
+
+    async openWebViewer(url, pane, useSplit) {
+        // Ensure URL has protocol
+        if (!url.match(/^https?:\/\//)) {
+            url = 'https://' + url;
+        }
+
+        if (useSplit) {
+            await this.paneManager.splitPane(pane.id, 'horizontal');
+            const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
+            this.renderWebViewInPane(url, newPane);
+        } else {
+            this.renderWebViewInline(url, pane);
+        }
+    }
+
+    renderWebViewInline(url, pane) {
+        const viewerId = `webview-${Date.now()}`;
+        const viewerHtml = `
+            <div class="inline-content web-viewer" data-url="${url}">
+                <div class="inline-header">
+                    <span class="inline-title">🌐 ${url}</span>
+                    <button class="inline-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+                <div class="inline-body">
+                    <webview id="${viewerId}" src="${url}" style="width: 100%; height: 400px;"></webview>
+                </div>
+            </div>
+        `;
+
+        const container = pane.element.querySelector('.pane-content');
+        const inlineDiv = document.createElement('div');
+        inlineDiv.innerHTML = viewerHtml;
+        container.appendChild(inlineDiv.firstElementChild);
+
+        pane.term.write(`\r\n\x1b[32m✓ Web viewer opened: ${url}\x1b[0m\r\n`);
+    }
+
+    renderWebViewInPane(url, pane) {
+        const viewerId = `webview-${Date.now()}`;
+        const contentDiv = pane.element.querySelector('.pane-content');
+
+        contentDiv.innerHTML = `
+            <div class="inline-content web-viewer fullscreen" data-url="${url}">
+                <div class="inline-header">
+                    <div class="web-nav-controls">
+                        <button class="inline-btn" onclick="document.getElementById('${viewerId}').goBack()" title="Back">←</button>
+                        <button class="inline-btn" onclick="document.getElementById('${viewerId}').goForward()" title="Forward">→</button>
+                        <button class="inline-btn" onclick="document.getElementById('${viewerId}').reload()" title="Reload">⟳</button>
+                        <input type="text" id="${viewerId}-url" value="${url}" class="web-url-bar"
+                            onkeydown="if(event.key==='Enter'){document.getElementById('${viewerId}').src=this.value}">
+                    </div>
+                    <button class="inline-close" onclick="window.tabManager.getActiveTab().paneManager.closePane(${pane.id})">×</button>
+                </div>
+                <div class="inline-body" style="flex: 1;">
+                    <webview id="${viewerId}" src="${url}" style="width: 100%; height: 100%;"></webview>
+                </div>
+            </div>
+        `;
+
+        // Update URL bar when navigation happens
+        const webview = document.getElementById(viewerId);
+        const urlBar = document.getElementById(`${viewerId}-url`);
+
+        webview.addEventListener('did-navigate', (e) => {
+            urlBar.value = e.url;
+        });
+
+        webview.addEventListener('did-navigate-in-page', (e) => {
+            urlBar.value = e.url;
         });
     }
 

@@ -420,6 +420,40 @@ html, body {
     padding: 0;
 }
 
+/* Web Viewer */
+.web-viewer .inline-body {
+    padding: 0;
+    background: #000;
+}
+
+.web-nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.web-url-bar {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    color: #00ff00;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Fira Code', monospace;
+}
+
+.web-url-bar:focus {
+    outline: none;
+    border-color: rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.1);
+}
+
+webview {
+    display: block;
+}
+
 /* Legacy terminal container - now unused */
 #terminal-container {
     width: 100%;
