@@ -5,10 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
     <title>Nebula Terminal</title>
+
+    <!-- xterm.js CSS -->
+    <link rel="stylesheet" href="node_modules/xterm/css/xterm.css">
+
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="terminal.css">
 </head>
 <body>
-    <div id="terminal-app"></div>
-    <script src="terminal.js"></script>
+    <div id="terminal-container"></div>
+
+    <!-- xterm.js -->
+    <script src="node_modules/xterm/lib/xterm.js"></script>
+
+    <!-- xterm.js addons -->
+    <script src="node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+    <script src="node_modules/xterm-addon-web-links/lib/xterm-addon-web-links.js"></script>
+    <script src="node_modules/xterm-addon-search/lib/xterm-addon-search.js"></script>
+
+    <!-- Terminal renderer -->
+    <script src="renderer.js"></script>
 </body>
 </html>

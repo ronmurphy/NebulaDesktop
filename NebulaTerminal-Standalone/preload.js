@@ -1,56 +1,35 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose protected APIs to the renderer process
-contextBridge.exposeInMainWorld('nebula', {
-    // System information
-    system: {
-        platform: process.platform
+contextBridge.exposeInMainWorld('terminal', {
+    // Create PTY terminal
+    create: (options) => ipcRenderer.invoke('terminal:create', options),
+
+    // Write data to PTY
+    write: (data) => ipcRenderer.send('terminal:write', data),
+
+    // Resize PTY
+    resize: (cols, rows) => ipcRenderer.send('terminal:resize', { cols, rows }),
+
+    // Get terminal info
+    info: () => ipcRenderer.invoke('terminal:info'),
+
+    // Listen for data from PTY
+    onData: (callback) => {
+        ipcRenderer.on('terminal:data', (event, data) => callback(data));
     },
 
-    // File System APIs
-    fs: {
-        readDir: (path) => ipcRenderer.invoke('fs:readdir', path),
-        readFile: (path) => ipcRenderer.invoke('fs:readfile', path),
-        writeFile: (path, data) => ipcRenderer.invoke('fs:writefile', path, data),
-        getHomeDir: () => ipcRenderer.invoke('fs:homedir'),
-        stat: (path) => ipcRenderer.invoke('fs:stat', path),
-        exists: (path) => ipcRenderer.invoke('fs:exists', path),
-        mkdir: (path, options) => ipcRenderer.invoke('fs:mkdir', path, options),
-        rmdir: (path) => ipcRenderer.invoke('fs:rmdir', path),
-        unlink: (path) => ipcRenderer.invoke('fs:unlink', path)
+    // Listen for terminal exit
+    onExit: (callback) => {
+        ipcRenderer.on('terminal:exit', (event, data) => callback(data));
     },
 
-    // Terminal operations
-    terminal: {
-        // Execute shell commands
-        exec: async (command, args = [], options = {}) => {
-            try {
-                return await ipcRenderer.invoke('terminal:exec', command, args, options);
-            } catch (error) {
-                return { stdout: '', stderr: error.message, exitCode: 1 };
-            }
-        },
+    // Remove listeners
+    removeDataListener: () => {
+        ipcRenderer.removeAllListeners('terminal:data');
+    },
 
-        // Get current working directory
-        getCwd: () => {
-            return localStorage.getItem('nebula-terminal-cwd') || process.env.HOME || '/home/user';
-        },
-
-        // Set current working directory
-        setCwd: (path) => {
-            localStorage.setItem('nebula-terminal-cwd', path);
-        },
-
-        // Get environment info
-        getEnv: () => {
-            return {
-                USER: process.env.USER || 'user',
-                HOME: process.env.HOME || '/home/user',
-                PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
-                SHELL: process.env.SHELL || '/bin/bash',
-                TERM: 'xterm-256color',
-                PWD: localStorage.getItem('nebula-terminal-cwd') || process.env.HOME || '/home/user'
-            };
-        }
+    removeExitListener: () => {
+        ipcRenderer.removeAllListeners('terminal:exit');
     }
 });
