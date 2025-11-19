@@ -56,6 +56,13 @@ class InlineContentManager {
             return true;
         }
 
+        // ngit - Nebula Git Manager (always opens in split pane)
+        const ngitMatch = trimmed.match(/^ngit$/);
+        if (ngitMatch) {
+            this.openGitManager(pane);
+            return true;
+        }
+
         return false; // Not a special command
     }
 
@@ -755,6 +762,207 @@ class InlineContentManager {
         return Math.round(bytes / Math.pow(k, i) * 10) / 10 + ' ' + sizes[i];
     }
 
+    // ===== GIT MANAGER =====
+
+    async openGitManager(pane) {
+        // Create new split pane with git manager
+        await this.paneManager.splitPane(pane.id, 'horizontal');
+        const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
+
+        // Store git manager state in the pane
+        newPane.gitManagerState = {
+            repoPath: pane.cwd || '.',
+            status: null,
+            branches: [],
+            currentBranch: '',
+            stagedFiles: [],
+            unstagedFiles: [],
+            untrackedFiles: []
+        };
+
+        await this.renderGitManager(newPane);
+    }
+
+    async renderGitManager(pane) {
+        const state = pane.gitManagerState;
+        const managerId = `gitmgr-${pane.id}`;
+
+        // Get git status
+        try {
+            await this.loadGitStatus(pane);
+        } catch (error) {
+            console.error('Git status failed:', error);
+        }
+
+        // Replace pane content with git manager
+        const content = pane.element.querySelector('.pane-content');
+        content.innerHTML = `
+            <div class="git-manager" id="${managerId}" data-pane-id="${pane.id}">
+                <div class="git-header">
+                    <div class="git-title">
+                        <span class="git-icon">🌳</span>
+                        <span>Git Manager</span>
+                    </div>
+                    <div class="git-branch-selector">
+                        <span>Branch:</span>
+                        <select class="git-branch-select" onchange="window.gitManagerSwitchBranch(${pane.id}, this.value)">
+                            ${state.branches.map(b => `<option value="${b}" ${b === state.currentBranch ? 'selected' : ''}>${b}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="git-toolbar">
+                    <button class="git-btn git-btn-primary" onclick="window.gitManagerStageAll(${pane.id})">📥 Stage All</button>
+                    <button class="git-btn" onclick="window.gitManagerUnstageAll(${pane.id})">📤 Unstage All</button>
+                    <button class="git-btn git-btn-primary" onclick="window.gitManagerCommit(${pane.id})">✅ Commit</button>
+                    <button class="git-btn git-btn-success" onclick="window.gitManagerPush(${pane.id})">⬆️ Push</button>
+                    <button class="git-btn" onclick="window.gitManagerPull(${pane.id})">⬇️ Pull</button>
+                    <button class="git-btn" onclick="window.gitManagerRefresh(${pane.id})">⟳</button>
+                </div>
+                <div class="git-content">
+                    ${this.renderGitFileList(state, pane.id)}
+                </div>
+            </div>
+        `;
+    }
+
+    async loadGitStatus(pane) {
+        const state = pane.gitManagerState;
+
+        // Run git status --porcelain
+        const statusResult = await this.runGitCommand(state.repoPath, ['status', '--porcelain']);
+        const branchResult = await this.runGitCommand(state.repoPath, ['branch']);
+        const branchesResult = await this.runGitCommand(state.repoPath, ['branch', '-a']);
+
+        // Parse current branch
+        const branchLines = branchResult.split('\n');
+        state.currentBranch = branchLines.find(l => l.startsWith('*'))?.replace('* ', '').trim() || 'main';
+
+        // Parse all branches
+        state.branches = branchesResult.split('\n')
+            .filter(l => l.trim())
+            .map(l => l.replace('* ', '').trim())
+            .filter(l => !l.includes('->'))
+            .map(l => l.replace('remotes/origin/', ''))
+            .filter((v, i, a) => a.indexOf(v) === i); // unique
+
+        // Parse status
+        state.stagedFiles = [];
+        state.unstagedFiles = [];
+        state.untrackedFiles = [];
+
+        const lines = statusResult.split('\n').filter(l => l.trim());
+        for (const line of lines) {
+            const status = line.substring(0, 2);
+            const file = line.substring(3);
+
+            if (status[0] !== ' ' && status[0] !== '?') {
+                // Staged
+                state.stagedFiles.push({ file, status: status[0] });
+            }
+            if (status[1] !== ' ' && status[1] !== '?') {
+                // Unstaged
+                state.unstagedFiles.push({ file, status: status[1] });
+            }
+            if (status === '??') {
+                // Untracked
+                state.untrackedFiles.push({ file });
+            }
+        }
+    }
+
+    async runGitCommand(cwd, args) {
+        return new Promise((resolve, reject) => {
+            const { spawn } = require('child_process');
+            const proc = spawn('git', args, { cwd });
+
+            let stdout = '';
+            let stderr = '';
+
+            proc.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+
+            proc.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            proc.on('close', (code) => {
+                if (code === 0) {
+                    resolve(stdout);
+                } else {
+                    reject(new Error(stderr || `Git command failed with code ${code}`));
+                }
+            });
+        });
+    }
+
+    renderGitFileList(state, paneId) {
+        let html = '';
+
+        // Staged files
+        if (state.stagedFiles.length > 0) {
+            html += '<div class="git-section">';
+            html += '<div class="git-section-header">📦 Staged Changes (' + state.stagedFiles.length + ')</div>';
+            html += state.stagedFiles.map(f => `
+                <div class="git-file-item git-staged">
+                    <input type="checkbox" class="git-checkbox" checked
+                           onclick="window.gitManagerUnstageFile(${paneId}, '${f.file}')">
+                    <span class="git-status">${this.getGitStatusIcon(f.status)}</span>
+                    <span class="git-filename">${f.file}</span>
+                </div>
+            `).join('');
+            html += '</div>';
+        }
+
+        // Unstaged files
+        if (state.unstagedFiles.length > 0) {
+            html += '<div class="git-section">';
+            html += '<div class="git-section-header">📝 Unstaged Changes (' + state.unstagedFiles.length + ')</div>';
+            html += state.unstagedFiles.map(f => `
+                <div class="git-file-item git-unstaged">
+                    <input type="checkbox" class="git-checkbox"
+                           onclick="window.gitManagerStageFile(${paneId}, '${f.file}')">
+                    <span class="git-status">${this.getGitStatusIcon(f.status)}</span>
+                    <span class="git-filename">${f.file}</span>
+                </div>
+            `).join('');
+            html += '</div>';
+        }
+
+        // Untracked files
+        if (state.untrackedFiles.length > 0) {
+            html += '<div class="git-section">';
+            html += '<div class="git-section-header">❓ Untracked Files (' + state.untrackedFiles.length + ')</div>';
+            html += state.untrackedFiles.map(f => `
+                <div class="git-file-item git-untracked">
+                    <input type="checkbox" class="git-checkbox"
+                           onclick="window.gitManagerStageFile(${paneId}, '${f.file}')">
+                    <span class="git-status">➕</span>
+                    <span class="git-filename">${f.file}</span>
+                </div>
+            `).join('');
+            html += '</div>';
+        }
+
+        if (state.stagedFiles.length === 0 && state.unstagedFiles.length === 0 && state.untrackedFiles.length === 0) {
+            html = '<div class="git-empty">✨ Working tree clean!</div>';
+        }
+
+        return html;
+    }
+
+    getGitStatusIcon(status) {
+        const icons = {
+            'A': '➕',  // Added
+            'M': '📝',  // Modified
+            'D': '🗑️',  // Deleted
+            'R': '🔄',  // Renamed
+            'C': '📋',  // Copied
+            'U': '⚠️'   // Updated but unmerged
+        };
+        return icons[status] || '❓';
+    }
+
     sortFileItems(items, sortBy) {
         const [field, direction] = sortBy.split('-');
         const ascending = direction === 'asc';
@@ -1262,5 +1470,275 @@ window.fileManagerMoveSelected = async function(paneId) {
         await tab.paneManager.inlineContentManager.renderFileManager(pane);
     } catch (error) {
         alert(`Move failed: ${error.message}`);
+    }
+};
+
+// ==================== GIT MANAGER HELPER FUNCTIONS ====================
+
+window.gitManagerStageFile = async function(paneId, file) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    try {
+        const state = pane.gitManagerState;
+        await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['add', file]);
+        await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+        await tab.paneManager.inlineContentManager.renderGitManager(pane);
+    } catch (error) {
+        alert(`Failed to stage file: ${error.message}`);
+    }
+};
+
+window.gitManagerUnstageFile = async function(paneId, file) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    try {
+        const state = pane.gitManagerState;
+        await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['reset', 'HEAD', file]);
+        await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+        await tab.paneManager.inlineContentManager.renderGitManager(pane);
+    } catch (error) {
+        alert(`Failed to unstage file: ${error.message}`);
+    }
+};
+
+window.gitManagerStageAll = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    try {
+        const state = pane.gitManagerState;
+        await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['add', '.']);
+        await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+        await tab.paneManager.inlineContentManager.renderGitManager(pane);
+    } catch (error) {
+        alert(`Failed to stage all files: ${error.message}`);
+    }
+};
+
+window.gitManagerUnstageAll = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    try {
+        const state = pane.gitManagerState;
+        await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['reset', 'HEAD']);
+        await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+        await tab.paneManager.inlineContentManager.renderGitManager(pane);
+    } catch (error) {
+        alert(`Failed to unstage all files: ${error.message}`);
+    }
+};
+
+window.gitManagerCommit = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    const state = pane.gitManagerState;
+
+    // Check if there are staged changes
+    if (state.stagedFiles.length === 0) {
+        alert('No staged changes to commit.');
+        return;
+    }
+
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'git-commit-modal';
+    modal.innerHTML = `
+        <div class="git-commit-modal-content">
+            <div class="git-commit-header">
+                <h3>📝 Commit Changes</h3>
+                <button class="git-modal-close" onclick="this.closest('.git-commit-modal').remove()">✖</button>
+            </div>
+            <div class="git-commit-body">
+                <label>Commit Message:</label>
+                <textarea class="git-commit-message" placeholder="Enter your commit message here..." rows="8"></textarea>
+                <div class="git-commit-preview">
+                    <strong>Files to commit:</strong>
+                    <div class="git-commit-files">
+                        ${state.stagedFiles.map(f => `<div class="git-commit-file">✓ ${f}</div>`).join('')}
+                    </div>
+                </div>
+            </div>
+            <div class="git-commit-footer">
+                <button class="git-btn git-btn-cancel" onclick="this.closest('.git-commit-modal').remove()">Cancel</button>
+                <button class="git-btn git-btn-commit" id="git-commit-submit-${paneId}">Commit</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Focus textarea
+    const textarea = modal.querySelector('.git-commit-message');
+    textarea.focus();
+
+    // Handle submit
+    document.getElementById(`git-commit-submit-${paneId}`).addEventListener('click', async () => {
+        const message = textarea.value.trim();
+        if (!message) {
+            alert('Please enter a commit message.');
+            return;
+        }
+
+        try {
+            await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['commit', '-m', message]);
+            modal.remove();
+            alert(`✓ Committed ${state.stagedFiles.length} file${state.stagedFiles.length > 1 ? 's' : ''} successfully!`);
+            await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+            await tab.paneManager.inlineContentManager.renderGitManager(pane);
+        } catch (error) {
+            alert(`Commit failed: ${error.message}`);
+        }
+    });
+
+    // Handle Enter to submit (Ctrl+Enter)
+    textarea.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'Enter') {
+            document.getElementById(`git-commit-submit-${paneId}`).click();
+        }
+    });
+};
+
+window.gitManagerPush = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    const state = pane.gitManagerState;
+
+    // Ask if force push is needed
+    const forceConfirm = confirm(`Push to remote?\n\nCurrent branch: ${state.currentBranch}\n\nClick "OK" for normal push\nClick "Cancel" to abort\n\nTip: Hold Shift+Click to force push`);
+
+    if (!forceConfirm) return;
+
+    const force = window.event && window.event.shiftKey;
+
+    try {
+        const args = force ? ['push', '--force'] : ['push'];
+        await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, args);
+        alert(`✓ Pushed successfully${force ? ' (forced)' : ''}!`);
+        await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+        await tab.paneManager.inlineContentManager.renderGitManager(pane);
+    } catch (error) {
+        if (!force) {
+            const forceRetry = confirm(`Push failed: ${error.message}\n\nDo you want to force push?`);
+            if (forceRetry) {
+                try {
+                    await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['push', '--force']);
+                    alert('✓ Force pushed successfully!');
+                    await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+                    await tab.paneManager.inlineContentManager.renderGitManager(pane);
+                } catch (forceError) {
+                    alert(`Force push failed: ${forceError.message}`);
+                }
+            }
+        } else {
+            alert(`Force push failed: ${error.message}`);
+        }
+    }
+};
+
+window.gitManagerPull = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    const state = pane.gitManagerState;
+
+    // Ask if force pull is needed
+    const pullType = confirm(`Pull from remote?\n\nCurrent branch: ${state.currentBranch}\n\nClick "OK" for normal pull\nClick "Cancel" to abort\n\nTip: Hold Shift+Click to force pull (reset --hard)`);
+
+    if (!pullType) return;
+
+    const force = window.event && window.event.shiftKey;
+
+    try {
+        if (force) {
+            // Force pull: fetch and reset hard
+            await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['fetch', 'origin']);
+            await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['reset', '--hard', `origin/${state.currentBranch}`]);
+            alert('✓ Force pulled successfully! (reset to remote)');
+        } else {
+            await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['pull']);
+            alert('✓ Pulled successfully!');
+        }
+        await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+        await tab.paneManager.inlineContentManager.renderGitManager(pane);
+    } catch (error) {
+        if (!force) {
+            const forceRetry = confirm(`Pull failed: ${error.message}\n\nDo you want to force pull? (This will reset to remote and discard local changes!)`);
+            if (forceRetry) {
+                try {
+                    await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['fetch', 'origin']);
+                    await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['reset', '--hard', `origin/${state.currentBranch}`]);
+                    alert('✓ Force pulled successfully! (reset to remote)');
+                    await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+                    await tab.paneManager.inlineContentManager.renderGitManager(pane);
+                } catch (forceError) {
+                    alert(`Force pull failed: ${forceError.message}`);
+                }
+            }
+        } else {
+            alert(`Force pull failed: ${error.message}`);
+        }
+    }
+};
+
+window.gitManagerSwitchBranch = async function(paneId, branch) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    const state = pane.gitManagerState;
+
+    // Don't switch if already on this branch
+    if (branch === state.currentBranch) return;
+
+    try {
+        await tab.paneManager.inlineContentManager.runGitCommand(state.repoPath, ['checkout', branch]);
+        alert(`✓ Switched to branch: ${branch}`);
+        await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+        await tab.paneManager.inlineContentManager.renderGitManager(pane);
+    } catch (error) {
+        alert(`Branch switch failed: ${error.message}`);
+    }
+};
+
+window.gitManagerRefresh = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.gitManagerState) return;
+
+    try {
+        await tab.paneManager.inlineContentManager.loadGitStatus(pane);
+        await tab.paneManager.inlineContentManager.renderGitManager(pane);
+    } catch (error) {
+        alert(`Refresh failed: ${error.message}`);
     }
 };
