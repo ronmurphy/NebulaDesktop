@@ -526,7 +526,10 @@ class InlineContentManager {
             viewMode: 'list', // 'list' or 'grid'
             history: [dirPath],
             historyIndex: 0,
-            showHidden: false
+            showHidden: false,
+            sortBy: 'name-asc',
+            searchQuery: '',
+            allItems: [] // Store all items for search/filter
         };
 
         await this.renderFileManager(newPane);
@@ -545,17 +548,22 @@ class InlineContentManager {
             if (result.success) {
                 items = result.items;
 
+                // Store all items for search/filter
+                state.allItems = items;
+
                 // Filter hidden files if needed
                 if (!state.showHidden) {
                     items = items.filter(item => !item.name.startsWith('.'));
                 }
 
-                // Sort: directories first, then files, alphabetically
-                items.sort((a, b) => {
-                    if (a.isDirectory && !b.isDirectory) return -1;
-                    if (!a.isDirectory && b.isDirectory) return 1;
-                    return a.name.localeCompare(b.name);
-                });
+                // Apply search filter
+                if (state.searchQuery) {
+                    const query = state.searchQuery.toLowerCase();
+                    items = items.filter(item => item.name.toLowerCase().includes(query));
+                }
+
+                // Sort based on sortBy setting
+                items = this.sortFileItems(items, state.sortBy);
             } else {
                 error = result.error;
             }
@@ -572,15 +580,26 @@ class InlineContentManager {
                         <button class="fm-btn" onclick="window.fileManagerGoBack(${pane.id})" title="Back" ${state.historyIndex === 0 ? 'disabled' : ''}>←</button>
                         <button class="fm-btn" onclick="window.fileManagerGoForward(${pane.id})" title="Forward" ${state.historyIndex === state.history.length - 1 ? 'disabled' : ''}>→</button>
                         <button class="fm-btn" onclick="window.fileManagerGoUp(${pane.id})" title="Up">↑</button>
+                        <button class="fm-btn" onclick="window.fileManagerRefresh(${pane.id})" title="Refresh">⟳</button>
+                    </div>
+                    <div class="fm-search-container">
+                        <input type="text" class="fm-search-input" id="fm-search-${pane.id}" placeholder="🔍 Search files..."
+                            oninput="window.fileManagerSearch(${pane.id}, this.value)">
                     </div>
                     <div class="fm-controls">
+                        <select class="fm-sort-select" onchange="window.fileManagerSort(${pane.id}, this.value)" title="Sort by">
+                            <option value="name-asc" ${state.sortBy === 'name-asc' ? 'selected' : ''}>Name ↑</option>
+                            <option value="name-desc" ${state.sortBy === 'name-desc' ? 'selected' : ''}>Name ↓</option>
+                            <option value="size-asc" ${state.sortBy === 'size-asc' ? 'selected' : ''}>Size ↑</option>
+                            <option value="size-desc" ${state.sortBy === 'size-desc' ? 'selected' : ''}>Size ↓</option>
+                            <option value="date-asc" ${state.sortBy === 'date-asc' ? 'selected' : ''}>Date ↑</option>
+                            <option value="date-desc" ${state.sortBy === 'date-desc' ? 'selected' : ''}>Date ↓</option>
+                            <option value="type-asc" ${state.sortBy === 'type-asc' ? 'selected' : ''}>Type ↑</option>
+                            <option value="type-desc" ${state.sortBy === 'type-desc' ? 'selected' : ''}>Type ↓</option>
+                        </select>
                         <button class="fm-btn" onclick="window.fileManagerToggleView(${pane.id})" title="Toggle View">${state.viewMode === 'list' ? '⊞' : '☰'}</button>
                         <button class="fm-btn" onclick="window.fileManagerToggleHidden(${pane.id})" title="Show/Hide Hidden Files">${state.showHidden ? '👁️' : '👁️‍🗨️'}</button>
                         <button class="fm-btn fm-terminal-btn" onclick="window.fileManagerOpenTerminal(${pane.id})" title="Open Terminal Here">⌘</button>
-                    </div>
-                    <div class="fm-pane-controls">
-                        <button class="fm-btn" onclick="window.tabManager.getActiveTab().paneManager.requestPaneMove(${pane.id})" title="Move Pane">⇄</button>
-                        <button class="fm-btn" onclick="window.tabManager.getActiveTab().paneManager.closePane(${pane.id})" title="Close">×</button>
                     </div>
                 </div>
                 <div class="fm-breadcrumb">
@@ -680,6 +699,40 @@ class InlineContentManager {
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return Math.round(bytes / Math.pow(k, i) * 10) / 10 + ' ' + sizes[i];
+    }
+
+    sortFileItems(items, sortBy) {
+        const [field, direction] = sortBy.split('-');
+        const ascending = direction === 'asc';
+
+        return items.sort((a, b) => {
+            // Always put directories first in list view
+            if (a.isDirectory && !b.isDirectory) return -1;
+            if (!a.isDirectory && b.isDirectory) return 1;
+
+            let compareValue = 0;
+
+            switch (field) {
+                case 'name':
+                    compareValue = a.name.localeCompare(b.name);
+                    break;
+                case 'size':
+                    compareValue = (a.size || 0) - (b.size || 0);
+                    break;
+                case 'date':
+                    const dateA = a.modified ? new Date(a.modified).getTime() : 0;
+                    const dateB = b.modified ? new Date(b.modified).getTime() : 0;
+                    compareValue = dateA - dateB;
+                    break;
+                case 'type':
+                    const extA = a.name.split('.').pop().toLowerCase();
+                    const extB = b.name.split('.').pop().toLowerCase();
+                    compareValue = extA.localeCompare(extB);
+                    break;
+            }
+
+            return ascending ? compareValue : -compareValue;
+        });
     }
 }
 
@@ -832,4 +885,36 @@ window.fileManagerOpenTerminal = async function(paneId) {
             newPane.inputBuffer = '';
         }
     }
+};
+
+window.fileManagerRefresh = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+window.fileManagerSearch = async function(paneId, query) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    pane.fileManagerState.searchQuery = query;
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+window.fileManagerSort = async function(paneId, sortBy) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    pane.fileManagerState.sortBy = sortBy;
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
 };
