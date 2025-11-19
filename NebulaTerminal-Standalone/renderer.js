@@ -169,31 +169,59 @@ class NebulaTerminalRenderer {
     }
 
     setupMenuListeners() {
-        // Listen for menu events from main process
-        window.addEventListener('message', (event) => {
-            if (event.data && event.data.type) {
-                this.handleMenuEvent(event.data.type);
-            }
-        });
-
-        // Listen for IPC events via preload if available
-        if (window.ipcRenderer) {
-            window.ipcRenderer.on('menu:open-settings', () => openSettings());
-            window.ipcRenderer.on('menu:theme-switcher', () => openSettings());
-            window.ipcRenderer.on('menu:copy', () => this.handleCopy());
-            window.ipcRenderer.on('menu:paste', () => this.handlePaste());
-            window.ipcRenderer.on('menu:find', () => this.openSearch());
-            window.ipcRenderer.on('menu:font-increase', () => this.increaseFontSize());
-            window.ipcRenderer.on('menu:font-decrease', () => this.decreaseFontSize());
-            window.ipcRenderer.on('menu:font-reset', () => this.resetFontSize());
-            window.ipcRenderer.on('menu:about', () => {
+        // Listen for menu events via the menuEvents API exposed by preload
+        if (window.menuEvents) {
+            window.menuEvents.onOpenSettings(() => {
+                console.log('Menu event: Open Settings');
                 openSettings();
-                // Switch to about tab
+            });
+
+            window.menuEvents.onThemeSwitcher(() => {
+                console.log('Menu event: Theme Switcher');
+                openSettings();
+            });
+
+            window.menuEvents.onCopy(() => {
+                console.log('Menu event: Copy');
+                this.handleCopy();
+            });
+
+            window.menuEvents.onPaste(() => {
+                console.log('Menu event: Paste');
+                this.handlePaste();
+            });
+
+            window.menuEvents.onFind(() => {
+                console.log('Menu event: Find');
+                this.openSearch();
+            });
+
+            window.menuEvents.onFontIncrease(() => {
+                console.log('Menu event: Font Increase');
+                this.increaseFontSize();
+            });
+
+            window.menuEvents.onFontDecrease(() => {
+                console.log('Menu event: Font Decrease');
+                this.decreaseFontSize();
+            });
+
+            window.menuEvents.onFontReset(() => {
+                console.log('Menu event: Font Reset');
+                this.resetFontSize();
+            });
+
+            window.menuEvents.onAbout(() => {
+                console.log('Menu event: About');
+                openSettings();
+                // Switch to about tab after modal loads
                 setTimeout(() => {
                     const aboutTab = document.querySelector('[data-tab="about"]');
                     if (aboutTab) aboutTab.click();
-                }, 100);
+                }, 200);
             });
+        } else {
+            console.warn('menuEvents API not available - menu shortcuts will not work');
         }
     }
 

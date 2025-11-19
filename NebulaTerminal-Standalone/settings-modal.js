@@ -20,6 +20,10 @@ class SettingsModal {
 
     setupModal() {
         this.modal = document.getElementById('settings-modal');
+        console.log('Settings modal setup - found modal:', !!this.modal);
+        if (!this.modal) {
+            console.error('Settings modal element not found! Make sure settings-modal.html loaded correctly.');
+        }
     }
 
     setupTabs() {
@@ -292,8 +296,20 @@ class SettingsModal {
 
 // Global functions called from HTML
 function openSettings() {
+    console.log('openSettings() called');
+    console.log('settingsModal exists:', !!window.settingsModal);
+    console.log('modal element:', document.getElementById('settings-modal'));
+
     if (window.settingsModal) {
         window.settingsModal.open();
+    } else {
+        console.error('settingsModal not initialized!');
+        // Try to initialize it
+        if (window.SettingsModal) {
+            window.settingsModal = new SettingsModal();
+            window.settingsModal.init();
+            setTimeout(() => window.settingsModal.open(), 500);
+        }
     }
 }
 
