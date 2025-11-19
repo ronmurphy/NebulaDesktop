@@ -37,6 +37,7 @@ class PaneManager {
         paneHeader.innerHTML = `
             <div class="pane-title">Pane ${paneId}</div>
             <div class="pane-controls">
+                <button class="pane-control-btn move-pane" title="Move Pane">⇄</button>
                 <button class="pane-control-btn split-horizontal" title="Split Horizontal (Ctrl+Shift+H)">⬌</button>
                 <button class="pane-control-btn split-vertical" title="Split Vertical (Ctrl+Shift+V)">⬍</button>
                 ${!isInitial ? '<button class="pane-control-btn close-pane" title="Close Pane (Ctrl+Shift+W)">×</button>' : ''}
@@ -181,6 +182,15 @@ class PaneManager {
 
         const header = pane.element.querySelector('.pane-header');
 
+        // Move pane button
+        const moveBtn = header.querySelector('.move-pane');
+        if (moveBtn) {
+            moveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showMoveOverlay(pane);
+            });
+        }
+
         // Split horizontal button
         const splitHBtn = header.querySelector('.split-horizontal');
         if (splitHBtn) {
@@ -209,75 +219,21 @@ class PaneManager {
                 });
             }
         }
-
-        // Drag and drop functionality
-        this.setupPaneDragAndDrop(pane, header);
     }
 
-    setupPaneDragAndDrop(pane, header) {
-        let isDragging = false;
-        let dragStartX = 0;
-        let dragStartY = 0;
-        let dropZoneOverlay = null;
+    showMoveOverlay(sourcePane) {
+        // If there's only one pane, can't move
+        if (this.panes.length <= 1) {
+            console.log('Cannot move: only one pane');
+            return;
+        }
 
-        header.addEventListener('mousedown', (e) => {
-            // Don't start drag if clicking on buttons
-            if (e.target.tagName === 'BUTTON') return;
-
-            isDragging = true;
-            dragStartX = e.clientX;
-            dragStartY = e.clientY;
-
-            // Add dragging class after small movement to prevent accidental drags
-            const onMove = (moveEvent) => {
-                const deltaX = Math.abs(moveEvent.clientX - dragStartX);
-                const deltaY = Math.abs(moveEvent.clientY - dragStartY);
-
-                if (deltaX > 5 || deltaY > 5) {
-                    pane.element.classList.add('dragging');
-                    this.createDropZoneOverlay(pane);
-                    document.removeEventListener('mousemove', onMove);
-                }
-            };
-
-            document.addEventListener('mousemove', onMove);
-
-            const cleanup = () => {
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', cleanup);
-            };
-            document.addEventListener('mouseup', cleanup);
-        });
-
-        document.addEventListener('mouseup', (e) => {
-            if (!isDragging) return;
-
-            isDragging = false;
-            pane.element.classList.remove('dragging');
-
-            // Check if dropped on a drop zone
-            const dropZone = document.elementFromPoint(e.clientX, e.clientY);
-            if (dropZone && dropZone.classList.contains('drop-zone')) {
-                const targetPaneId = parseInt(dropZone.dataset.targetPane);
-                const dropPosition = dropZone.dataset.position;
-
-                if (targetPaneId && dropPosition) {
-                    this.reorganizePane(pane.id, targetPaneId, dropPosition);
-                }
-            }
-
-            // Remove drop zone overlay
-            this.removeDropZoneOverlay();
-        });
-    }
-
-    createDropZoneOverlay(draggedPane) {
-        // Remove existing overlay
+        // Remove any existing overlay
         this.removeDropZoneOverlay();
 
-        // Create overlay for each pane
+        // Create overlay for each pane except the source
         this.panes.forEach(targetPane => {
-            if (targetPane.id === draggedPane.id) return; // Skip dragged pane
+            if (targetPane.id === sourcePane.id) return; // Skip source pane
 
             const overlay = document.createElement('div');
             overlay.className = 'pane-drop-zone-overlay active';
@@ -298,11 +254,28 @@ class PaneManager {
                     zone.classList.remove('hover');
                 });
 
+                // Click to move
+                zone.addEventListener('click', () => {
+                    this.reorganizePane(sourcePane.id, targetPane.id, pos);
+                    this.removeDropZoneOverlay();
+                });
+
                 overlay.appendChild(zone);
             });
 
             targetPane.element.appendChild(overlay);
         });
+
+        // Click anywhere else to cancel
+        const cancelHandler = (e) => {
+            if (!e.target.classList.contains('drop-zone')) {
+                this.removeDropZoneOverlay();
+                document.removeEventListener('click', cancelHandler);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', cancelHandler);
+        }, 100);
     }
 
     removeDropZoneOverlay() {
@@ -319,9 +292,6 @@ class PaneManager {
 
         if (!sourcePane || !targetPane) return;
 
-        // For now, just split the target pane and move source content
-        // In a full implementation, this would reorganize the layout tree
-
         if (position === 'center') {
             // Swap pane contents
             this.swapPanes(sourcePaneId, targetPaneId);
@@ -334,10 +304,10 @@ class PaneManager {
             setTimeout(() => {
                 const newPane = this.panes[this.panes.length - 1];
                 if (position === 'left' || position === 'top') {
-                    // Swap to put dragged pane first
+                    // Swap to put source pane first
                     this.swapPanes(sourcePaneId, newPane.id);
                 } else {
-                    // Move dragged pane to new position
+                    // Move source pane to new position
                     this.swapPanes(sourcePaneId, newPane.id);
                 }
             }, 100);

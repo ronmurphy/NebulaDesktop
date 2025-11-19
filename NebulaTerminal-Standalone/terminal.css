@@ -542,15 +542,9 @@ webview {
     /* Keep dark theme even in light mode for terminal aesthetic */
 }
 
-/* Draggable Panes System */
+/* Moveable Panes System */
 .pane-header {
-    cursor: move;
     user-select: none;
-}
-
-.pane.dragging {
-    opacity: 0.5;
-    pointer-events: none;
 }
 
 .pane-drop-zone-overlay {
@@ -573,7 +567,8 @@ webview {
     background: rgba(0, 255, 0, 0.1);
     border: 2px dashed rgba(0, 255, 0, 0.3);
     transition: all 0.2s;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 .drop-zone.hover {

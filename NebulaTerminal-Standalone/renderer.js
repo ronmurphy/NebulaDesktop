@@ -99,21 +99,28 @@ class NebulaTerminalRenderer {
 
     handleCopy() {
         const activeTab = this.tabManager.getActiveTab();
-        if (activeTab) {
-            const selection = activeTab.term.getSelection();
-            if (selection) {
-                navigator.clipboard.writeText(selection);
-                console.log('Copied to clipboard');
+        if (activeTab && activeTab.paneManager) {
+            const activePane = activeTab.paneManager.getActivePane();
+            if (activePane && activePane.term) {
+                const selection = activePane.term.getSelection();
+                if (selection) {
+                    navigator.clipboard.writeText(selection);
+                    console.log('Copied to clipboard:', selection.substring(0, 50));
+                }
             }
         }
     }
 
     handlePaste() {
         const activeTab = this.tabManager.getActiveTab();
-        if (activeTab) {
-            navigator.clipboard.readText().then((text) => {
-                window.terminal.write(activeTab.ptyId, text);
-            });
+        if (activeTab && activeTab.paneManager) {
+            const activePane = activeTab.paneManager.getActivePane();
+            if (activePane && activePane.ptyId) {
+                navigator.clipboard.readText().then((text) => {
+                    window.terminal.write(activePane.ptyId, text);
+                    console.log('Pasted from clipboard');
+                });
+            }
         }
     }
 
