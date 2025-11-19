@@ -21,6 +21,10 @@ class NebulaTerminalRenderer {
         // Expose globally
         window.tabManager = this.tabManager;
 
+        // Initialize layout manager
+        this.layoutManager = new LayoutManager(this.tabManager);
+        window.layoutManager = this.layoutManager;
+
         // Setup menu event listeners
         this.setupMenuListeners();
 
@@ -94,6 +98,31 @@ class NebulaTerminalRenderer {
                 console.log('Menu event: About');
                 this.showAbout();
             });
+
+            window.menuEvents.onNewTab(() => {
+                console.log('Menu event: New Tab');
+                this.tabManager.createTab();
+            });
+
+            window.menuEvents.onSaveLayout(() => {
+                console.log('Menu event: Save Layout');
+                this.handleSaveLayout();
+            });
+
+            window.menuEvents.onLoadLayout(() => {
+                console.log('Menu event: Load Layout');
+                this.handleLoadLayout();
+            });
+
+            window.menuEvents.onExportLayout(() => {
+                console.log('Menu event: Export Layout');
+                this.handleExportLayout();
+            });
+
+            window.menuEvents.onImportLayout(() => {
+                console.log('Menu event: Import Layout');
+                this.handleImportLayout();
+            });
         }
     }
 
@@ -133,9 +162,9 @@ class NebulaTerminalRenderer {
     }
 
     showAbout() {
-        alert(`Nebula Terminal v3.0 - Ultimate Edition
+        alert(`Nebula Terminal v3.0 - Ultimate Developer Terminal
 
-The most customizable terminal for Linux ricers!
+From rice terminal to THE ULTIMATE DEV TERMINAL!
 
 Features:
 ✨ 12 Professional Themes
@@ -144,8 +173,38 @@ Features:
 ⚡ Real PTY Support
 🔤 Multiple Font Options
 💎 Glassmorphism Effects
+🪟 Split Panes with Draggable Dividers
+🎨 Moveable Panes (Click-based)
+🌐 Inline Utilities (Image, Editor, Monaco, Web Browser!)
+💾 Layout Save/Load (Shareable JSON!)
+
+Nebula Commands:
+• nip <file> [--split] - Image viewer
+• nie <file> [--split] - Text editor
+• nid <file> [--split] - Monaco code editor
+• niw <url> [--split] - Full web browser!
 
 Built with love using Electron & xterm.js`);
+    }
+
+    handleSaveLayout() {
+        const result = this.layoutManager.saveLayout();
+        alert(result.message);
+    }
+
+    async handleLoadLayout() {
+        const result = await this.layoutManager.loadLayout();
+        alert(result.message);
+    }
+
+    async handleExportLayout() {
+        const result = await this.layoutManager.exportLayout();
+        alert(result.message);
+    }
+
+    async handleImportLayout() {
+        const result = await this.layoutManager.importLayout();
+        alert(result.message);
     }
 }
 

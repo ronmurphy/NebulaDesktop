@@ -52,12 +52,42 @@ class NebulaTerminalApp {
                 label: 'File',
                 submenu: [
                     {
-                        label: 'New Terminal',
-                        accelerator: 'CmdOrCtrl+N',
+                        label: 'New Tab',
+                        accelerator: 'CmdOrCtrl+T',
                         click: () => {
-                            // TODO: Implement new tab
-                            console.log('New terminal - tabs coming soon!');
+                            this.mainWindow.webContents.send('menu:new-tab');
                         }
+                    },
+                    { type: 'separator' },
+                    {
+                        label: 'Layout',
+                        submenu: [
+                            {
+                                label: 'Save Layout',
+                                click: () => {
+                                    this.mainWindow.webContents.send('menu:save-layout');
+                                }
+                            },
+                            {
+                                label: 'Load Layout',
+                                click: () => {
+                                    this.mainWindow.webContents.send('menu:load-layout');
+                                }
+                            },
+                            { type: 'separator' },
+                            {
+                                label: 'Export Layout to JSON...',
+                                click: () => {
+                                    this.mainWindow.webContents.send('menu:export-layout');
+                                }
+                            },
+                            {
+                                label: 'Import Layout from JSON...',
+                                click: () => {
+                                    this.mainWindow.webContents.send('menu:import-layout');
+                                }
+                            }
+                        ]
                     },
                     { type: 'separator' },
                     {
