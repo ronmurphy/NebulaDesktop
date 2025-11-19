@@ -33,3 +33,34 @@ contextBridge.exposeInMainWorld('terminal', {
         ipcRenderer.removeAllListeners('terminal:exit');
     }
 });
+
+// Expose menu event listeners
+contextBridge.exposeInMainWorld('menuEvents', {
+    onOpenSettings: (callback) => {
+        ipcRenderer.on('menu:open-settings', callback);
+    },
+    onThemeSwitcher: (callback) => {
+        ipcRenderer.on('menu:theme-switcher', callback);
+    },
+    onCopy: (callback) => {
+        ipcRenderer.on('menu:copy', callback);
+    },
+    onPaste: (callback) => {
+        ipcRenderer.on('menu:paste', callback);
+    },
+    onFind: (callback) => {
+        ipcRenderer.on('menu:find', callback);
+    },
+    onFontIncrease: (callback) => {
+        ipcRenderer.on('menu:font-increase', callback);
+    },
+    onFontDecrease: (callback) => {
+        ipcRenderer.on('menu:font-decrease', callback);
+    },
+    onFontReset: (callback) => {
+        ipcRenderer.on('menu:font-reset', callback);
+    },
+    onAbout: (callback) => {
+        ipcRenderer.on('menu:about', callback);
+    }
+});
