@@ -101,30 +101,39 @@ class PaneManager {
 
                 // Try to intercept Nebula inline commands BEFORE sending to PTY
                 if (trimmed && this.inlineContentManager.interceptCommand(trimmed, pane)) {
-                    // Command was intercepted!
-                    // The command chars were already sent to PTY, so clear the line first
-                    window.terminal.write(ptyId, '\x15');  // Ctrl+U - clear line
-                    window.terminal.write(ptyId, '\r');    // Enter to get new prompt
+                    // Command was intercepted! Don't send to PTY
+                    term.write('\r\n');  // Visual feedback - new line
                     commandBuffer = '';
-                    // The interceptCommand method will show success message
+                    // The interceptCommand method will show success message and new prompt
                     return;
                 }
 
-                // Not a special command, send to PTY normally
-                window.terminal.write(ptyId, data);
+                // Not a Nebula command - send the entire buffered command + Enter to PTY
+                if (commandBuffer) {
+                    window.terminal.write(ptyId, commandBuffer);
+                }
+                window.terminal.write(ptyId, data);  // Send Enter
                 commandBuffer = '';
             } else if (data === '\x7f' || data === '\b') {
-                // Backspace - remove from buffer
-                commandBuffer = commandBuffer.slice(0, -1);
-                window.terminal.write(ptyId, data);
+                // Backspace - remove from buffer and display
+                if (commandBuffer.length > 0) {
+                    commandBuffer = commandBuffer.slice(0, -1);
+                    term.write('\b \b');  // Erase character visually
+                }
             } else if (data === '\x03') {
-                // Ctrl+C - clear buffer
+                // Ctrl+C - send to PTY and clear buffer
                 commandBuffer = '';
                 window.terminal.write(ptyId, data);
-            } else {
-                // Regular character - add to buffer and send to PTY
-                commandBuffer += data;
+            } else if (data === '\x04') {
+                // Ctrl+D - send to PTY (don't buffer)
                 window.terminal.write(ptyId, data);
+            } else if (data.charCodeAt(0) < 32 && data !== '\t') {
+                // Other control characters - send directly to PTY
+                window.terminal.write(ptyId, data);
+            } else {
+                // Regular character - buffer it and echo to terminal display only
+                commandBuffer += data;
+                term.write(data);  // Echo to display, but DON'T send to PTY yet
             }
         });
 
