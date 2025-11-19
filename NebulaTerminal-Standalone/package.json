@@ -1,0 +1,56 @@
+{
+  "name": "nebula-terminal",
+  "version": "1.0.0",
+  "description": "Standalone Nebula Terminal - Real terminal with file navigation and command execution",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "dist:linux": "electron-builder -l",
+    "dist:win": "electron-builder -w",
+    "dist:mac": "electron-builder -m"
+  },
+  "keywords": [
+    "terminal",
+    "electron",
+    "shell",
+    "file-manager"
+  ],
+  "author": "Ron Murphy",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.nebula.terminal",
+    "productName": "NebulaTerminal",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "!dist",
+      "!node_modules"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "System;TerminalEmulator",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns",
+      "category": "public.app-category.utilities"
+    }
+  }
+}
