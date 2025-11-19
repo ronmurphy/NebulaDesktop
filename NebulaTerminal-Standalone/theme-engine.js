@@ -365,6 +365,29 @@ class ThemeEngine {
         // Also update body background to match
         document.body.style.backgroundColor = theme.background;
 
+        // Set CSS variables for inline apps (nfm, ngit, etc.)
+        const root = document.documentElement;
+        root.style.setProperty('--theme-background', theme.background);
+        root.style.setProperty('--theme-foreground', theme.foreground);
+        root.style.setProperty('--theme-cursor', theme.cursor);
+        root.style.setProperty('--theme-selection', theme.selection);
+        root.style.setProperty('--theme-green', theme.green);
+        root.style.setProperty('--theme-bright-green', theme.brightGreen);
+        root.style.setProperty('--theme-cyan', theme.cyan);
+        root.style.setProperty('--theme-bright-cyan', theme.brightCyan);
+        root.style.setProperty('--theme-blue', theme.blue);
+        root.style.setProperty('--theme-bright-blue', theme.brightBlue);
+        root.style.setProperty('--theme-yellow', theme.yellow);
+        root.style.setProperty('--theme-bright-yellow', theme.brightYellow);
+        root.style.setProperty('--theme-red', theme.red);
+        root.style.setProperty('--theme-bright-red', theme.brightRed);
+        root.style.setProperty('--theme-magenta', theme.magenta);
+        root.style.setProperty('--theme-bright-magenta', theme.brightMagenta);
+        root.style.setProperty('--theme-black', theme.black);
+        root.style.setProperty('--theme-bright-black', theme.brightBlack);
+        root.style.setProperty('--theme-white', theme.white);
+        root.style.setProperty('--theme-bright-white', theme.brightWhite);
+
         return theme;
     }
 
