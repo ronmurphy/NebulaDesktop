@@ -8,14 +8,14 @@ class SettingsModal {
     }
 
     init() {
-        // Modal will be initialized when DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            this.setupModal();
-            this.setupTabs();
-            this.setupThemeGrid();
-            this.loadCurrentSettings();
-            this.setupEventListeners();
-        });
+        // Setup immediately since HTML is already loaded when init() is called
+        this.setupModal();
+        this.setupTabs();
+        this.setupThemeGrid();
+        this.loadCurrentSettings();
+        this.setupEventListeners();
+
+        console.log('SettingsModal fully initialized');
     }
 
     setupModal() {

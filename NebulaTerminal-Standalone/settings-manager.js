@@ -13,7 +13,7 @@ class SettingsManager {
             // Appearance
             theme: 'nebula-green',
             fontSize: 14,
-            fontFamily: 'FiraCode Nerd Font Mono, Fira Code, JetBrains Mono, Consolas, monospace',
+            fontFamily: 'FiraCode Nerd Font Mono, Fira Code, JetBrains Mono, Noto Sans Mono, Noto Mono, Consolas, monospace',
             fontLigatures: true,
             cursorStyle: 'block', // block, underline, bar
             cursorBlink: true,
