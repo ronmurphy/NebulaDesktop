@@ -51,6 +51,42 @@ class TabManager {
                     this.switchTab(this.tabs[tabIndex].id);
                 }
             }
+
+            // Ctrl+Shift+H - Split pane horizontally
+            if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+                e.preventDefault();
+                const activeTab = this.getActiveTab();
+                if (activeTab && activeTab.paneManager) {
+                    const activePane = activeTab.paneManager.getActivePane();
+                    if (activePane) {
+                        activeTab.paneManager.splitPane(activePane.id, 'horizontal');
+                    }
+                }
+            }
+
+            // Ctrl+Shift+V - Split pane vertically
+            if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+                e.preventDefault();
+                const activeTab = this.getActiveTab();
+                if (activeTab && activeTab.paneManager) {
+                    const activePane = activeTab.paneManager.getActivePane();
+                    if (activePane) {
+                        activeTab.paneManager.splitPane(activePane.id, 'vertical');
+                    }
+                }
+            }
+
+            // Ctrl+Shift+W - Close pane
+            if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+                e.preventDefault();
+                const activeTab = this.getActiveTab();
+                if (activeTab && activeTab.paneManager) {
+                    const activePane = activeTab.paneManager.getActivePane();
+                    if (activePane) {
+                        activeTab.paneManager.closePane(activePane.id);
+                    }
+                }
+            }
         });
 
         // Create initial tab
@@ -97,82 +133,25 @@ class TabManager {
 
         this.tabListElement.appendChild(tabButton);
 
-        // Create terminal instance
-        const settings = window.settingsManager.settings;
+        // Create pane manager for this tab
+        const paneManager = new PaneManager(tabContainer, tabId);
+        await paneManager.init();
 
-        const term = new Terminal({
-            cursorBlink: settings.cursorBlink,
-            cursorStyle: settings.cursorStyle,
-            fontFamily: settings.fontFamily,
-            fontSize: settings.fontSize,
-            lineHeight: 1.2,
-            letterSpacing: 0,
-            theme: {},
-            allowProposedApi: true
-        });
-
-        // Load addons
-        const fitAddon = new FitAddon.FitAddon();
-        const webLinksAddon = new WebLinksAddon.WebLinksAddon();
-        const searchAddon = new SearchAddon.SearchAddon();
-
-        term.loadAddon(fitAddon);
-        term.loadAddon(webLinksAddon);
-        term.loadAddon(searchAddon);
-
-        // Apply theme
-        window.themeEngine.applyTheme(term, settings.theme);
-
-        // Open terminal in container
-        term.open(tabContainer);
-        fitAddon.fit();
-
-        // Create PTY for this tab
-        const ptyData = await window.terminal.create();
-        const ptyId = ptyData.id;
-
-        console.log(`Tab ${tabId} created with PTY ${ptyId}`);
-
-        // Setup PTY data handler
-        window.terminal.onData(ptyId, (data) => {
-            term.write(data);
-        });
-
-        // Setup terminal input handler
-        term.onData((data) => {
-            window.terminal.write(ptyId, data);
-        });
-
-        // Setup resize handler
-        const resizeHandler = () => {
-            if (this.activeTabId === tabId) {
-                fitAddon.fit();
-                window.terminal.resize(ptyId, term.cols, term.rows);
-            }
-        };
-        window.addEventListener('resize', resizeHandler);
+        console.log(`Tab ${tabId} created with pane support`);
 
         // Create tab object
         const tab = {
             id: tabId,
             title: tabTitle,
-            term,
-            fitAddon,
-            searchAddon,
-            ptyId,
+            paneManager,
             container: tabContainer,
-            button: tabButton,
-            resizeHandler
+            button: tabButton
         };
 
         this.tabs.push(tab);
 
         // Switch to new tab
         this.switchTab(tabId);
-
-        // Fit and notify PTY of size
-        fitAddon.fit();
-        await window.terminal.resize(ptyId, term.cols, term.rows);
 
         return tab;
     }
@@ -194,18 +173,23 @@ class TabManager {
             newTab.button.classList.add('active');
             this.activeTabId = tabId;
 
-            // Update global terminal instance reference for settings modal
-            window.terminalInstance = newTab.term;
-            window.fitAddon = newTab.fitAddon;
+            // Focus active pane in the tab
+            const activePane = newTab.paneManager.getActivePane();
+            if (activePane) {
+                newTab.paneManager.focusPane(activePane.id);
 
-            // Focus terminal
-            newTab.term.focus();
+                // Update global terminal instance reference for settings modal
+                window.terminalInstance = activePane.term;
+                window.fitAddon = activePane.fitAddon;
 
-            // Fit to ensure correct size
-            setTimeout(() => {
-                newTab.fitAddon.fit();
-                window.terminal.resize(newTab.ptyId, newTab.term.cols, newTab.term.rows);
-            }, 10);
+                // Fit all panes to ensure correct size
+                setTimeout(() => {
+                    newTab.paneManager.getAllPanes().forEach(pane => {
+                        pane.fitAddon.fit();
+                        window.terminal.resize(pane.ptyId, pane.term.cols, pane.term.rows);
+                    });
+                }, 10);
+            }
 
             // Scroll tab button into view
             newTab.button.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -245,16 +229,18 @@ class TabManager {
             this.switchTab(newActiveTab.id);
         }
 
-        // Cleanup
-        window.removeEventListener('resize', tab.resizeHandler);
-        tab.term.dispose();
+        // Cleanup all panes in the tab
+        const panes = tab.paneManager.getAllPanes();
+        for (const pane of panes) {
+            window.removeEventListener('resize', pane.resizeHandler);
+            pane.term.dispose();
+            await window.terminal.kill(pane.ptyId);
+        }
+
         tab.container.remove();
         tab.button.remove();
 
-        // Kill PTY
-        await window.terminal.kill(tab.ptyId);
-
-        console.log(`Tab ${tabId} closed`);
+        console.log(`Tab ${tabId} closed with ${panes.length} pane(s)`);
     }
 
     getTab(tabId) {
@@ -327,33 +313,25 @@ class TabManager {
         console.log(`Reordered tab ${draggedTabId} to position of tab ${targetTabId}`);
     }
 
-    // Font size controls for active tab
+    // Font size controls for active pane
     increaseFontSize() {
         const activeTab = this.getActiveTab();
-        if (activeTab) {
-            const currentSize = activeTab.term.options.fontSize;
-            activeTab.term.options.fontSize = Math.min(currentSize + 1, 32);
-            activeTab.fitAddon.fit();
-            window.settingsManager.set('fontSize', activeTab.term.options.fontSize);
+        if (activeTab && activeTab.paneManager) {
+            activeTab.paneManager.increaseFontSize();
         }
     }
 
     decreaseFontSize() {
         const activeTab = this.getActiveTab();
-        if (activeTab) {
-            const currentSize = activeTab.term.options.fontSize;
-            activeTab.term.options.fontSize = Math.max(currentSize - 1, 8);
-            activeTab.fitAddon.fit();
-            window.settingsManager.set('fontSize', activeTab.term.options.fontSize);
+        if (activeTab && activeTab.paneManager) {
+            activeTab.paneManager.decreaseFontSize();
         }
     }
 
     resetFontSize() {
         const activeTab = this.getActiveTab();
-        if (activeTab) {
-            activeTab.term.options.fontSize = 14;
-            activeTab.fitAddon.fit();
-            window.settingsManager.set('fontSize', 14);
+        if (activeTab && activeTab.paneManager) {
+            activeTab.paneManager.resetFontSize();
         }
     }
 }
