@@ -12,6 +12,36 @@ html, body {
     overflow: hidden;
     background: #1a1a1a;
     color: #00ff00;
+    position: relative;
+}
+
+/* Background Layer */
+#terminal-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: opacity 0.3s ease;
+}
+
+#terminal-background.gradient {
+    background-size: 100% 100%;
+}
+
+#terminal-background.tile {
+    background-size: auto;
+    background-repeat: repeat;
+}
+
+#terminal-background video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 #terminal-container {

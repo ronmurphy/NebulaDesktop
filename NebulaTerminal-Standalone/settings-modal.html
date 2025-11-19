@@ -97,6 +97,113 @@
                         </label>
                     </div>
                 </div>
+
+                <div class="settings-section">
+                    <h3>🖼️ Background</h3>
+                    <div class="settings-row">
+                        <label>Background Type:</label>
+                        <select id="setting-background-type">
+                            <option value="solid">Solid Color</option>
+                            <option value="image">Image</option>
+                            <option value="gradient">Gradient</option>
+                            <option value="video">Video (Advanced)</option>
+                        </select>
+                    </div>
+
+                    <!-- Solid Color Background -->
+                    <div class="settings-row background-option" data-background-type="solid">
+                        <label>Background Color:</label>
+                        <input type="color" id="setting-background-color" value="#1a1a1a">
+                    </div>
+
+                    <!-- Image Background -->
+                    <div class="background-option" data-background-type="image" style="display: none;">
+                        <div class="settings-row">
+                            <label>Background Image:</label>
+                            <button id="browse-background-image" class="button-secondary">Browse...</button>
+                            <span id="background-image-name" class="file-name">No image selected</span>
+                        </div>
+                        <div class="settings-row">
+                            <label>Image Opacity: <span id="bg-opacity-value">100</span>%</label>
+                            <input type="range" id="setting-background-opacity" min="0" max="100" value="100">
+                        </div>
+                        <div class="settings-row">
+                            <label>Image Fit:</label>
+                            <select id="setting-background-fit">
+                                <option value="cover">Cover</option>
+                                <option value="contain">Contain</option>
+                                <option value="fill">Fill</option>
+                                <option value="tile">Tile</option>
+                            </select>
+                        </div>
+                        <div class="wallpaper-presets">
+                            <p style="font-size: 11px; opacity: 0.7; margin-bottom: 8px;">Quick Presets:</p>
+                            <div class="preset-grid" id="wallpaper-preset-grid">
+                                <div class="preset-item" data-preset="space">
+                                    <div class="preset-preview" style="background: linear-gradient(135deg, #0a0a2e 0%, #16213e 50%, #1a1a2e 100%);">
+                                        <span>🌌</span>
+                                    </div>
+                                    <div class="preset-name">Space</div>
+                                </div>
+                                <div class="preset-item" data-preset="matrix">
+                                    <div class="preset-preview" style="background: linear-gradient(135deg, #001a00 0%, #003300 100%);">
+                                        <span>💻</span>
+                                    </div>
+                                    <div class="preset-name">Matrix</div>
+                                </div>
+                                <div class="preset-item" data-preset="cyberpunk">
+                                    <div class="preset-preview" style="background: linear-gradient(135deg, #ff00ff 0%, #00ffff 100%);">
+                                        <span>🌃</span>
+                                    </div>
+                                    <div class="preset-name">Cyberpunk</div>
+                                </div>
+                                <div class="preset-item" data-preset="sunset">
+                                    <div class="preset-preview" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);">
+                                        <span>🌅</span>
+                                    </div>
+                                    <div class="preset-name">Sunset</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gradient Background -->
+                    <div class="background-option" data-background-type="gradient" style="display: none;">
+                        <div class="settings-row">
+                            <label>Gradient Start:</label>
+                            <input type="color" id="setting-gradient-start" value="#1a1a1a">
+                        </div>
+                        <div class="settings-row">
+                            <label>Gradient End:</label>
+                            <input type="color" id="setting-gradient-end" value="#2d2d2d">
+                        </div>
+                        <div class="settings-row">
+                            <label>Gradient Angle: <span id="gradient-angle-value">135</span>°</label>
+                            <input type="range" id="setting-gradient-angle" min="0" max="360" value="135">
+                        </div>
+                    </div>
+
+                    <!-- Video Background -->
+                    <div class="background-option" data-background-type="video" style="display: none;">
+                        <div class="settings-row">
+                            <label>Video File:</label>
+                            <button id="browse-background-video" class="button-secondary">Browse...</button>
+                            <span id="background-video-name" class="file-name">No video selected</span>
+                        </div>
+                        <div class="settings-row">
+                            <label>
+                                <input type="checkbox" id="setting-video-loop" checked>
+                                Loop Video
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <label>
+                                <input type="checkbox" id="setting-video-muted" checked>
+                                Mute Audio
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Behavior Tab -->

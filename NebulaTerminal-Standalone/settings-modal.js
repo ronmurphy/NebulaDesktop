@@ -125,6 +125,24 @@ class SettingsModal {
         this.updateRangeDisplay('blur-value', settings.backgroundBlur);
         this.setInputValue('setting-acrylic', settings.useAcrylic);
 
+        // Background
+        this.setInputValue('setting-background-type', settings.backgroundType);
+        this.switchBackgroundType(settings.backgroundType); // Show correct options
+        this.setInputValue('setting-background-color', settings.backgroundColor);
+        this.setInputValue('setting-background-opacity', settings.backgroundOpacity * 100);
+        this.updateRangeDisplay('bg-opacity-value', Math.round(settings.backgroundOpacity * 100));
+
+        // Parse gradient if it exists
+        if (settings.backgroundGradient) {
+            const gradientMatch = settings.backgroundGradient.match(/linear-gradient\((\d+)deg, (#[a-fA-F0-9]{6}) 0%, (#[a-fA-F0-9]{6}) 100%\)/);
+            if (gradientMatch) {
+                this.setInputValue('setting-gradient-angle', gradientMatch[1]);
+                this.updateRangeDisplay('gradient-angle-value', gradientMatch[1]);
+                this.setInputValue('setting-gradient-start', gradientMatch[2]);
+                this.setInputValue('setting-gradient-end', gradientMatch[3]);
+            }
+        }
+
         // Behavior
         this.setInputValue('setting-copy-on-select', settings.copyOnSelect);
         this.setInputValue('setting-paste-on-right-click', settings.pasteOnRightClick);
@@ -183,6 +201,54 @@ class SettingsModal {
                 this.updateRangeDisplay('blur-value', e.target.value);
             });
         }
+
+        // Background type selector
+        const bgTypeSelect = document.getElementById('setting-background-type');
+        if (bgTypeSelect) {
+            bgTypeSelect.addEventListener('change', (e) => {
+                this.switchBackgroundType(e.target.value);
+            });
+        }
+
+        // Background opacity slider
+        const bgOpacitySlider = document.getElementById('setting-background-opacity');
+        if (bgOpacitySlider) {
+            bgOpacitySlider.addEventListener('input', (e) => {
+                this.updateRangeDisplay('bg-opacity-value', e.target.value);
+            });
+        }
+
+        // Gradient angle slider
+        const gradientAngleSlider = document.getElementById('setting-gradient-angle');
+        if (gradientAngleSlider) {
+            gradientAngleSlider.addEventListener('input', (e) => {
+                this.updateRangeDisplay('gradient-angle-value', e.target.value);
+            });
+        }
+
+        // Background image browse button
+        const browseImageBtn = document.getElementById('browse-background-image');
+        if (browseImageBtn) {
+            browseImageBtn.addEventListener('click', () => {
+                this.browseBackgroundImage();
+            });
+        }
+
+        // Background video browse button
+        const browseVideoBtn = document.getElementById('browse-background-video');
+        if (browseVideoBtn) {
+            browseVideoBtn.addEventListener('click', () => {
+                this.browseBackgroundVideo();
+            });
+        }
+
+        // Wallpaper presets
+        const presetItems = document.querySelectorAll('.preset-item');
+        presetItems.forEach(item => {
+            item.addEventListener('click', () => {
+                this.applyWallpaperPreset(item.dataset.preset);
+            });
+        });
 
         // Close on overlay click
         const overlay = document.querySelector('.settings-overlay');
@@ -243,6 +309,14 @@ class SettingsModal {
             backgroundBlur: parseInt(document.getElementById('setting-blur').value),
             useAcrylic: document.getElementById('setting-acrylic').checked,
 
+            // Background
+            backgroundType: document.getElementById('setting-background-type').value,
+            backgroundColor: document.getElementById('setting-background-color').value,
+            backgroundImage: this.pendingSettings.backgroundImage || window.settingsManager.get('backgroundImage'),
+            backgroundVideo: this.pendingSettings.backgroundVideo || window.settingsManager.get('backgroundVideo'),
+            backgroundOpacity: parseInt(document.getElementById('setting-background-opacity')?.value || 100) / 100,
+            backgroundGradient: this.pendingSettings.backgroundGradient || this.buildGradient(),
+
             // Behavior
             copyOnSelect: document.getElementById('setting-copy-on-select').checked,
             pasteOnRightClick: document.getElementById('setting-paste-on-right-click').checked,
@@ -300,6 +374,139 @@ class SettingsModal {
         } else {
             document.getElementById('terminal-container').style.backdropFilter = 'none';
         }
+
+        // Apply background
+        this.applyBackground(settings);
+    }
+
+    switchBackgroundType(type) {
+        // Hide all background options
+        document.querySelectorAll('.background-option').forEach(option => {
+            option.style.display = 'none';
+        });
+
+        // Show selected background type option
+        const selectedOption = document.querySelector(`.background-option[data-background-type="${type}"]`);
+        if (selectedOption) {
+            selectedOption.style.display = 'block';
+        }
+    }
+
+    browseBackgroundImage() {
+        if (window.fileAPI) {
+            window.fileAPI.selectFile(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']).then(filePath => {
+                if (filePath) {
+                    document.getElementById('background-image-name').textContent = filePath.split('/').pop();
+                    this.pendingSettings.backgroundImage = filePath;
+                    // Preview immediately
+                    this.applyBackgroundImage(filePath);
+                }
+            });
+        } else {
+            alert('File selection not available. Please ensure the app is running in Electron.');
+        }
+    }
+
+    browseBackgroundVideo() {
+        if (window.fileAPI) {
+            window.fileAPI.selectFile(['mp4', 'webm', 'ogg']).then(filePath => {
+                if (filePath) {
+                    document.getElementById('background-video-name').textContent = filePath.split('/').pop();
+                    this.pendingSettings.backgroundVideo = filePath;
+                    // Preview immediately
+                    this.applyBackgroundVideo(filePath);
+                }
+            });
+        } else {
+            alert('File selection not available. Please ensure the app is running in Electron.');
+        }
+    }
+
+    applyWallpaperPreset(presetName) {
+        const presets = {
+            space: 'linear-gradient(135deg, #0a0a2e 0%, #16213e 50%, #1a1a2e 100%)',
+            matrix: 'linear-gradient(135deg, #001a00 0%, #003300 100%)',
+            cyberpunk: 'linear-gradient(135deg, #ff00ff 0%, #00ffff 100%)',
+            sunset: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)'
+        };
+
+        const bg = document.getElementById('terminal-background');
+        if (bg && presets[presetName]) {
+            bg.style.background = presets[presetName];
+            bg.style.opacity = '0.3';
+            bg.className = 'gradient';
+
+            // Update UI
+            document.querySelectorAll('.preset-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.preset === presetName);
+            });
+
+            // Store preset as gradient
+            document.getElementById('setting-background-type').value = 'gradient';
+            this.switchBackgroundType('gradient');
+            this.pendingSettings.backgroundType = 'gradient';
+            this.pendingSettings.backgroundGradient = presets[presetName];
+        }
+    }
+
+    applyBackground(settings) {
+        const bg = document.getElementById('terminal-background');
+        if (!bg) return;
+
+        // Clear previous background
+        bg.innerHTML = '';
+        bg.style.background = '';
+        bg.className = '';
+
+        switch (settings.backgroundType) {
+            case 'solid':
+                bg.style.backgroundColor = settings.backgroundColor;
+                break;
+
+            case 'image':
+                if (settings.backgroundImage) {
+                    this.applyBackgroundImage(settings.backgroundImage, settings.backgroundOpacity);
+                }
+                break;
+
+            case 'gradient':
+                bg.style.background = settings.backgroundGradient;
+                bg.className = 'gradient';
+                bg.style.opacity = '0.3';
+                break;
+
+            case 'video':
+                if (settings.backgroundVideo) {
+                    this.applyBackgroundVideo(settings.backgroundVideo);
+                }
+                break;
+        }
+    }
+
+    applyBackgroundImage(imagePath, opacity = 1.0) {
+        const bg = document.getElementById('terminal-background');
+        if (!bg) return;
+
+        bg.style.backgroundImage = `url("file://${imagePath}")`;
+        bg.style.opacity = opacity;
+        bg.className = '';
+    }
+
+    applyBackgroundVideo(videoPath) {
+        const bg = document.getElementById('terminal-background');
+        if (!bg) return;
+
+        bg.innerHTML = `<video autoplay loop muted style="width: 100%; height: 100%; object-fit: cover;">
+            <source src="file://${videoPath}" type="video/mp4">
+        </video>`;
+        bg.style.opacity = '0.3';
+    }
+
+    buildGradient() {
+        const start = document.getElementById('setting-gradient-start')?.value || '#1a1a1a';
+        const end = document.getElementById('setting-gradient-end')?.value || '#2d2d2d';
+        const angle = document.getElementById('setting-gradient-angle')?.value || '135';
+        return `linear-gradient(${angle}deg, ${start} 0%, ${end} 100%)`;
     }
 }
 
