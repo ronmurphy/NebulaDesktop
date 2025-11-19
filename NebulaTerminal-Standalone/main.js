@@ -346,6 +346,58 @@ class NebulaTerminalApp {
                 return { success: false, error: error.message };
             }
         });
+
+        // File manager operations
+        ipcMain.handle('file:readdir', async (event, dirPath) => {
+            try {
+                const entries = await fs.readdir(dirPath, { withFileTypes: true });
+                const items = await Promise.all(entries.map(async (entry) => {
+                    const fullPath = path.join(dirPath, entry.name);
+                    try {
+                        const stats = await fs.stat(fullPath);
+                        return {
+                            name: entry.name,
+                            isDirectory: entry.isDirectory(),
+                            isFile: entry.isFile(),
+                            size: stats.size,
+                            modified: stats.mtime,
+                            path: fullPath
+                        };
+                    } catch (error) {
+                        // If we can't stat the file, return basic info
+                        return {
+                            name: entry.name,
+                            isDirectory: entry.isDirectory(),
+                            isFile: entry.isFile(),
+                            size: 0,
+                            modified: null,
+                            path: fullPath
+                        };
+                    }
+                }));
+                return { success: true, items };
+            } catch (error) {
+                console.error('Failed to read directory:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('file:stat', async (event, filePath) => {
+            try {
+                const stats = await fs.stat(filePath);
+                return {
+                    success: true,
+                    isDirectory: stats.isDirectory(),
+                    isFile: stats.isFile(),
+                    size: stats.size,
+                    modified: stats.mtime,
+                    created: stats.birthtime
+                };
+            } catch (error) {
+                console.error('Failed to stat file:', error);
+                return { success: false, error: error.message };
+            }
+        });
     }
 
     init() {

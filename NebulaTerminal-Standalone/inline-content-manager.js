@@ -48,6 +48,14 @@ class InlineContentManager {
             return true;
         }
 
+        // nfm [path] - Nebula File Manager (always opens in split pane)
+        const nfmMatch = trimmed.match(/^nfm(\s+(.+))?$/);
+        if (nfmMatch) {
+            const dirPath = nfmMatch[2] ? nfmMatch[2].trim() : null;
+            this.openFileManager(dirPath, pane);
+            return true;
+        }
+
         return false; // Not a special command
     }
 
@@ -489,7 +497,335 @@ class InlineContentManager {
             alert('File saving not available. Running in Electron?');
         }
     }
+
+    // ===== FILE MANAGER =====
+
+    async openFileManager(dirPath, pane) {
+        // If no path specified, use pane's current working directory
+        if (!dirPath) {
+            dirPath = pane.cwd || process.env.HOME;
+        }
+
+        // Resolve relative paths
+        if (!dirPath.startsWith('/')) {
+            const basePath = pane.cwd || process.env.HOME;
+            dirPath = basePath + '/' + dirPath;
+        }
+
+        // Create new split pane with file manager
+        await this.paneManager.splitPane(pane.id, 'horizontal');
+        const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
+
+        // Store file manager state in the pane
+        newPane.fileManagerState = {
+            currentPath: dirPath,
+            viewMode: 'list', // 'list' or 'grid'
+            history: [dirPath],
+            historyIndex: 0,
+            showHidden: false
+        };
+
+        await this.renderFileManager(newPane);
+    }
+
+    async renderFileManager(pane) {
+        const state = pane.fileManagerState;
+        const managerId = `filemgr-${pane.id}`;
+
+        // Read directory contents
+        let items = [];
+        let error = null;
+
+        try {
+            const result = await window.fileAPI.readDir(state.currentPath);
+            if (result.success) {
+                items = result.items;
+
+                // Filter hidden files if needed
+                if (!state.showHidden) {
+                    items = items.filter(item => !item.name.startsWith('.'));
+                }
+
+                // Sort: directories first, then files, alphabetically
+                items.sort((a, b) => {
+                    if (a.isDirectory && !b.isDirectory) return -1;
+                    if (!a.isDirectory && b.isDirectory) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+            } else {
+                error = result.error;
+            }
+        } catch (err) {
+            error = err.message;
+        }
+
+        // Replace pane content with file manager
+        const content = pane.element.querySelector('.pane-content');
+        content.innerHTML = `
+            <div class="file-manager" id="${managerId}" data-pane-id="${pane.id}">
+                <div class="fm-header">
+                    <div class="fm-nav-buttons">
+                        <button class="fm-btn" onclick="window.fileManagerGoBack(${pane.id})" title="Back" ${state.historyIndex === 0 ? 'disabled' : ''}>←</button>
+                        <button class="fm-btn" onclick="window.fileManagerGoForward(${pane.id})" title="Forward" ${state.historyIndex === state.history.length - 1 ? 'disabled' : ''}>→</button>
+                        <button class="fm-btn" onclick="window.fileManagerGoUp(${pane.id})" title="Up">↑</button>
+                    </div>
+                    <div class="fm-controls">
+                        <button class="fm-btn" onclick="window.fileManagerToggleView(${pane.id})" title="Toggle View">${state.viewMode === 'list' ? '⊞' : '☰'}</button>
+                        <button class="fm-btn" onclick="window.fileManagerToggleHidden(${pane.id})" title="Show/Hide Hidden Files">${state.showHidden ? '👁️' : '👁️‍🗨️'}</button>
+                        <button class="fm-btn fm-terminal-btn" onclick="window.fileManagerOpenTerminal(${pane.id})" title="Open Terminal Here">⌘</button>
+                    </div>
+                    <div class="fm-pane-controls">
+                        <button class="fm-btn" onclick="window.tabManager.getActiveTab().paneManager.requestPaneMove(${pane.id})" title="Move Pane">⇄</button>
+                        <button class="fm-btn" onclick="window.tabManager.getActiveTab().paneManager.closePane(${pane.id})" title="Close">×</button>
+                    </div>
+                </div>
+                <div class="fm-breadcrumb">
+                    ${this.renderBreadcrumb(state.currentPath, pane.id)}
+                </div>
+                <div class="fm-content ${state.viewMode === 'grid' ? 'fm-grid-view' : 'fm-list-view'}">
+                    ${error ? `<div class="fm-error">⚠️ Error: ${error}</div>` : this.renderFileList(items, state.viewMode, pane.id)}
+                </div>
+            </div>
+        `;
+    }
+
+    renderBreadcrumb(path, paneId) {
+        const parts = path.split('/').filter(p => p);
+        let breadcrumb = `<span class="fm-breadcrumb-part" onclick="window.fileManagerNavigate('/', ${paneId})">📁 /</span>`;
+
+        let currentPath = '';
+        parts.forEach((part, index) => {
+            currentPath += '/' + part;
+            const thisPath = currentPath;
+            breadcrumb += ` <span class="fm-breadcrumb-separator">/</span> <span class="fm-breadcrumb-part" onclick="window.fileManagerNavigate('${thisPath}', ${paneId})">${part}</span>`;
+        });
+
+        return breadcrumb;
+    }
+
+    renderFileList(items, viewMode, paneId) {
+        if (items.length === 0) {
+            return '<div class="fm-empty">📭 Empty folder</div>';
+        }
+
+        if (viewMode === 'list') {
+            return items.map(item => {
+                const icon = this.getFileIcon(item);
+                const size = item.isDirectory ? '' : this.formatSize(item.size);
+                const date = item.modified ? new Date(item.modified).toLocaleDateString() : '';
+
+                return `
+                    <div class="fm-item fm-list-item" data-path="${item.path}" ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})">
+                        <span class="fm-item-icon">${icon}</span>
+                        <span class="fm-item-name">${item.name}</span>
+                        <span class="fm-item-size">${size}</span>
+                        <span class="fm-item-date">${date}</span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            // Grid view
+            return items.map(item => {
+                const icon = this.getFileIcon(item);
+                const thumbnail = this.shouldShowThumbnail(item) ? `<img src="file://${item.path}" class="fm-thumbnail" onerror="this.style.display='none'">` : '';
+
+                return `
+                    <div class="fm-item fm-grid-item" data-path="${item.path}" ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})">
+                        <div class="fm-grid-icon">
+                            ${thumbnail || `<span class="fm-item-icon-large">${icon}</span>`}
+                        </div>
+                        <div class="fm-grid-name">${item.name}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    getFileIcon(item) {
+        if (item.isDirectory) return '📁';
+
+        const ext = item.name.split('.').pop().toLowerCase();
+        const iconMap = {
+            // Images
+            png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', svg: '🖼️', webp: '🖼️',
+            // Code
+            js: '📜', ts: '📜', jsx: '📜', tsx: '📜', py: '🐍', java: '☕', cpp: '⚙️', c: '⚙️', go: '🔷',
+            html: '🌐', css: '🎨', scss: '🎨', less: '🎨',
+            // Documents
+            pdf: '📕', doc: '📘', docx: '📘', txt: '📄', md: '📝',
+            // Archives
+            zip: '📦', tar: '📦', gz: '📦', rar: '📦',
+            // Media
+            mp3: '🎵', wav: '🎵', mp4: '🎬', avi: '🎬', mov: '🎬',
+            // Config
+            json: '⚙️', yaml: '⚙️', yml: '⚙️', toml: '⚙️', xml: '⚙️'
+        };
+
+        return iconMap[ext] || '📄';
+    }
+
+    shouldShowThumbnail(item) {
+        if (item.isDirectory) return false;
+        const ext = item.name.split('.').pop().toLowerCase();
+        return ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext);
+    }
+
+    formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 10) / 10 + ' ' + sizes[i];
+    }
 }
 
 // Export globally
 window.InlineContentManager = InlineContentManager;
+
+// ===== GLOBAL FILE MANAGER HELPERS =====
+
+window.fileManagerNavigate = async function(path, paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    // Add to history
+    if (pane.fileManagerState.historyIndex < pane.fileManagerState.history.length - 1) {
+        // Remove forward history
+        pane.fileManagerState.history = pane.fileManagerState.history.slice(0, pane.fileManagerState.historyIndex + 1);
+    }
+
+    pane.fileManagerState.currentPath = path;
+    pane.fileManagerState.history.push(path);
+    pane.fileManagerState.historyIndex++;
+
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+window.fileManagerGoBack = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    if (pane.fileManagerState.historyIndex > 0) {
+        pane.fileManagerState.historyIndex--;
+        pane.fileManagerState.currentPath = pane.fileManagerState.history[pane.fileManagerState.historyIndex];
+        await tab.paneManager.inlineContentManager.renderFileManager(pane);
+    }
+};
+
+window.fileManagerGoForward = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    if (pane.fileManagerState.historyIndex < pane.fileManagerState.history.length - 1) {
+        pane.fileManagerState.historyIndex++;
+        pane.fileManagerState.currentPath = pane.fileManagerState.history[pane.fileManagerState.historyIndex];
+        await tab.paneManager.inlineContentManager.renderFileManager(pane);
+    }
+};
+
+window.fileManagerGoUp = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    const currentPath = pane.fileManagerState.currentPath;
+    if (currentPath === '/') return; // Already at root
+
+    const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+    await window.fileManagerNavigate(parentPath, paneId);
+};
+
+window.fileManagerToggleView = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    pane.fileManagerState.viewMode = pane.fileManagerState.viewMode === 'list' ? 'grid' : 'list';
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+window.fileManagerToggleHidden = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    pane.fileManagerState.showHidden = !pane.fileManagerState.showHidden;
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+window.fileManagerItemDoubleClick = async function(path, isDirectory, paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane) return;
+
+    if (isDirectory) {
+        // Navigate into directory
+        await window.fileManagerNavigate(path, paneId);
+    } else {
+        // Open file with appropriate Nebula utility
+        const ext = path.split('.').pop().toLowerCase();
+
+        // Get a terminal pane to execute the command
+        let terminalPane = tab.paneManager.panes.find(p => p.ptyId && !p.fileManagerState);
+
+        if (!terminalPane) {
+            // Create a new terminal pane if none exists
+            await tab.paneManager.splitPane(paneId, 'vertical');
+            terminalPane = tab.paneManager.panes[tab.paneManager.panes.length - 1];
+        }
+
+        // Determine which Nebula utility to use
+        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'];
+        const codeExts = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'go', 'rs', 'rb', 'php', 'html', 'css', 'scss', 'json', 'yaml', 'yml', 'toml', 'xml', 'sh', 'bash'];
+
+        if (imageExts.includes(ext)) {
+            await tab.paneManager.inlineContentManager.openImageViewer(path, terminalPane, false);
+        } else if (codeExts.includes(ext)) {
+            await tab.paneManager.inlineContentManager.openMonacoEditor(path, terminalPane, false);
+        } else {
+            // Default to text editor
+            await tab.paneManager.inlineContentManager.openTextEditor(path, terminalPane, false);
+        }
+    }
+};
+
+window.fileManagerOpenTerminal = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    // Split and create new terminal pane
+    await tab.paneManager.splitPane(paneId, 'vertical');
+    const newPane = tab.paneManager.panes[tab.paneManager.panes.length - 1];
+
+    // Send cd command to new terminal to navigate to current folder
+    if (newPane.ptyId && newPane.inputBuffer !== undefined) {
+        const cdCommand = `cd "${pane.fileManagerState.currentPath}"\n`;
+        newPane.inputBuffer += cdCommand;
+
+        // Send to PTY if ready
+        if (newPane.isTerminalReady && window.terminal) {
+            window.terminal.write(newPane.ptyId, newPane.inputBuffer);
+            newPane.inputBuffer = '';
+        }
+    }
+};
