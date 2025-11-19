@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
 const path = require('path');
 const os = require('os');
+const fs = require('fs').promises;
 const pty = require('node-pty');
 
 class NebulaTerminalApp {
@@ -272,6 +273,47 @@ class NebulaTerminalApp {
                 user: process.env.USER || os.userInfo().username,
                 hostname: os.hostname()
             };
+        });
+
+        // File operations for inline utilities
+        ipcMain.handle('file:read', async (event, filePath) => {
+            try {
+                const content = await fs.readFile(filePath, 'utf-8');
+                return { success: true, content };
+            } catch (error) {
+                console.error('Failed to read file:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('file:save', async (event, { filePath, content }) => {
+            try {
+                await fs.writeFile(filePath, content, 'utf-8');
+                return { success: true };
+            } catch (error) {
+                console.error('Failed to save file:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
+        ipcMain.handle('file:select', async (event, extensions) => {
+            try {
+                const result = await dialog.showOpenDialog(this.mainWindow, {
+                    properties: ['openFile'],
+                    filters: extensions || [
+                        { name: 'All Files', extensions: ['*'] }
+                    ]
+                });
+
+                if (result.canceled || result.filePaths.length === 0) {
+                    return { success: false, canceled: true };
+                }
+
+                return { success: true, filePath: result.filePaths[0] };
+            } catch (error) {
+                console.error('Failed to select file:', error);
+                return { success: false, error: error.message };
+            }
         });
     }
 

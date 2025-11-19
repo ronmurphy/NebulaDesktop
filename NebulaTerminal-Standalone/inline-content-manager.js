@@ -1,0 +1,325 @@
+// InlineContentManager - Handles inline content rendering (images, editors, etc)
+// Part of Nebula Terminal v3.0 - Ultimate Customizable Terminal
+
+class InlineContentManager {
+    constructor(paneManager) {
+        this.paneManager = paneManager;
+        this.activeContent = null;
+    }
+
+    // Intercept terminal input to catch special commands
+    interceptCommand(input, pane) {
+        // Trim and parse command
+        const trimmed = input.trim();
+
+        // Image viewer: ip <file> [--split]
+        const ipMatch = trimmed.match(/^ip\s+(.+?)(\s+--split)?$/);
+        if (ipMatch) {
+            const filePath = ipMatch[1].trim();
+            const useSplit = !!ipMatch[2];
+            this.openImageViewer(filePath, pane, useSplit);
+            return true;
+        }
+
+        // Simple text editor: ie <file> [--split]
+        const ieMatch = trimmed.match(/^ie\s+(.+?)(\s+--split)?$/);
+        if (ieMatch) {
+            const filePath = ieMatch[1].trim();
+            const useSplit = !!ieMatch[2];
+            this.openTextEditor(filePath, pane, useSplit);
+            return true;
+        }
+
+        // Monaco editor: id <file> [--split]
+        const idMatch = trimmed.match(/^id\s+(.+?)(\s+--split)?$/);
+        if (idMatch) {
+            const filePath = idMatch[1].trim();
+            const useSplit = !!idMatch[2];
+            this.openMonacoEditor(filePath, pane, useSplit);
+            return true;
+        }
+
+        return false; // Not a special command
+    }
+
+    async openImageViewer(filePath, pane, useSplit) {
+        if (useSplit) {
+            // Create new pane with image viewer
+            await this.paneManager.splitPane(pane.id, 'horizontal');
+            const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
+            this.renderImageInPane(filePath, newPane);
+        } else {
+            // Render inline
+            this.renderImageInline(filePath, pane);
+        }
+    }
+
+    renderImageInline(filePath, pane) {
+        const imageHtml = `
+            <div class="inline-content image-viewer" data-file="${filePath}">
+                <div class="inline-header">
+                    <span class="inline-title">🖼️ ${filePath}</span>
+                    <button class="inline-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+                <div class="inline-body">
+                    <img src="file://${filePath}" style="max-width: 100%; height: auto; display: block;">
+                </div>
+            </div>
+        `;
+
+        // Write to terminal as HTML (using xterm's write method)
+        pane.term.write('\r\n');
+
+        // Create DOM element and insert after terminal
+        const container = pane.element.querySelector('.pane-content');
+        const inlineDiv = document.createElement('div');
+        inlineDiv.innerHTML = imageHtml;
+        container.appendChild(inlineDiv.firstElementChild);
+
+        pane.term.write(`\x1b[32m✓ Image viewer opened: ${filePath}\x1b[0m\r\n`);
+        pane.term.write('$ ');
+    }
+
+    renderImageInPane(filePath, pane) {
+        // Replace pane content with image viewer
+        const content = pane.element.querySelector('.pane-content');
+        content.innerHTML = `
+            <div class="inline-content image-viewer fullscreen" data-file="${filePath}">
+                <div class="inline-header">
+                    <span class="inline-title">🖼️ ${filePath}</span>
+                    <button class="inline-close" onclick="window.tabManager.getActiveTab().paneManager.closePane(${pane.id})">×</button>
+                </div>
+                <div class="inline-body" style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto;">
+                    <img src="file://${filePath}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                </div>
+            </div>
+        `;
+    }
+
+    async openTextEditor(filePath, pane, useSplit) {
+        // Load file content
+        const content = await this.loadFile(filePath);
+
+        if (useSplit) {
+            await this.paneManager.splitPane(pane.id, 'horizontal');
+            const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
+            this.renderTextEditorInPane(filePath, content, newPane);
+        } else {
+            this.renderTextEditorInline(filePath, content, pane);
+        }
+    }
+
+    renderTextEditorInline(filePath, content, pane) {
+        const editorId = `editor-${Date.now()}`;
+        const editorHtml = `
+            <div class="inline-content text-editor" data-file="${filePath}">
+                <div class="inline-header">
+                    <span class="inline-title">📝 ${filePath}</span>
+                    <div class="inline-actions">
+                        <button class="inline-btn" onclick="inlineContentManager.saveTextEditor('${editorId}', '${filePath}')">Save</button>
+                        <button class="inline-close" onclick="this.parentElement.parentElement.parentElement.remove()">×</button>
+                    </div>
+                </div>
+                <div class="inline-body">
+                    <textarea id="${editorId}" class="simple-editor">${content}</textarea>
+                </div>
+            </div>
+        `;
+
+        const container = pane.element.querySelector('.pane-content');
+        const inlineDiv = document.createElement('div');
+        inlineDiv.innerHTML = editorHtml;
+        container.appendChild(inlineDiv.firstElementChild);
+
+        pane.term.write(`\r\n\x1b[32m✓ Text editor opened: ${filePath}\x1b[0m\r\n`);
+        pane.term.write('$ ');
+    }
+
+    renderTextEditorInPane(filePath, content, pane) {
+        const editorId = `editor-${Date.now()}`;
+        const contentDiv = pane.element.querySelector('.pane-content');
+        contentDiv.innerHTML = `
+            <div class="inline-content text-editor fullscreen" data-file="${filePath}">
+                <div class="inline-header">
+                    <span class="inline-title">📝 ${filePath}</span>
+                    <div class="inline-actions">
+                        <button class="inline-btn" onclick="inlineContentManager.saveTextEditor('${editorId}', '${filePath}')">Save (Ctrl+S)</button>
+                        <button class="inline-close" onclick="window.tabManager.getActiveTab().paneManager.closePane(${pane.id})">×</button>
+                    </div>
+                </div>
+                <div class="inline-body" style="flex: 1;">
+                    <textarea id="${editorId}" class="simple-editor" style="width: 100%; height: 100%;">${content}</textarea>
+                </div>
+            </div>
+        `;
+
+        // Add Ctrl+S handler
+        const textarea = document.getElementById(editorId);
+        textarea.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                this.saveTextEditor(editorId, filePath);
+            }
+        });
+    }
+
+    async openMonacoEditor(filePath, pane, useSplit) {
+        // Check if Monaco is loaded
+        if (!window.monaco) {
+            pane.term.write('\r\n\x1b[33m⚠ Monaco Editor not loaded. Loading...\x1b[0m\r\n');
+            await this.loadMonaco();
+        }
+
+        const content = await this.loadFile(filePath);
+
+        if (useSplit) {
+            await this.paneManager.splitPane(pane.id, 'horizontal');
+            const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
+            this.renderMonacoInPane(filePath, content, newPane);
+        } else {
+            this.renderMonacoInline(filePath, content, pane);
+        }
+    }
+
+    renderMonacoInPane(filePath, content, pane) {
+        const editorId = `monaco-${Date.now()}`;
+        const contentDiv = pane.element.querySelector('.pane-content');
+        contentDiv.innerHTML = `
+            <div class="inline-content monaco-editor fullscreen" data-file="${filePath}">
+                <div class="inline-header">
+                    <span class="inline-title">💻 ${filePath}</span>
+                    <div class="inline-actions">
+                        <button class="inline-btn" onclick="inlineContentManager.saveMonaco('${editorId}', '${filePath}')">Save (Ctrl+S)</button>
+                        <button class="inline-close" onclick="window.tabManager.getActiveTab().paneManager.closePane(${pane.id})">×</button>
+                    </div>
+                </div>
+                <div class="inline-body" style="flex: 1;">
+                    <div id="${editorId}" style="width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        `;
+
+        // Create Monaco editor
+        const language = this.detectLanguage(filePath);
+        const editor = monaco.editor.create(document.getElementById(editorId), {
+            value: content,
+            language: language,
+            theme: 'vs-dark',
+            automaticLayout: true,
+            minimap: { enabled: true },
+            fontSize: 14
+        });
+
+        // Store editor instance
+        window[`monacoInstance_${editorId}`] = editor;
+
+        // Add Ctrl+S handler
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KEY_S, () => {
+            this.saveMonaco(editorId, filePath);
+        });
+    }
+
+    async loadMonaco() {
+        return new Promise((resolve, reject) => {
+            // Load Monaco from CDN
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
+            script.onload = () => {
+                require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+                require(['vs/editor/editor.main'], () => {
+                    console.log('Monaco Editor loaded');
+                    resolve();
+                });
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    detectLanguage(filePath) {
+        const ext = filePath.split('.').pop().toLowerCase();
+        const langMap = {
+            'js': 'javascript',
+            'ts': 'typescript',
+            'py': 'python',
+            'rb': 'ruby',
+            'java': 'java',
+            'cpp': 'cpp',
+            'c': 'c',
+            'h': 'cpp',
+            'cs': 'csharp',
+            'go': 'go',
+            'rs': 'rust',
+            'php': 'php',
+            'html': 'html',
+            'css': 'css',
+            'json': 'json',
+            'xml': 'xml',
+            'md': 'markdown',
+            'sh': 'shell',
+            'bash': 'shell',
+            'sql': 'sql'
+        };
+        return langMap[ext] || 'plaintext';
+    }
+
+    async loadFile(filePath) {
+        try {
+            if (window.fileAPI && window.fileAPI.readFile) {
+                const result = await window.fileAPI.readFile(filePath);
+                if (result.success) {
+                    return result.content;
+                } else {
+                    throw new Error(result.error || 'Failed to read file');
+                }
+            } else {
+                throw new Error('File API not available');
+            }
+        } catch (error) {
+            console.error('Failed to load file:', error);
+            return `# Error loading file: ${filePath}\n# ${error.message}`;
+        }
+    }
+
+    async saveTextEditor(editorId, filePath) {
+        const textarea = document.getElementById(editorId);
+        if (!textarea) return;
+
+        const content = textarea.value;
+        await this.saveFile(filePath, content);
+    }
+
+    async saveMonaco(editorId, filePath) {
+        const editor = window[`monacoInstance_${editorId}`];
+        if (!editor) return;
+
+        const content = editor.getValue();
+        await this.saveFile(filePath, content);
+    }
+
+    async saveFile(filePath, content) {
+        // Use file API to save
+        if (window.fileAPI && window.fileAPI.saveFile) {
+            try {
+                await window.fileAPI.saveFile(filePath, content);
+                console.log(`✓ Saved: ${filePath}`);
+                // Show success message in active terminal
+                const activePane = this.paneManager.getActivePane();
+                if (activePane && activePane.term) {
+                    activePane.term.write(`\r\n\x1b[32m✓ Saved: ${filePath}\x1b[0m\r\n$ `);
+                }
+            } catch (error) {
+                console.error('Save failed:', error);
+                const activePane = this.paneManager.getActivePane();
+                if (activePane && activePane.term) {
+                    activePane.term.write(`\r\n\x1b[31m✗ Save failed: ${error.message}\x1b[0m\r\n$ `);
+                }
+            }
+        } else {
+            alert('File saving not available. Running in Electron?');
+        }
+    }
+}
+
+// Export globally
+window.InlineContentManager = InlineContentManager;
