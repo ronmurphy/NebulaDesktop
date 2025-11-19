@@ -1,13 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const fs = require('fs').promises;
-const fsSync = require('fs');
 const os = require('os');
-const { spawn } = require('child_process');
+const pty = require('node-pty');
 
 class NebulaTerminalApp {
     constructor() {
         this.mainWindow = null;
+        this.ptyProcess = null;
     }
 
     createMainWindow() {
@@ -33,144 +32,84 @@ class NebulaTerminalApp {
         }
 
         this.mainWindow.on('closed', () => {
+            // Kill PTY process when window closes
+            if (this.ptyProcess) {
+                this.ptyProcess.kill();
+            }
             this.mainWindow = null;
         });
     }
 
     setupIPCHandlers() {
-        // File System Handlers
-        ipcMain.handle('fs:readdir', async (event, dirPath) => {
-            try {
-                return await fs.readdir(dirPath);
-            } catch (error) {
-                throw new Error(`Failed to read directory: ${error.message}`);
-            }
-        });
+        // Create PTY process
+        ipcMain.handle('terminal:create', (event, options = {}) => {
+            const shell = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : 'bash');
+            const cwd = options.cwd || process.env.HOME || os.homedir();
 
-        ipcMain.handle('fs:readfile', async (event, filePath) => {
-            try {
-                return await fs.readFile(filePath, 'utf8');
-            } catch (error) {
-                throw new Error(`Failed to read file: ${error.message}`);
-            }
-        });
-
-        ipcMain.handle('fs:writefile', async (event, filePath, data) => {
-            try {
-                await fs.writeFile(filePath, data, 'utf8');
-                return { success: true };
-            } catch (error) {
-                throw new Error(`Failed to write file: ${error.message}`);
-            }
-        });
-
-        ipcMain.handle('fs:homedir', async () => {
-            return os.homedir();
-        });
-
-        ipcMain.handle('fs:stat', async (event, filePath) => {
-            try {
-                const stats = await fs.stat(filePath);
-                return {
-                    isDirectory: stats.isDirectory(),
-                    isFile: stats.isFile(),
-                    size: stats.size,
-                    mtime: stats.mtime,
-                    birthtime: stats.birthtime,
-                    mode: stats.mode
-                };
-            } catch (error) {
-                throw new Error(`Failed to stat file: ${error.message}`);
-            }
-        });
-
-        ipcMain.handle('fs:exists', async (event, filePath) => {
-            try {
-                await fs.access(filePath);
-                return true;
-            } catch {
-                return false;
-            }
-        });
-
-        ipcMain.handle('fs:mkdir', async (event, dirPath, options) => {
-            try {
-                await fs.mkdir(dirPath, options);
-                return { success: true };
-            } catch (error) {
-                throw new Error(`Failed to create directory: ${error.message}`);
-            }
-        });
-
-        ipcMain.handle('fs:rmdir', async (event, dirPath) => {
-            try {
-                await fs.rmdir(dirPath);
-                return { success: true };
-            } catch (error) {
-                throw new Error(`Failed to remove directory: ${error.message}`);
-            }
-        });
-
-        ipcMain.handle('fs:unlink', async (event, filePath) => {
-            try {
-                await fs.unlink(filePath);
-                return { success: true };
-            } catch (error) {
-                throw new Error(`Failed to remove file: ${error.message}`);
-            }
-        });
-
-        // Terminal Execution Handler
-        ipcMain.handle('terminal:exec', async (event, command, args = [], options = {}) => {
-            return new Promise((resolve) => {
-                const cwd = options.cwd || os.homedir();
-
-                // Spawn the process
-                const proc = spawn(command, args, {
-                    cwd: cwd,
-                    shell: true,
-                    env: process.env
-                });
-
-                let stdout = '';
-                let stderr = '';
-
-                proc.stdout.on('data', (data) => {
-                    stdout += data.toString();
-                });
-
-                proc.stderr.on('data', (data) => {
-                    stderr += data.toString();
-                });
-
-                proc.on('error', (error) => {
-                    resolve({
-                        stdout: '',
-                        stderr: error.message,
-                        exitCode: 1
-                    });
-                });
-
-                proc.on('close', (exitCode) => {
-                    resolve({
-                        stdout: stdout.trim(),
-                        stderr: stderr.trim(),
-                        exitCode: exitCode || 0
-                    });
-                });
-
-                // Timeout after 30 seconds
-                setTimeout(() => {
-                    if (!proc.killed) {
-                        proc.kill();
-                        resolve({
-                            stdout: stdout.trim(),
-                            stderr: 'Command timed out after 30 seconds',
-                            exitCode: 124
-                        });
-                    }
-                }, 30000);
+            // Create PTY process
+            this.ptyProcess = pty.spawn(shell, [], {
+                name: 'xterm-256color',
+                cols: options.cols || 80,
+                rows: options.rows || 24,
+                cwd: cwd,
+                env: process.env
             });
+
+            console.log('PTY created:', {
+                pid: this.ptyProcess.pid,
+                shell: shell,
+                cwd: cwd
+            });
+
+            // Forward data from PTY to renderer
+            this.ptyProcess.onData((data) => {
+                if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                    this.mainWindow.webContents.send('terminal:data', data);
+                }
+            });
+
+            // Handle PTY exit
+            this.ptyProcess.onExit(({ exitCode, signal }) => {
+                console.log('PTY exited:', { exitCode, signal });
+                if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                    this.mainWindow.webContents.send('terminal:exit', { exitCode, signal });
+                }
+            });
+
+            return {
+                pid: this.ptyProcess.pid,
+                cols: options.cols || 80,
+                rows: options.rows || 24
+            };
+        });
+
+        // Write data to PTY
+        ipcMain.on('terminal:write', (event, data) => {
+            if (this.ptyProcess) {
+                this.ptyProcess.write(data);
+            }
+        });
+
+        // Resize PTY
+        ipcMain.on('terminal:resize', (event, { cols, rows }) => {
+            if (this.ptyProcess) {
+                try {
+                    this.ptyProcess.resize(cols, rows);
+                } catch (error) {
+                    console.error('Failed to resize PTY:', error);
+                }
+            }
+        });
+
+        // Get terminal info
+        ipcMain.handle('terminal:info', () => {
+            return {
+                platform: process.platform,
+                shell: process.env.SHELL || 'bash',
+                home: process.env.HOME || os.homedir(),
+                user: process.env.USER || os.userInfo().username,
+                hostname: os.hostname()
+            };
         });
     }
 
@@ -189,6 +128,13 @@ class NebulaTerminalApp {
         app.on('window-all-closed', () => {
             if (process.platform !== 'darwin') {
                 app.quit();
+            }
+        });
+
+        // Clean up on quit
+        app.on('before-quit', () => {
+            if (this.ptyProcess) {
+                this.ptyProcess.kill();
             }
         });
     }

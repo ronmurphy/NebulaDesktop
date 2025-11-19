@@ -1,0 +1,18 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Nebula Terminal
+GenericName=Terminal Emulator
+Comment=Real PTY terminal emulator with xterm.js - runs vim, htop, ssh, and more
+Exec=nebula-terminal %F
+Icon=nebula-terminal
+Terminal=false
+Categories=System;TerminalEmulator;
+Keywords=terminal;shell;console;command;cli;bash;zsh;
+StartupNotify=true
+StartupWMClass=nebula-terminal
+Actions=NewWindow;
+
+[Desktop Action NewWindow]
+Name=New Window
+Exec=nebula-terminal
