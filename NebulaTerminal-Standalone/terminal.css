@@ -1,5 +1,29 @@
 /* Nebula Terminal v2.0 - Real PTY Terminal with xterm.js */
 
+:root {
+    /* Default theme colors (will be overridden by theme engine) */
+    --theme-background: #1a1a1a;
+    --theme-foreground: #00ff00;
+    --theme-cursor: #00ff00;
+    --theme-selection: rgba(0, 255, 0, 0.3);
+    --theme-green: #00ff00;
+    --theme-bright-green: #5fff5f;
+    --theme-cyan: #a6e22e;
+    --theme-bright-cyan: #87ffaf;
+    --theme-blue: #66d9ef;
+    --theme-bright-blue: #87d7ff;
+    --theme-yellow: #ffeb3b;
+    --theme-bright-yellow: #ffff87;
+    --theme-red: #ff6b6b;
+    --theme-bright-red: #ff8787;
+    --theme-magenta: #f92672;
+    --theme-bright-magenta: #ff87ff;
+    --theme-black: #000000;
+    --theme-bright-black: #555555;
+    --theme-white: #f8f8f2;
+    --theme-bright-white: #ffffff;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -10,8 +34,8 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: #1a1a1a;
-    color: #00ff00;
+    background: var(--theme-background);
+    color: var(--theme-foreground);
     position: relative;
 }
 
@@ -53,7 +77,7 @@ html, body {
     height: 36px;
     background: rgba(20, 20, 20, 0.95);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     display: flex;
     align-items: center;
     z-index: 1000;
@@ -110,9 +134,9 @@ html, body {
 
 .tab-button.active {
     background: rgba(26, 26, 26, 1);
-    color: #00ff00;
-    border-color: rgba(0, 255, 0, 0.3);
-    box-shadow: 0 -2px 8px rgba(0, 255, 0, 0.1);
+    color: var(--theme-foreground);
+    border-color: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    box-shadow: 0 -2px 8px color-mix(in srgb, var(--theme-foreground) 10%, transparent);
 }
 
 .tab-title {
@@ -146,10 +170,10 @@ html, body {
 .new-tab-button {
     width: 32px;
     height: 28px;
-    background: rgba(0, 255, 0, 0.1);
-    border: 1px solid rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
     border-radius: 6px;
-    color: #00ff00;
+    color: var(--theme-foreground);
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
@@ -162,8 +186,8 @@ html, body {
 }
 
 .new-tab-button:hover {
-    background: rgba(0, 255, 0, 0.2);
-    border-color: rgba(0, 255, 0, 0.5);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
     transform: scale(1.05);
 }
 
@@ -215,14 +239,14 @@ html, body {
 }
 
 .pane.active {
-    box-shadow: inset 0 0 0 2px rgba(0, 255, 0, 0.3);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 /* Pane Header (with controls) */
 .pane-header {
     height: 28px;
     background: rgba(30, 30, 30, 0.8);
-    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -263,9 +287,9 @@ html, body {
 }
 
 .pane-control-btn:hover {
-    background: rgba(0, 255, 0, 0.1);
-    border-color: rgba(0, 255, 0, 0.4);
-    color: #00ff00;
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 40%, transparent);
+    color: var(--theme-foreground);
 }
 
 /* Pane Content (terminal) */
@@ -277,13 +301,13 @@ html, body {
 
 /* Resizable Divider */
 .pane-divider {
-    background: rgba(0, 255, 0, 0.1);
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
     position: relative;
     z-index: 10;
 }
 
 .pane-divider:hover {
-    background: rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .pane-divider.horizontal {
@@ -297,13 +321,13 @@ html, body {
 }
 
 .pane-divider.dragging {
-    background: rgba(0, 255, 0, 0.5);
+    background: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
 }
 
 /* Inline Content */
 .inline-content {
     margin: 12px 0;
-    border: 1px solid rgba(0, 255, 0, 0.3);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
     border-radius: 8px;
     overflow: hidden;
     background: rgba(20, 20, 20, 0.9);
@@ -324,7 +348,7 @@ html, body {
 
 .inline-header {
     background: rgba(30, 30, 30, 0.95);
-    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     padding: 8px 12px;
     display: flex;
     align-items: center;
@@ -334,7 +358,7 @@ html, body {
 
 .inline-title {
     font-size: 12px;
-    color: #00ff00;
+    color: var(--theme-foreground);
     font-weight: 500;
 }
 
@@ -345,9 +369,9 @@ html, body {
 }
 
 .inline-btn {
-    background: rgba(0, 255, 0, 0.1);
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    color: #00ff00;
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    color: var(--theme-foreground);
     padding: 4px 12px;
     border-radius: 4px;
     font-size: 11px;
@@ -356,8 +380,8 @@ html, body {
 }
 
 .inline-btn:hover {
-    background: rgba(0, 255, 0, 0.2);
-    border-color: rgba(0, 255, 0, 0.5);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
 }
 
 .inline-close {
@@ -398,9 +422,9 @@ html, body {
 .simple-editor {
     width: 100%;
     min-height: 300px;
-    background: #1a1a1a;
-    color: #00ff00;
-    border: 1px solid rgba(0, 255, 0, 0.2);
+    background: var(--theme-background);
+    color: var(--theme-foreground);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     border-radius: 4px;
     padding: 12px;
     font-family: 'Fira Code', 'JetBrains Mono', monospace;
@@ -411,8 +435,8 @@ html, body {
 
 .simple-editor:focus {
     outline: none;
-    border-color: rgba(0, 255, 0, 0.5);
-    box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.1);
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-foreground) 10%, transparent);
 }
 
 /* Monaco Editor Container */
@@ -436,8 +460,8 @@ html, body {
 .web-url-bar {
     flex: 1;
     background: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    color: #00ff00;
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    color: var(--theme-foreground);
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 11px;
@@ -446,8 +470,8 @@ html, body {
 
 .web-url-bar:focus {
     outline: none;
-    border-color: rgba(0, 255, 0, 0.5);
-    box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.1);
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-foreground) 10%, transparent);
 }
 
 webview {
@@ -470,11 +494,11 @@ webview {
 }
 
 .xterm-viewport {
-    background-color: #1a1a1a !important;
+    background-color: var(--theme-background) !important;
 }
 
 .xterm-screen {
-    background-color: #1a1a1a !important;
+    background-color: var(--theme-background) !important;
 }
 
 /* Custom scrollbar for xterm */
@@ -497,12 +521,12 @@ webview {
 
 /* Cursor styles */
 .xterm-cursor-layer .xterm-cursor {
-    background-color: #00ff00 !important;
+    background-color: var(--theme-foreground) !important;
 }
 
 /* Selection style */
 .xterm .xterm-selection div {
-    background-color: rgba(0, 255, 0, 0.3) !important;
+    background-color: color-mix(in srgb, var(--theme-foreground) 30%, transparent) !important;
 }
 
 /* Link hover effect */
@@ -564,17 +588,17 @@ webview {
 
 .drop-zone {
     position: absolute;
-    background: rgba(0, 255, 0, 0.1);
-    border: 2px dashed rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border: 2px dashed color-mix(in srgb, var(--theme-foreground) 30%, transparent);
     transition: all 0.2s;
     pointer-events: auto;
     cursor: pointer;
 }
 
 .drop-zone.hover {
-    background: rgba(0, 255, 0, 0.25);
-    border-color: rgba(0, 255, 0, 0.6);
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+    background: color-mix(in srgb, var(--theme-foreground) 25%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 60%, transparent);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--theme-foreground) 40%, transparent);
 }
 
 /* Drop zones positioning */
@@ -621,13 +645,13 @@ webview {
     width: 100%;
     height: 100%;
     background: rgba(20, 20, 20, 0.95);
-    color: #00ff00;
+    color: var(--theme-foreground);
     font-family: 'Courier New', monospace;
     outline: none;
 }
 
 .file-manager:focus {
-    outline: 2px solid rgba(0, 255, 0, 0.3);
+    outline: 2px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
     outline-offset: -2px;
 }
 
@@ -636,8 +660,8 @@ webview {
     align-items: center;
     justify-content: space-between;
     padding: 8px;
-    background: rgba(30, 30, 30, 0.95);
-    border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-background) 95%, black);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
     gap: 8px;
 }
 
@@ -654,9 +678,9 @@ webview {
 
 .fm-search-input {
     width: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    color: #00ff00;
+    background: color-mix(in srgb, var(--theme-black) 40%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    color: var(--theme-foreground);
     padding: 6px 10px;
     font-family: monospace;
     font-size: 12px;
@@ -666,8 +690,8 @@ webview {
 }
 
 .fm-search-input:focus {
-    border-color: rgba(0, 255, 0, 0.6);
-    background: rgba(0, 0, 0, 0.6);
+    border-color: color-mix(in srgb, var(--theme-foreground) 60%, transparent);
+    background: color-mix(in srgb, var(--theme-black) 60%, transparent);
 }
 
 .fm-search-input::placeholder {
@@ -675,9 +699,9 @@ webview {
 }
 
 .fm-sort-select {
-    background: rgba(0, 255, 0, 0.1);
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    color: #00ff00;
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    color: var(--theme-foreground);
     padding: 4px 8px;
     font-family: monospace;
     font-size: 12px;
@@ -688,19 +712,19 @@ webview {
 }
 
 .fm-sort-select:hover {
-    background: rgba(0, 255, 0, 0.2);
-    border-color: rgba(0, 255, 0, 0.5);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
 }
 
 .fm-sort-select option {
-    background: #1a1a1a;
-    color: #00ff00;
+    background: var(--theme-background);
+    color: var(--theme-foreground);
 }
 
 .fm-btn {
-    background: rgba(0, 255, 0, 0.1);
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    color: #00ff00;
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    color: var(--theme-foreground);
     padding: 4px 8px;
     cursor: pointer;
     font-family: monospace;
@@ -710,12 +734,12 @@ webview {
 }
 
 .fm-btn:hover:not(:disabled) {
-    background: rgba(0, 255, 0, 0.2);
-    border-color: rgba(0, 255, 0, 0.5);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
 }
 
 .fm-btn:active:not(:disabled) {
-    background: rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .fm-btn:disabled {
@@ -724,20 +748,20 @@ webview {
 }
 
 .fm-terminal-btn {
-    background: rgba(0, 200, 255, 0.1);
-    border-color: rgba(0, 200, 255, 0.3);
-    color: #00ccff;
+    background: color-mix(in srgb, var(--theme-cyan) 10%, transparent);
+    border-color: color-mix(in srgb, var(--theme-cyan) 30%, transparent);
+    color: var(--theme-cyan);
 }
 
 .fm-terminal-btn:hover {
-    background: rgba(0, 200, 255, 0.2);
-    border-color: rgba(0, 200, 255, 0.5);
+    background: color-mix(in srgb, var(--theme-cyan) 20%, transparent);
+    border-color: color-mix(in srgb, var(--theme-cyan) 50%, transparent);
 }
 
 .fm-breadcrumb {
     padding: 8px 12px;
-    background: rgba(25, 25, 25, 0.9);
-    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+    background: color-mix(in srgb, var(--theme-background) 90%, black);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     font-size: 12px;
     overflow-x: auto;
     white-space: nowrap;
@@ -751,7 +775,7 @@ webview {
 }
 
 .fm-breadcrumb-part:hover {
-    background: rgba(0, 255, 0, 0.1);
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
     text-decoration: underline;
 }
 
@@ -792,7 +816,7 @@ webview {
     gap: 12px;
     padding: 8px 12px;
     background: rgba(30, 30, 30, 0.5);
-    border: 1px solid rgba(0, 255, 0, 0.1);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 10%, transparent);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
@@ -800,14 +824,14 @@ webview {
 }
 
 .fm-list-item:hover {
-    background: rgba(0, 255, 0, 0.1);
-    border-color: rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .fm-item-selected {
-    background: rgba(0, 255, 0, 0.2) !important;
-    border-color: rgba(0, 255, 0, 0.5) !important;
-    box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent) !important;
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .fm-item-icon {
@@ -846,7 +870,7 @@ webview {
     align-items: center;
     padding: 12px;
     background: rgba(30, 30, 30, 0.5);
-    border: 1px solid rgba(0, 255, 0, 0.1);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 10%, transparent);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
@@ -854,8 +878,8 @@ webview {
 }
 
 .fm-grid-item:hover {
-    background: rgba(0, 255, 0, 0.1);
-    border-color: rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
     transform: translateY(-2px);
 }
 
@@ -902,12 +926,12 @@ webview {
 }
 
 .fm-content::-webkit-scrollbar-thumb {
-    background: rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
     border-radius: 4px;
 }
 
 .fm-content::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 255, 0, 0.5);
+    background: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
 }
 
 /* Multi-select toolbar */
@@ -916,8 +940,8 @@ webview {
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background: rgba(0, 200, 255, 0.15);
-    border-bottom: 1px solid rgba(0, 200, 255, 0.4);
+    background: color-mix(in srgb, var(--theme-cyan) 15%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-cyan) 40%, transparent);
     animation: slideDown 0.2s ease;
 }
 
@@ -933,7 +957,7 @@ webview {
 }
 
 .fm-selected-count {
-    color: #00ccff;
+    color: var(--theme-cyan);
     font-weight: bold;
     font-size: 13px;
 }
@@ -960,7 +984,7 @@ webview {
     height: 16px;
     cursor: pointer;
     margin-right: 8px;
-    accent-color: #00ff00;
+    accent-color: var(--theme-foreground);
 }
 
 .fm-checkbox-grid {
@@ -975,15 +999,15 @@ webview {
 }
 
 .fm-item-checked {
-    background: rgba(0, 200, 255, 0.15) !important;
-    border-color: rgba(0, 200, 255, 0.4) !important;
+    background: color-mix(in srgb, var(--theme-cyan) 15%, transparent) !important;
+    border-color: color-mix(in srgb, var(--theme-cyan) 40%, transparent) !important;
 }
 
 /* Context menu */
 .fm-context-menu {
     position: fixed;
     background: rgba(20, 20, 20, 0.98);
-    border: 1px solid rgba(0, 255, 0, 0.4);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 40%, transparent);
     border-radius: 4px;
     padding: 4px 0;
     z-index: 10000;
@@ -1006,18 +1030,18 @@ webview {
 .fm-menu-item {
     padding: 8px 16px;
     cursor: pointer;
-    color: #00ff00;
+    color: var(--theme-foreground);
     font-size: 13px;
     transition: background 0.2s;
 }
 
 .fm-menu-item:hover {
-    background: rgba(0, 255, 0, 0.15);
+    background: color-mix(in srgb, var(--theme-foreground) 15%, transparent);
 }
 
 .fm-menu-separator {
     height: 1px;
-    background: rgba(0, 255, 0, 0.2);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     margin: 4px 0;
 }
 
@@ -1028,7 +1052,7 @@ webview {
     flex-direction: column;
     height: 100%;
     background: rgba(0, 0, 0, 0.8);
-    color: #00ff00;
+    color: var(--theme-foreground);
     font-family: monospace;
     overflow: hidden;
 }
@@ -1038,14 +1062,14 @@ webview {
     align-items: center;
     gap: 10px;
     padding: 10px;
-    background: rgba(0, 100, 0, 0.2);
-    border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .git-manager-header h3 {
     margin: 0;
     font-size: 14px;
-    color: #00ff00;
+    color: var(--theme-foreground);
 }
 
 .git-branch-selector {
@@ -1056,9 +1080,9 @@ webview {
 }
 
 .git-branch-select {
-    background: rgba(0, 255, 0, 0.1);
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    color: #00ff00;
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    color: var(--theme-foreground);
     padding: 4px 8px;
     font-family: monospace;
     font-size: 12px;
@@ -1069,13 +1093,13 @@ webview {
 }
 
 .git-branch-select:hover {
-    background: rgba(0, 255, 0, 0.2);
-    border-color: rgba(0, 255, 0, 0.5);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
 }
 
 .git-branch-select option {
-    background: #1a1a1a;
-    color: #00ff00;
+    background: var(--theme-background);
+    color: var(--theme-foreground);
 }
 
 .git-toolbar {
@@ -1083,14 +1107,14 @@ webview {
     gap: 8px;
     padding: 8px 10px;
     background: rgba(0, 0, 0, 0.5);
-    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     flex-wrap: wrap;
 }
 
 .git-btn {
-    background: rgba(0, 255, 0, 0.1);
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    color: #00ff00;
+    background: color-mix(in srgb, var(--theme-foreground) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    color: var(--theme-foreground);
     padding: 6px 12px;
     cursor: pointer;
     font-family: monospace;
@@ -1101,12 +1125,12 @@ webview {
 }
 
 .git-btn:hover {
-    background: rgba(0, 255, 0, 0.2);
-    border-color: rgba(0, 255, 0, 0.5);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 50%, transparent);
 }
 
 .git-btn:active {
-    background: rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .git-file-list {
@@ -1121,10 +1145,10 @@ webview {
 
 .git-section-title {
     font-size: 13px;
-    color: #00cc00;
+    color: var(--theme-foreground);
     margin-bottom: 8px;
     padding: 4px 0;
-    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     font-weight: bold;
 }
 
@@ -1133,16 +1157,16 @@ webview {
     align-items: center;
     padding: 6px 8px;
     margin: 2px 0;
-    background: rgba(0, 50, 0, 0.2);
-    border: 1px solid rgba(0, 255, 0, 0.15);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 15%, transparent);
     border-radius: 3px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .git-file-item:hover {
-    background: rgba(0, 100, 0, 0.3);
-    border-color: rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .git-file-checkbox {
@@ -1150,7 +1174,7 @@ webview {
     height: 16px;
     cursor: pointer;
     margin-right: 8px;
-    accent-color: #00ff00;
+    accent-color: var(--theme-foreground);
 }
 
 .git-file-status {
@@ -1162,7 +1186,7 @@ webview {
 .git-file-path {
     flex: 1;
     font-size: 12px;
-    color: #00ff00;
+    color: var(--theme-foreground);
 }
 
 .git-empty-state {
@@ -1172,7 +1196,7 @@ webview {
 }
 
 .git-empty-state h3 {
-    color: #00cc00;
+    color: var(--theme-foreground);
     margin-bottom: 10px;
 }
 
@@ -1193,7 +1217,7 @@ webview {
 
 .git-commit-modal-content {
     background: rgba(20, 20, 20, 0.98);
-    border: 2px solid rgba(0, 255, 0, 0.4);
+    border: 2px solid color-mix(in srgb, var(--theme-foreground) 40%, transparent);
     border-radius: 8px;
     width: 600px;
     max-width: 90%;
@@ -1208,13 +1232,13 @@ webview {
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: rgba(0, 100, 0, 0.2);
-    border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .git-commit-header h3 {
     margin: 0;
-    color: #00ff00;
+    color: var(--theme-foreground);
     font-size: 16px;
 }
 
@@ -1243,7 +1267,7 @@ webview {
 
 .git-commit-body label {
     display: block;
-    color: #00cc00;
+    color: var(--theme-foreground);
     font-size: 13px;
     margin-bottom: 8px;
     font-weight: bold;
@@ -1252,8 +1276,8 @@ webview {
 .git-commit-message {
     width: 100%;
     background: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    color: #00ff00;
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    color: var(--theme-foreground);
     padding: 10px;
     font-family: monospace;
     font-size: 13px;
@@ -1265,8 +1289,8 @@ webview {
 }
 
 .git-commit-message:focus {
-    border-color: rgba(0, 255, 0, 0.6);
-    background: rgba(0, 50, 0, 0.3);
+    border-color: color-mix(in srgb, var(--theme-foreground) 60%, transparent);
+    background: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
 }
 
 .git-commit-message::placeholder {
@@ -1276,13 +1300,13 @@ webview {
 .git-commit-preview {
     margin-top: 16px;
     padding: 12px;
-    background: rgba(0, 50, 0, 0.2);
-    border: 1px solid rgba(0, 255, 0, 0.2);
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
     border-radius: 4px;
 }
 
 .git-commit-preview strong {
-    color: #00cc00;
+    color: var(--theme-foreground);
     font-size: 12px;
 }
 
@@ -1296,9 +1320,9 @@ webview {
     padding: 4px 8px;
     margin: 2px 0;
     background: rgba(0, 0, 0, 0.4);
-    border-left: 2px solid rgba(0, 255, 0, 0.5);
+    border-left: 2px solid color-mix(in srgb, var(--theme-foreground) 50%, transparent);
     font-size: 12px;
-    color: #00ff00;
+    color: var(--theme-foreground);
 }
 
 .git-commit-footer {
@@ -1307,7 +1331,7 @@ webview {
     gap: 10px;
     padding: 12px 16px;
     background: rgba(0, 0, 0, 0.4);
-    border-top: 1px solid rgba(0, 255, 0, 0.2);
+    border-top: 1px solid color-mix(in srgb, var(--theme-foreground) 20%, transparent);
 }
 
 .git-btn-cancel {
@@ -1322,13 +1346,13 @@ webview {
 }
 
 .git-btn-commit {
-    background: rgba(0, 200, 0, 0.2);
-    border: 1px solid rgba(0, 255, 0, 0.4);
-    color: #00ff00;
+    background: color-mix(in srgb, var(--theme-foreground) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--theme-foreground) 40%, transparent);
+    color: var(--theme-foreground);
     font-weight: bold;
 }
 
 .git-btn-commit:hover {
-    background: rgba(0, 200, 0, 0.3);
-    border-color: rgba(0, 255, 0, 0.6);
+    background: color-mix(in srgb, var(--theme-foreground) 30%, transparent);
+    border-color: color-mix(in srgb, var(--theme-foreground) 60%, transparent);
 }
