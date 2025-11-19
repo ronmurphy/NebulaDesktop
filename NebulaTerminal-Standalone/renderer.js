@@ -59,6 +59,11 @@ class NebulaTerminalRenderer {
             container.style.backdropFilter = `blur(${settings.backgroundBlur}px)`;
         }
 
+        // Apply background (if settingsModal exists)
+        if (window.settingsModal && window.settingsModal.applyBackground) {
+            window.settingsModal.applyBackground(settings);
+        }
+
         // Fit terminal to window
         this.fitAddon.fit();
 
