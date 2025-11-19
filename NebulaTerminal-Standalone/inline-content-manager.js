@@ -63,6 +63,15 @@ class InlineContentManager {
             return true;
         }
 
+        // ndiff <file1> <file2> - Nebula Diff Viewer (always opens in split pane)
+        const ndiffMatch = trimmed.match(/^ndiff\s+(.+?)\s+(.+)$/);
+        if (ndiffMatch) {
+            const file1 = ndiffMatch[1].trim();
+            const file2 = ndiffMatch[2].trim();
+            this.openDiffViewer(file1, file2, pane);
+            return true;
+        }
+
         return false; // Not a special command
     }
 
@@ -996,6 +1005,200 @@ class InlineContentManager {
             return ascending ? compareValue : -compareValue;
         });
     }
+
+    // ==================== DIFF VIEWER ====================
+
+    async openDiffViewer(file1, file2, pane) {
+        try {
+            await this.paneManager.splitPane(pane.id, 'horizontal');
+            const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
+
+            newPane.diffViewerState = {
+                file1,
+                file2,
+                content1: null,
+                content2: null,
+                diff: null
+            };
+
+            await this.renderDiffViewer(newPane);
+        } catch (error) {
+            console.error('Failed to open diff viewer:', error);
+            pane.term.writeln(`\r\n\x1b[31mError: Failed to open diff viewer: ${error.message}\x1b[0m\r\n`);
+        }
+    }
+
+    async renderDiffViewer(pane) {
+        const state = pane.diffViewerState;
+
+        // Read both files
+        try {
+            state.content1 = await window.fileAPI.readFile(state.file1);
+            state.content2 = await window.fileAPI.readFile(state.file2);
+            state.diff = this.generateUnifiedDiff(state.content1, state.content2, state.file1, state.file2);
+        } catch (error) {
+            console.error('Failed to read files for diff:', error);
+            pane.element.innerHTML = `
+                <div class="diff-viewer">
+                    <div class="diff-header">
+                        <h3>⚠️ Diff Viewer - Error</h3>
+                    </div>
+                    <div class="diff-error">
+                        Failed to read files: ${error.message}
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Render diff viewer UI
+        const html = `
+            <div class="diff-viewer">
+                <div class="diff-header">
+                    <h3>🔍 Diff Viewer</h3>
+                    <div class="diff-file-names">
+                        <span class="diff-file-label">📄 ${state.file1}</span>
+                        <span class="diff-vs">vs</span>
+                        <span class="diff-file-label">📄 ${state.file2}</span>
+                    </div>
+                </div>
+                <div class="diff-toolbar">
+                    <button class="diff-btn" onclick="window.diffViewerToggleView(${pane.id})">🔄 Toggle View</button>
+                    <button class="diff-btn" onclick="window.diffViewerCopyDiff(${pane.id})">📋 Copy Diff</button>
+                </div>
+                <div class="diff-content" id="diff-content-${pane.id}">
+                    ${this.renderUnifiedDiff(state.diff)}
+                </div>
+            </div>
+        `;
+
+        pane.element.innerHTML = html;
+    }
+
+    generateUnifiedDiff(content1, content2, file1, file2) {
+        const lines1 = content1.split('\n');
+        const lines2 = content2.split('\n');
+
+        // Simple diff algorithm (LCS-based)
+        const diff = this.computeDiff(lines1, lines2);
+
+        // Generate unified diff format
+        let result = `--- ${file1}\n+++ ${file2}\n`;
+
+        let i = 0;
+        while (i < diff.length) {
+            // Find start of change block
+            while (i < diff.length && diff[i].type === 'equal') i++;
+            if (i >= diff.length) break;
+
+            // Find start and end of this hunk
+            const hunkStart = Math.max(0, i - 3); // Include 3 lines of context
+            let hunkEnd = i;
+            while (hunkEnd < diff.length && (diff[hunkEnd].type !== 'equal' || hunkEnd - i < 3)) {
+                hunkEnd++;
+            }
+            hunkEnd = Math.min(diff.length, hunkEnd + 3);
+
+            // Calculate line numbers
+            let oldStart = 0, oldCount = 0, newStart = 0, newCount = 0;
+            for (let j = 0; j < hunkStart; j++) {
+                if (diff[j].type !== 'add') oldStart++;
+                if (diff[j].type !== 'remove') newStart++;
+            }
+
+            for (let j = hunkStart; j < hunkEnd; j++) {
+                if (diff[j].type !== 'add') oldCount++;
+                if (diff[j].type !== 'remove') newCount++;
+            }
+
+            result += `@@ -${oldStart + 1},${oldCount} +${newStart + 1},${newCount} @@\n`;
+
+            // Add hunk lines
+            for (let j = hunkStart; j < hunkEnd; j++) {
+                const item = diff[j];
+                if (item.type === 'equal') {
+                    result += ` ${item.value}\n`;
+                } else if (item.type === 'remove') {
+                    result += `-${item.value}\n`;
+                } else if (item.type === 'add') {
+                    result += `+${item.value}\n`;
+                }
+            }
+
+            i = hunkEnd;
+        }
+
+        return result;
+    }
+
+    computeDiff(lines1, lines2) {
+        // Simple LCS-based diff algorithm
+        const m = lines1.length;
+        const n = lines2.length;
+        const lcs = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+        // Build LCS table
+        for (let i = 1; i <= m; i++) {
+            for (let j = 1; j <= n; j++) {
+                if (lines1[i - 1] === lines2[j - 1]) {
+                    lcs[i][j] = lcs[i - 1][j - 1] + 1;
+                } else {
+                    lcs[i][j] = Math.max(lcs[i - 1][j], lcs[i][j - 1]);
+                }
+            }
+        }
+
+        // Backtrack to find diff
+        const diff = [];
+        let i = m, j = n;
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && lines1[i - 1] === lines2[j - 1]) {
+                diff.unshift({ type: 'equal', value: lines1[i - 1] });
+                i--;
+                j--;
+            } else if (j > 0 && (i === 0 || lcs[i][j - 1] >= lcs[i - 1][j])) {
+                diff.unshift({ type: 'add', value: lines2[j - 1] });
+                j--;
+            } else if (i > 0) {
+                diff.unshift({ type: 'remove', value: lines1[i - 1] });
+                i--;
+            }
+        }
+
+        return diff;
+    }
+
+    renderUnifiedDiff(diffText) {
+        const lines = diffText.split('\n');
+        let html = '<div class="diff-unified">';
+
+        for (const line of lines) {
+            if (line.startsWith('---')) {
+                html += `<div class="diff-line diff-header-line">${this.escapeHtml(line)}</div>`;
+            } else if (line.startsWith('+++')) {
+                html += `<div class="diff-line diff-header-line">${this.escapeHtml(line)}</div>`;
+            } else if (line.startsWith('@@')) {
+                html += `<div class="diff-line diff-hunk-header">${this.escapeHtml(line)}</div>`;
+            } else if (line.startsWith('+')) {
+                html += `<div class="diff-line diff-addition">${this.escapeHtml(line)}</div>`;
+            } else if (line.startsWith('-')) {
+                html += `<div class="diff-line diff-deletion">${this.escapeHtml(line)}</div>`;
+            } else if (line.startsWith(' ')) {
+                html += `<div class="diff-line diff-context">${this.escapeHtml(line)}</div>`;
+            } else {
+                html += `<div class="diff-line">${this.escapeHtml(line)}</div>`;
+            }
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 }
 
 // Export globally
@@ -1741,4 +1944,35 @@ window.gitManagerRefresh = async function(paneId) {
     } catch (error) {
         alert(`Refresh failed: ${error.message}`);
     }
+};
+
+// ==================== DIFF VIEWER HELPER FUNCTIONS ====================
+
+window.diffViewerToggleView = function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.diffViewerState) return;
+
+    // TODO: Implement side-by-side view toggle
+    alert('Side-by-side view coming soon! Currently showing unified diff.');
+};
+
+window.diffViewerCopyDiff = function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.diffViewerState) return;
+
+    const diffText = pane.diffViewerState.diff;
+    if (!diffText) return;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(diffText).then(() => {
+        alert('✓ Diff copied to clipboard!');
+    }).catch(err => {
+        alert(`Failed to copy: ${err.message}`);
+    });
 };

@@ -179,6 +179,7 @@ Features:
 💾 Layout Save/Load (Shareable JSON!)
 📁 Full File Manager (nfm) with Multi-Select!
 🔧 Git Manager (ngit) with Easy Commits!
+🔍 Diff Viewer (ndiff) with Syntax Highlighting!
 
 Nebula Commands (default: split mode):
 • nip <file> [--inline] - Image viewer
@@ -187,6 +188,7 @@ Nebula Commands (default: split mode):
 • niw <url> [--inline] - Full web browser!
 • nfm [path] - File manager with list/grid views
 • ngit - Git manager with stage/commit/push/pull!
+• ndiff <file1> <file2> - Unified diff viewer!
 
 Built with love using Electron & xterm.js
 Code by Claude 🤖✨`);
