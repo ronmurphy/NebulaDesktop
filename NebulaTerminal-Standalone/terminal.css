@@ -623,6 +623,12 @@ webview {
     background: rgba(20, 20, 20, 0.95);
     color: #00ff00;
     font-family: 'Courier New', monospace;
+    outline: none;
+}
+
+.file-manager:focus {
+    outline: 2px solid rgba(0, 255, 0, 0.3);
+    outline-offset: -2px;
 }
 
 .fm-header {
@@ -636,10 +642,59 @@ webview {
 }
 
 .fm-nav-buttons,
-.fm-controls,
-.fm-pane-controls {
+.fm-controls {
     display: flex;
     gap: 4px;
+}
+
+.fm-search-container {
+    flex: 1;
+    max-width: 300px;
+}
+
+.fm-search-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    color: #00ff00;
+    padding: 6px 10px;
+    font-family: monospace;
+    font-size: 12px;
+    border-radius: 3px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.fm-search-input:focus {
+    border-color: rgba(0, 255, 0, 0.6);
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.fm-search-input::placeholder {
+    color: #666;
+}
+
+.fm-sort-select {
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    color: #00ff00;
+    padding: 4px 8px;
+    font-family: monospace;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.fm-sort-select:hover {
+    background: rgba(0, 255, 0, 0.2);
+    border-color: rgba(0, 255, 0, 0.5);
+}
+
+.fm-sort-select option {
+    background: #1a1a1a;
+    color: #00ff00;
 }
 
 .fm-btn {
@@ -747,6 +802,12 @@ webview {
 .fm-list-item:hover {
     background: rgba(0, 255, 0, 0.1);
     border-color: rgba(0, 255, 0, 0.3);
+}
+
+.fm-item-selected {
+    background: rgba(0, 255, 0, 0.2) !important;
+    border-color: rgba(0, 255, 0, 0.5) !important;
+    box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.3);
 }
 
 .fm-item-icon {
