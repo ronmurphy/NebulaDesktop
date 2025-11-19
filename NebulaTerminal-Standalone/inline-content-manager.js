@@ -124,7 +124,7 @@ class InlineContentManager {
                 <div class="inline-header">
                     <span class="inline-title">📝 ${filePath}</span>
                     <div class="inline-actions">
-                        <button class="inline-btn" onclick="inlineContentManager.saveTextEditor('${editorId}', '${filePath}')">Save</button>
+                        <button class="inline-btn" onclick="window.tabManager.getActiveTab().paneManager.inlineContentManager.saveTextEditor('${editorId}', '${filePath}')">Save</button>
                         <button class="inline-close" onclick="this.parentElement.parentElement.parentElement.remove()">×</button>
                     </div>
                 </div>
@@ -150,7 +150,7 @@ class InlineContentManager {
                 <div class="inline-header">
                     <span class="inline-title">📝 ${filePath}</span>
                     <div class="inline-actions">
-                        <button class="inline-btn" onclick="inlineContentManager.saveTextEditor('${editorId}', '${filePath}')">Save (Ctrl+S)</button>
+                        <button class="inline-btn" onclick="window.tabManager.getActiveTab().paneManager.inlineContentManager.saveTextEditor('${editorId}', '${filePath}')">Save (Ctrl+S)</button>
                         <button class="inline-close" onclick="window.tabManager.getActiveTab().paneManager.closePane(${pane.id})">×</button>
                     </div>
                 </div>
@@ -173,8 +173,15 @@ class InlineContentManager {
     async openMonacoEditor(filePath, pane, useSplit) {
         // Check if Monaco is loaded
         if (!window.monaco) {
-            pane.term.write('\r\n\x1b[33m⚠ Monaco Editor not loaded. Loading...\x1b[0m\r\n');
-            await this.loadMonaco();
+            pane.term.write('\r\n\x1b[33m⚠ Monaco Editor not loaded. Loading from CDN...\x1b[0m\r\n');
+            try {
+                await this.loadMonaco();
+                pane.term.write('\x1b[32m✓ Monaco Editor loaded successfully!\x1b[0m\r\n');
+            } catch (error) {
+                pane.term.write(`\x1b[31m✗ Failed to load Monaco Editor: ${error.message}\x1b[0m\r\n$ `);
+                console.error('Monaco load failed:', error);
+                return;
+            }
         }
 
         const content = await this.loadFile(filePath);
@@ -188,6 +195,52 @@ class InlineContentManager {
         }
     }
 
+    renderMonacoInline(filePath, content, pane) {
+        const editorId = `monaco-${Date.now()}`;
+        const editorHtml = `
+            <div class="inline-content monaco-editor" data-file="${filePath}">
+                <div class="inline-header">
+                    <span class="inline-title">💻 ${filePath}</span>
+                    <div class="inline-actions">
+                        <button class="inline-btn" onclick="window.tabManager.getActiveTab().paneManager.inlineContentManager.saveMonaco('${editorId}', '${filePath}')">Save (Ctrl+S)</button>
+                        <button class="inline-close" onclick="this.parentElement.parentElement.parentElement.remove()">×</button>
+                    </div>
+                </div>
+                <div class="inline-body" style="height: 400px;">
+                    <div id="${editorId}" style="width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+        `;
+
+        const container = pane.element.querySelector('.pane-content');
+        const inlineDiv = document.createElement('div');
+        inlineDiv.innerHTML = editorHtml;
+        container.appendChild(inlineDiv.firstElementChild);
+
+        // Wait for DOM to be ready, then create Monaco editor
+        setTimeout(() => {
+            const language = this.detectLanguage(filePath);
+            const editor = monaco.editor.create(document.getElementById(editorId), {
+                value: content,
+                language: language,
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14
+            });
+
+            // Store editor instance
+            window[`monacoInstance_${editorId}`] = editor;
+
+            // Add Ctrl+S handler
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KEY_S, () => {
+                this.saveMonaco(editorId, filePath);
+            });
+
+            pane.term.write(`\r\n\x1b[32m✓ Monaco editor opened: ${filePath}\x1b[0m\r\n$ `);
+        }, 100);
+    }
+
     renderMonacoInPane(filePath, content, pane) {
         const editorId = `monaco-${Date.now()}`;
         const contentDiv = pane.element.querySelector('.pane-content');
@@ -196,7 +249,7 @@ class InlineContentManager {
                 <div class="inline-header">
                     <span class="inline-title">💻 ${filePath}</span>
                     <div class="inline-actions">
-                        <button class="inline-btn" onclick="inlineContentManager.saveMonaco('${editorId}', '${filePath}')">Save (Ctrl+S)</button>
+                        <button class="inline-btn" onclick="window.tabManager.getActiveTab().paneManager.inlineContentManager.saveMonaco('${editorId}', '${filePath}')">Save (Ctrl+S)</button>
                         <button class="inline-close" onclick="window.tabManager.getActiveTab().paneManager.closePane(${pane.id})">×</button>
                     </div>
                 </div>
@@ -206,24 +259,26 @@ class InlineContentManager {
             </div>
         `;
 
-        // Create Monaco editor
-        const language = this.detectLanguage(filePath);
-        const editor = monaco.editor.create(document.getElementById(editorId), {
-            value: content,
-            language: language,
-            theme: 'vs-dark',
-            automaticLayout: true,
-            minimap: { enabled: true },
-            fontSize: 14
-        });
+        // Wait for DOM, then create Monaco editor
+        setTimeout(() => {
+            const language = this.detectLanguage(filePath);
+            const editor = monaco.editor.create(document.getElementById(editorId), {
+                value: content,
+                language: language,
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: true },
+                fontSize: 14
+            });
 
-        // Store editor instance
-        window[`monacoInstance_${editorId}`] = editor;
+            // Store editor instance
+            window[`monacoInstance_${editorId}`] = editor;
 
-        // Add Ctrl+S handler
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KEY_S, () => {
-            this.saveMonaco(editorId, filePath);
-        });
+            // Add Ctrl+S handler
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KEY_S, () => {
+                this.saveMonaco(editorId, filePath);
+            });
+        }, 100);
     }
 
     async openWebViewer(url, pane, useSplit) {
@@ -249,8 +304,8 @@ class InlineContentManager {
                     <span class="inline-title">🌐 ${url}</span>
                     <button class="inline-close" onclick="this.parentElement.parentElement.remove()">×</button>
                 </div>
-                <div class="inline-body">
-                    <webview id="${viewerId}" src="${url}" style="width: 100%; height: 400px;"></webview>
+                <div class="inline-body" style="flex: 1;">
+                    <webview id="${viewerId}" src="${url}" style="width: 100%; height: 100%;"></webview>
                 </div>
             </div>
         `;
@@ -300,18 +355,48 @@ class InlineContentManager {
 
     async loadMonaco() {
         return new Promise((resolve, reject) => {
-            // Load Monaco from CDN
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
-            script.onload = () => {
-                require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
-                require(['vs/editor/editor.main'], () => {
-                    console.log('Monaco Editor loaded');
-                    resolve();
-                });
+            // Check if already loading
+            if (this.monacoLoading) {
+                return resolve();
+            }
+            this.monacoLoading = true;
+
+            // Load Monaco from CDN using AMD loader
+            const loaderScript = document.createElement('script');
+            loaderScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
+
+            loaderScript.onload = () => {
+                // Monaco's loader creates a global 'require' object
+                if (window.require) {
+                    window.require.config({
+                        paths: {
+                            vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'
+                        }
+                    });
+
+                    window.require(['vs/editor/editor.main'], () => {
+                        console.log('✓ Monaco Editor loaded successfully');
+                        this.monacoLoading = false;
+                        resolve();
+                    }, (err) => {
+                        console.error('Monaco loading error:', err);
+                        this.monacoLoading = false;
+                        reject(err);
+                    });
+                } else {
+                    console.error('Monaco loader did not create require function');
+                    this.monacoLoading = false;
+                    reject(new Error('Monaco loader failed'));
+                }
             };
-            script.onerror = reject;
-            document.head.appendChild(script);
+
+            loaderScript.onerror = (err) => {
+                console.error('Failed to load Monaco loader script:', err);
+                this.monacoLoading = false;
+                reject(err);
+            };
+
+            document.head.appendChild(loaderScript);
         });
     }
 
