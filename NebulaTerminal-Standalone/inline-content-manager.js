@@ -531,7 +531,9 @@ class InlineContentManager {
             searchQuery: '',
             allItems: [], // Store all items for search/filter
             filteredItems: [], // Items after filter/sort
-            selectedIndex: 0 // Currently selected item for keyboard nav
+            selectedIndex: 0, // Currently selected item for keyboard nav
+            selectedFiles: [], // Multi-select: array of selected file paths
+            contextMenu: null // Context menu element reference
         };
 
         await this.renderFileManager(newPane);
@@ -612,11 +614,12 @@ class InlineContentManager {
                         <button class="fm-btn fm-terminal-btn" onclick="window.fileManagerOpenTerminal(${pane.id})" title="Open Terminal Here">⌘</button>
                     </div>
                 </div>
+                ${state.selectedFiles.length > 0 ? this.renderMultiSelectToolbar(pane.id, state.selectedFiles.length) : ''}
                 <div class="fm-breadcrumb">
                     ${this.renderBreadcrumb(state.currentPath, pane.id)}
                 </div>
                 <div class="fm-content ${state.viewMode === 'grid' ? 'fm-grid-view' : 'fm-list-view'}">
-                    ${error ? `<div class="fm-error">⚠️ Error: ${error}</div>` : this.renderFileList(items, state.viewMode, pane.id, state.selectedIndex)}
+                    ${error ? `<div class="fm-error">⚠️ Error: ${error}</div>` : this.renderFileList(items, state.viewMode, pane.id, state.selectedIndex, state.selectedFiles)}
                 </div>
             </div>
         `;
@@ -647,7 +650,21 @@ class InlineContentManager {
         return breadcrumb;
     }
 
-    renderFileList(items, viewMode, paneId, selectedIndex) {
+    renderMultiSelectToolbar(paneId, selectedCount) {
+        return `
+            <div class="fm-multiselect-toolbar">
+                <span class="fm-selected-count">${selectedCount} item${selectedCount > 1 ? 's' : ''} selected</span>
+                <div class="fm-multiselect-actions">
+                    <button class="fm-btn" onclick="window.fileManagerCopySelected(${paneId})" title="Copy to...">📋 Copy</button>
+                    <button class="fm-btn" onclick="window.fileManagerMoveSelected(${paneId})" title="Move to...">📦 Move</button>
+                    <button class="fm-btn fm-delete-btn" onclick="window.fileManagerDeleteSelected(${paneId})" title="Delete">🗑️ Delete</button>
+                    <button class="fm-btn" onclick="window.fileManagerClearSelection(${paneId})" title="Clear">✖ Clear</button>
+                </div>
+            </div>
+        `;
+    }
+
+    renderFileList(items, viewMode, paneId, selectedIndex, selectedFiles) {
         if (items.length === 0) {
             return '<div class="fm-empty">📭 Empty folder</div>';
         }
@@ -658,11 +675,16 @@ class InlineContentManager {
                 const size = item.isDirectory ? '' : this.formatSize(item.size);
                 const date = item.modified ? new Date(item.modified).toLocaleDateString() : '';
                 const selectedClass = index === selectedIndex ? ' fm-item-selected' : '';
+                const isChecked = selectedFiles.includes(item.path);
+                const checkedClass = isChecked ? ' fm-item-checked' : '';
 
                 return `
-                    <div class="fm-item fm-list-item${selectedClass}" data-path="${item.path}" data-index="${index}"
+                    <div class="fm-item fm-list-item${selectedClass}${checkedClass}" data-path="${item.path}" data-index="${index}"
                          onclick="window.fileManagerSelectItem(${paneId}, ${index})"
-                         ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})">
+                         ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})"
+                         oncontextmenu="window.fileManagerContextMenu(event, ${paneId}, '${item.path}', ${item.isDirectory})">
+                        <input type="checkbox" class="fm-checkbox" ${isChecked ? 'checked' : ''}
+                               onclick="event.stopPropagation(); window.fileManagerToggleSelect(${paneId}, '${item.path}')">
                         <span class="fm-item-icon">${icon}</span>
                         <span class="fm-item-name">${item.name}</span>
                         <span class="fm-item-size">${size}</span>
@@ -676,11 +698,16 @@ class InlineContentManager {
                 const icon = this.getFileIcon(item);
                 const thumbnail = this.shouldShowThumbnail(item) ? `<img src="file://${item.path}" class="fm-thumbnail" onerror="this.style.display='none'">` : '';
                 const selectedClass = index === selectedIndex ? ' fm-item-selected' : '';
+                const isChecked = selectedFiles.includes(item.path);
+                const checkedClass = isChecked ? ' fm-item-checked' : '';
 
                 return `
-                    <div class="fm-item fm-grid-item${selectedClass}" data-path="${item.path}" data-index="${index}"
+                    <div class="fm-item fm-grid-item${selectedClass}${checkedClass}" data-path="${item.path}" data-index="${index}"
                          onclick="window.fileManagerSelectItem(${paneId}, ${index})"
-                         ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})">
+                         ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})"
+                         oncontextmenu="window.fileManagerContextMenu(event, ${paneId}, '${item.path}', ${item.isDirectory})">
+                        <input type="checkbox" class="fm-checkbox fm-checkbox-grid" ${isChecked ? 'checked' : ''}
+                               onclick="event.stopPropagation(); window.fileManagerToggleSelect(${paneId}, '${item.path}')">
                         <div class="fm-grid-icon">
                             ${thumbnail || `<span class="fm-item-icon-large">${icon}</span>`}
                         </div>
@@ -1047,4 +1074,149 @@ window.fileManagerHandleKeyboard = async function(paneId, event) {
             }
         }, 50);
     }
+};
+
+// Multi-select functions
+window.fileManagerToggleSelect = async function(paneId, filePath) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    const index = pane.fileManagerState.selectedFiles.indexOf(filePath);
+    if (index > -1) {
+        pane.fileManagerState.selectedFiles.splice(index, 1);
+    } else {
+        pane.fileManagerState.selectedFiles.push(filePath);
+    }
+
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+window.fileManagerClearSelection = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    pane.fileManagerState.selectedFiles = [];
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+// Context menu
+window.fileManagerContextMenu = function(event, paneId, filePath, isDirectory) {
+    event.preventDefault();
+
+    // Remove any existing context menu
+    const existingMenu = document.querySelector('.fm-context-menu');
+    if (existingMenu) existingMenu.remove();
+
+    // Create context menu
+    const menu = document.createElement('div');
+    menu.className = 'fm-context-menu';
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+    menu.innerHTML = `
+        <div class="fm-menu-item" onclick="window.fileManagerRenameFile(${paneId}, '${filePath}')">✏️ Rename</div>
+        <div class="fm-menu-item" onclick="window.fileManagerDeleteFile(${paneId}, '${filePath}')">🗑️ Delete</div>
+        <div class="fm-menu-separator"></div>
+        <div class="fm-menu-item" onclick="window.fileManagerCopyPath('${filePath}')">📋 Copy Path</div>
+    `;
+
+    document.body.appendChild(menu);
+
+    // Close menu on click outside
+    const closeMenu = (e) => {
+        if (!menu.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        }
+    };
+    setTimeout(() => document.addEventListener('click', closeMenu), 10);
+};
+
+window.fileManagerCopyPath = function(filePath) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(filePath);
+        console.log('✓ Path copied:', filePath);
+    }
+};
+
+window.fileManagerRenameFile = async function(paneId, filePath) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const fileName = filePath.split('/').pop();
+    const newName = prompt('Rename file:', fileName);
+
+    if (!newName || newName === fileName) return;
+
+    const newPath = filePath.substring(0, filePath.lastIndexOf('/') + 1) + newName;
+
+    try {
+        const result = await window.fileAPI.rename(filePath, newPath);
+        if (result.success) {
+            const pane = tab.paneManager.panes.find(p => p.id === paneId);
+            if (pane) await tab.paneManager.inlineContentManager.renderFileManager(pane);
+        } else {
+            alert(`Rename failed: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Rename failed: ${error.message}`);
+    }
+};
+
+window.fileManagerDeleteFile = async function(paneId, filePath) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const fileName = filePath.split('/').pop();
+    if (!confirm(`Delete "${fileName}"?\n\nThis action cannot be undone.`)) return;
+
+    try {
+        const result = await window.fileAPI.delete(filePath);
+        if (result.success) {
+            const pane = tab.paneManager.panes.find(p => p.id === paneId);
+            if (pane) {
+                // Remove from selected files if present
+                pane.fileManagerState.selectedFiles = pane.fileManagerState.selectedFiles.filter(p => p !== filePath);
+                await tab.paneManager.inlineContentManager.renderFileManager(pane);
+            }
+        } else {
+            alert(`Delete failed: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Delete failed: ${error.message}`);
+    }
+};
+
+window.fileManagerDeleteSelected = async function(paneId) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    const count = pane.fileManagerState.selectedFiles.length;
+    if (!confirm(`Delete ${count} item${count > 1 ? 's' : ''}?\n\nThis action cannot be undone.`)) return;
+
+    try {
+        for (const filePath of pane.fileManagerState.selectedFiles) {
+            await window.fileAPI.delete(filePath);
+        }
+        pane.fileManagerState.selectedFiles = [];
+        await tab.paneManager.inlineContentManager.renderFileManager(pane);
+    } catch (error) {
+        alert(`Delete failed: ${error.message}`);
+    }
+};
+
+window.fileManagerCopySelected = async function(paneId) {
+    alert('Copy to... (file picker not implemented yet)\n\nThis feature will let you select a destination folder.');
+};
+
+window.fileManagerMoveSelected = async function(paneId) {
+    alert('Move to... (file picker not implemented yet)\n\nThis feature will let you select a destination folder.');
 };
