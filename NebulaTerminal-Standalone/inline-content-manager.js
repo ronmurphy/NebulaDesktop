@@ -529,7 +529,9 @@ class InlineContentManager {
             showHidden: false,
             sortBy: 'name-asc',
             searchQuery: '',
-            allItems: [] // Store all items for search/filter
+            allItems: [], // Store all items for search/filter
+            filteredItems: [], // Items after filter/sort
+            selectedIndex: 0 // Currently selected item for keyboard nav
         };
 
         await this.renderFileManager(newPane);
@@ -564,6 +566,14 @@ class InlineContentManager {
 
                 // Sort based on sortBy setting
                 items = this.sortFileItems(items, state.sortBy);
+
+                // Store filtered items for keyboard navigation
+                state.filteredItems = items;
+
+                // Ensure selected index is in bounds
+                if (state.selectedIndex >= items.length) {
+                    state.selectedIndex = Math.max(0, items.length - 1);
+                }
             } else {
                 error = result.error;
             }
@@ -574,7 +584,7 @@ class InlineContentManager {
         // Replace pane content with file manager
         const content = pane.element.querySelector('.pane-content');
         content.innerHTML = `
-            <div class="file-manager" id="${managerId}" data-pane-id="${pane.id}">
+            <div class="file-manager" id="${managerId}" data-pane-id="${pane.id}" tabindex="0">
                 <div class="fm-header">
                     <div class="fm-nav-buttons">
                         <button class="fm-btn" onclick="window.fileManagerGoBack(${pane.id})" title="Back" ${state.historyIndex === 0 ? 'disabled' : ''}>←</button>
@@ -583,7 +593,7 @@ class InlineContentManager {
                         <button class="fm-btn" onclick="window.fileManagerRefresh(${pane.id})" title="Refresh">⟳</button>
                     </div>
                     <div class="fm-search-container">
-                        <input type="text" class="fm-search-input" id="fm-search-${pane.id}" placeholder="🔍 Search files..."
+                        <input type="text" class="fm-search-input" id="fm-search-${pane.id}" placeholder="🔍 Search files..." value="${state.searchQuery}"
                             oninput="window.fileManagerSearch(${pane.id}, this.value)">
                     </div>
                     <div class="fm-controls">
@@ -606,10 +616,21 @@ class InlineContentManager {
                     ${this.renderBreadcrumb(state.currentPath, pane.id)}
                 </div>
                 <div class="fm-content ${state.viewMode === 'grid' ? 'fm-grid-view' : 'fm-list-view'}">
-                    ${error ? `<div class="fm-error">⚠️ Error: ${error}</div>` : this.renderFileList(items, state.viewMode, pane.id)}
+                    ${error ? `<div class="fm-error">⚠️ Error: ${error}</div>` : this.renderFileList(items, state.viewMode, pane.id, state.selectedIndex)}
                 </div>
             </div>
         `;
+
+        // Add keyboard navigation
+        const fileManagerEl = document.getElementById(managerId);
+        if (fileManagerEl) {
+            fileManagerEl.addEventListener('keydown', (e) => {
+                window.fileManagerHandleKeyboard(pane.id, e);
+            });
+
+            // Auto-focus file manager for keyboard nav
+            fileManagerEl.focus();
+        }
     }
 
     renderBreadcrumb(path, paneId) {
@@ -626,19 +647,22 @@ class InlineContentManager {
         return breadcrumb;
     }
 
-    renderFileList(items, viewMode, paneId) {
+    renderFileList(items, viewMode, paneId, selectedIndex) {
         if (items.length === 0) {
             return '<div class="fm-empty">📭 Empty folder</div>';
         }
 
         if (viewMode === 'list') {
-            return items.map(item => {
+            return items.map((item, index) => {
                 const icon = this.getFileIcon(item);
                 const size = item.isDirectory ? '' : this.formatSize(item.size);
                 const date = item.modified ? new Date(item.modified).toLocaleDateString() : '';
+                const selectedClass = index === selectedIndex ? ' fm-item-selected' : '';
 
                 return `
-                    <div class="fm-item fm-list-item" data-path="${item.path}" ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})">
+                    <div class="fm-item fm-list-item${selectedClass}" data-path="${item.path}" data-index="${index}"
+                         onclick="window.fileManagerSelectItem(${paneId}, ${index})"
+                         ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})">
                         <span class="fm-item-icon">${icon}</span>
                         <span class="fm-item-name">${item.name}</span>
                         <span class="fm-item-size">${size}</span>
@@ -648,12 +672,15 @@ class InlineContentManager {
             }).join('');
         } else {
             // Grid view
-            return items.map(item => {
+            return items.map((item, index) => {
                 const icon = this.getFileIcon(item);
                 const thumbnail = this.shouldShowThumbnail(item) ? `<img src="file://${item.path}" class="fm-thumbnail" onerror="this.style.display='none'">` : '';
+                const selectedClass = index === selectedIndex ? ' fm-item-selected' : '';
 
                 return `
-                    <div class="fm-item fm-grid-item" data-path="${item.path}" ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})">
+                    <div class="fm-item fm-grid-item${selectedClass}" data-path="${item.path}" data-index="${index}"
+                         onclick="window.fileManagerSelectItem(${paneId}, ${index})"
+                         ondblclick="window.fileManagerItemDoubleClick('${item.path}', ${item.isDirectory}, ${paneId})">
                         <div class="fm-grid-icon">
                             ${thumbnail || `<span class="fm-item-icon-large">${icon}</span>`}
                         </div>
@@ -917,4 +944,107 @@ window.fileManagerSort = async function(paneId, sortBy) {
 
     pane.fileManagerState.sortBy = sortBy;
     await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+window.fileManagerSelectItem = async function(paneId, index) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    pane.fileManagerState.selectedIndex = index;
+    await tab.paneManager.inlineContentManager.renderFileManager(pane);
+};
+
+window.fileManagerHandleKeyboard = async function(paneId, event) {
+    const tab = window.tabManager.getActiveTab();
+    if (!tab) return;
+
+    const pane = tab.paneManager.panes.find(p => p.id === paneId);
+    if (!pane || !pane.fileManagerState) return;
+
+    const state = pane.fileManagerState;
+    const items = state.filteredItems;
+
+    // Don't handle keys if search input is focused
+    if (event.target.classList.contains('fm-search-input')) {
+        if (event.key === 'Escape') {
+            event.target.blur();
+            const fileManager = document.getElementById(`filemgr-${paneId}`);
+            if (fileManager) fileManager.focus();
+            event.preventDefault();
+        }
+        return;
+    }
+
+    switch (event.key) {
+        case 'ArrowDown':
+            event.preventDefault();
+            if (items.length > 0) {
+                state.selectedIndex = Math.min(state.selectedIndex + 1, items.length - 1);
+                await tab.paneManager.inlineContentManager.renderFileManager(pane);
+                scrollSelectedIntoView(paneId);
+            }
+            break;
+
+        case 'ArrowUp':
+            event.preventDefault();
+            if (items.length > 0) {
+                state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
+                await tab.paneManager.inlineContentManager.renderFileManager(pane);
+                scrollSelectedIntoView(paneId);
+            }
+            break;
+
+        case 'Enter':
+            event.preventDefault();
+            if (items.length > 0 && state.selectedIndex < items.length) {
+                const selectedItem = items[state.selectedIndex];
+                await window.fileManagerItemDoubleClick(selectedItem.path, selectedItem.isDirectory, paneId);
+            }
+            break;
+
+        case 'Backspace':
+            event.preventDefault();
+            await window.fileManagerGoUp(paneId);
+            break;
+
+        case '/':
+            event.preventDefault();
+            const searchInput = document.getElementById(`fm-search-${paneId}`);
+            if (searchInput) {
+                searchInput.focus();
+            }
+            break;
+
+        case 'Escape':
+            event.preventDefault();
+            state.selectedIndex = 0;
+            await tab.paneManager.inlineContentManager.renderFileManager(pane);
+            break;
+
+        case 'c':
+            if (event.ctrlKey || event.metaKey) {
+                event.preventDefault();
+                if (items.length > 0 && state.selectedIndex < items.length) {
+                    const selectedItem = items[state.selectedIndex];
+                    // Copy path to clipboard
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(selectedItem.path);
+                        console.log('✓ Path copied to clipboard:', selectedItem.path);
+                    }
+                }
+            }
+            break;
+    }
+
+    function scrollSelectedIntoView(paneId) {
+        setTimeout(() => {
+            const selected = document.querySelector(`#filemgr-${paneId} .fm-item-selected`);
+            if (selected) {
+                selected.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        }, 50);
+    }
 };

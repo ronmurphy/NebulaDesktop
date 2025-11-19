@@ -623,6 +623,12 @@ webview {
     background: rgba(20, 20, 20, 0.95);
     color: #00ff00;
     font-family: 'Courier New', monospace;
+    outline: none;
+}
+
+.file-manager:focus {
+    outline: 2px solid rgba(0, 255, 0, 0.3);
+    outline-offset: -2px;
 }
 
 .fm-header {
@@ -796,6 +802,12 @@ webview {
 .fm-list-item:hover {
     background: rgba(0, 255, 0, 0.1);
     border-color: rgba(0, 255, 0, 0.3);
+}
+
+.fm-item-selected {
+    background: rgba(0, 255, 0, 0.2) !important;
+    border-color: rgba(0, 255, 0, 0.5) !important;
+    box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.3);
 }
 
 .fm-item-icon {
