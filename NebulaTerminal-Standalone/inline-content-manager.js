@@ -85,7 +85,7 @@ class InlineContentManager {
         inlineDiv.innerHTML = imageHtml;
         container.appendChild(inlineDiv.firstElementChild);
 
-        pane.term.write(`\x1b[32m✓ Image viewer opened: ${filePath}\x1b[0m\r\n`);
+        pane.term.write(`\x1b[32m✓ Image viewer opened: ${filePath}\x1b[0m\r\n$ `);
     }
 
     renderImageInPane(filePath, pane) {
@@ -139,7 +139,7 @@ class InlineContentManager {
         inlineDiv.innerHTML = editorHtml;
         container.appendChild(inlineDiv.firstElementChild);
 
-        pane.term.write(`\r\n\x1b[32m✓ Text editor opened: ${filePath}\x1b[0m\r\n`);
+        pane.term.write(`\r\n\x1b[32m✓ Text editor opened: ${filePath}\x1b[0m\r\n$ `);
     }
 
     renderTextEditorInPane(filePath, content, pane) {
@@ -260,7 +260,7 @@ class InlineContentManager {
         inlineDiv.innerHTML = viewerHtml;
         container.appendChild(inlineDiv.firstElementChild);
 
-        pane.term.write(`\r\n\x1b[32m✓ Web viewer opened: ${url}\x1b[0m\r\n`);
+        pane.term.write(`\r\n\x1b[32m✓ Web viewer opened: ${url}\x1b[0m\r\n$ `);
     }
 
     renderWebViewInPane(url, pane) {
