@@ -390,5 +390,8 @@ function openExternal(url) {
     console.log('Open external:', url);
 }
 
+// Export SettingsModal to window so it can be accessed globally
+window.SettingsModal = SettingsModal;
+
 // Note: SettingsModal will be initialized after settings-modal.html is loaded
 // See initialization in index.html after fetch completes
