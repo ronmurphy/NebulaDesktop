@@ -12,54 +12,54 @@ class InlineContentManager {
         // Trim and parse command
         const trimmed = input.trim();
 
-        // nip <file> [--split] - Nebula Inline Picture
-        const nipMatch = trimmed.match(/^nip\s+(.+?)(\s+--split)?$/);
+        // nip <file> [--inline] - Nebula Inline Picture (default: split mode)
+        const nipMatch = trimmed.match(/^nip\s+(.+?)(\s+--inline)?$/);
         if (nipMatch) {
             const filePath = nipMatch[1].trim();
-            const useSplit = !!nipMatch[2];
-            this.openImageViewer(filePath, pane, useSplit);
+            const useInline = !!nipMatch[2];
+            this.openImageViewer(filePath, pane, useInline);
             return true;
         }
 
-        // nie <file> [--split] - Nebula Inline Editor
-        const nieMatch = trimmed.match(/^nie\s+(.+?)(\s+--split)?$/);
+        // nie <file> [--inline] - Nebula Inline Editor (default: split mode)
+        const nieMatch = trimmed.match(/^nie\s+(.+?)(\s+--inline)?$/);
         if (nieMatch) {
             const filePath = nieMatch[1].trim();
-            const useSplit = !!nieMatch[2];
-            this.openTextEditor(filePath, pane, useSplit);
+            const useInline = !!nieMatch[2];
+            this.openTextEditor(filePath, pane, useInline);
             return true;
         }
 
-        // nid <file> [--split] - Nebula Inline Developer (Monaco)
-        const nidMatch = trimmed.match(/^nid\s+(.+?)(\s+--split)?$/);
+        // nid <file> [--inline] - Nebula Inline Developer (Monaco) (default: split mode)
+        const nidMatch = trimmed.match(/^nid\s+(.+?)(\s+--inline)?$/);
         if (nidMatch) {
             const filePath = nidMatch[1].trim();
-            const useSplit = !!nidMatch[2];
-            this.openMonacoEditor(filePath, pane, useSplit);
+            const useInline = !!nidMatch[2];
+            this.openMonacoEditor(filePath, pane, useInline);
             return true;
         }
 
-        // niw <url> [--split] - Nebula Inline Web
-        const niwMatch = trimmed.match(/^niw\s+(.+?)(\s+--split)?$/);
+        // niw <url> [--inline] - Nebula Inline Web (default: split mode)
+        const niwMatch = trimmed.match(/^niw\s+(.+?)(\s+--inline)?$/);
         if (niwMatch) {
             const url = niwMatch[1].trim();
-            const useSplit = !!niwMatch[2];
-            this.openWebViewer(url, pane, useSplit);
+            const useInline = !!niwMatch[2];
+            this.openWebViewer(url, pane, useInline);
             return true;
         }
 
         return false; // Not a special command
     }
 
-    async openImageViewer(filePath, pane, useSplit) {
-        if (useSplit) {
-            // Create new pane with image viewer
+    async openImageViewer(filePath, pane, useInline) {
+        if (useInline) {
+            // Render inline in current pane
+            this.renderImageInline(filePath, pane);
+        } else {
+            // Default: Create new split pane with image viewer
             await this.paneManager.splitPane(pane.id, 'horizontal');
             const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
             this.renderImageInPane(filePath, newPane);
-        } else {
-            // Render inline
-            this.renderImageInline(filePath, pane);
         }
     }
 
@@ -104,16 +104,18 @@ class InlineContentManager {
         `;
     }
 
-    async openTextEditor(filePath, pane, useSplit) {
+    async openTextEditor(filePath, pane, useInline) {
         // Load file content
         const content = await this.loadFile(filePath);
 
-        if (useSplit) {
+        if (useInline) {
+            // Render inline in current pane
+            this.renderTextEditorInline(filePath, content, pane);
+        } else {
+            // Default: Create new split pane with text editor
             await this.paneManager.splitPane(pane.id, 'horizontal');
             const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
             this.renderTextEditorInPane(filePath, content, newPane);
-        } else {
-            this.renderTextEditorInline(filePath, content, pane);
         }
     }
 
@@ -170,7 +172,7 @@ class InlineContentManager {
         });
     }
 
-    async openMonacoEditor(filePath, pane, useSplit) {
+    async openMonacoEditor(filePath, pane, useInline) {
         // Check if Monaco is loaded
         if (!window.monaco) {
             pane.term.write('\r\n\x1b[33m⚠ Monaco Editor not loaded. Loading from CDN...\x1b[0m\r\n');
@@ -186,12 +188,14 @@ class InlineContentManager {
 
         const content = await this.loadFile(filePath);
 
-        if (useSplit) {
+        if (useInline) {
+            // Render inline in current pane
+            this.renderMonacoInline(filePath, content, pane);
+        } else {
+            // Default: Create new split pane with Monaco editor
             await this.paneManager.splitPane(pane.id, 'horizontal');
             const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
             this.renderMonacoInPane(filePath, content, newPane);
-        } else {
-            this.renderMonacoInline(filePath, content, pane);
         }
     }
 
@@ -281,18 +285,20 @@ class InlineContentManager {
         }, 100);
     }
 
-    async openWebViewer(url, pane, useSplit) {
+    async openWebViewer(url, pane, useInline) {
         // Ensure URL has protocol
         if (!url.match(/^https?:\/\//)) {
             url = 'https://' + url;
         }
 
-        if (useSplit) {
+        if (useInline) {
+            // Render inline in current pane
+            this.renderWebViewInline(url, pane);
+        } else {
+            // Default: Create new split pane with web viewer
             await this.paneManager.splitPane(pane.id, 'horizontal');
             const newPane = this.paneManager.panes[this.paneManager.panes.length - 1];
             this.renderWebViewInPane(url, newPane);
-        } else {
-            this.renderWebViewInline(url, pane);
         }
     }
 

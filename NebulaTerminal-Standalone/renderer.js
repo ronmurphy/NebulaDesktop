@@ -178,11 +178,11 @@ Features:
 🌐 Inline Utilities (Image, Editor, Monaco, Web Browser!)
 💾 Layout Save/Load (Shareable JSON!)
 
-Nebula Commands:
-• nip <file> [--split] - Image viewer
-• nie <file> [--split] - Text editor
-• nid <file> [--split] - Monaco code editor
-• niw <url> [--split] - Full web browser!
+Nebula Commands (default: split mode):
+• nip <file> [--inline] - Image viewer
+• nie <file> [--inline] - Text editor
+• nid <file> [--inline] - Monaco code editor
+• niw <url> [--inline] - Full web browser!
 
 Built with love using Electron & xterm.js`);
     }
