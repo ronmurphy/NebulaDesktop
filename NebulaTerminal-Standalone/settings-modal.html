@@ -1,0 +1,253 @@
+<!-- Settings Modal - Beautiful tabbed interface for terminal customization -->
+<div id="settings-modal" class="settings-modal hidden">
+    <div class="settings-overlay"></div>
+    <div class="settings-container">
+        <!-- Header -->
+        <div class="settings-header">
+            <h2>⚙️ Nebula Terminal Settings</h2>
+            <button class="settings-close" onclick="closeSettings()">✕</button>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="settings-tabs">
+            <button class="settings-tab active" data-tab="appearance">
+                🎨 Appearance
+            </button>
+            <button class="settings-tab" data-tab="behavior">
+                ⚡ Behavior
+            </button>
+            <button class="settings-tab" data-tab="advanced">
+                🔧 Advanced
+            </button>
+            <button class="settings-tab" data-tab="about">
+                ℹ️ About
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="settings-content">
+            <!-- Appearance Tab -->
+            <div class="settings-panel active" data-panel="appearance">
+                <div class="settings-section">
+                    <h3>🎨 Theme</h3>
+                    <div class="theme-grid" id="theme-grid">
+                        <!-- Themes will be dynamically loaded here -->
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>🔤 Font</h3>
+                    <div class="settings-row">
+                        <label>Font Family:</label>
+                        <select id="setting-font-family">
+                            <option value="FiraCode Nerd Font Mono, monospace">Fira Code</option>
+                            <option value="JetBrains Mono, monospace">JetBrains Mono</option>
+                            <option value="Cascadia Code, monospace">Cascadia Code</option>
+                            <option value="SF Mono, Monaco, monospace">SF Mono</option>
+                            <option value="Consolas, monospace">Consolas</option>
+                            <option value="Courier New, monospace">Courier New</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <label>Font Size: <span id="font-size-value">14</span>px</label>
+                        <input type="range" id="setting-font-size" min="8" max="32" value="14">
+                    </div>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-font-ligatures" checked>
+                            Enable Font Ligatures
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>🖱️ Cursor</h3>
+                    <div class="settings-row">
+                        <label>Cursor Style:</label>
+                        <select id="setting-cursor-style">
+                            <option value="block">Block</option>
+                            <option value="underline">Underline</option>
+                            <option value="bar">Bar</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-cursor-blink" checked>
+                            Cursor Blink
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>💎 Transparency</h3>
+                    <div class="settings-row">
+                        <label>Window Opacity: <span id="opacity-value">100</span>%</label>
+                        <input type="range" id="setting-opacity" min="10" max="100" value="100">
+                    </div>
+                    <div class="settings-row">
+                        <label>Background Blur: <span id="blur-value">0</span>px</label>
+                        <input type="range" id="setting-blur" min="0" max="50" value="0">
+                    </div>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-acrylic">
+                            Enable Acrylic Effect
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Behavior Tab -->
+            <div class="settings-panel" data-panel="behavior">
+                <div class="settings-section">
+                    <h3>📋 Clipboard</h3>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-copy-on-select">
+                            Copy on Select
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-paste-on-right-click" checked>
+                            Paste on Right Click
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>🔔 Bell</h3>
+                    <div class="settings-row">
+                        <label>Bell Style:</label>
+                        <select id="setting-bell-style">
+                            <option value="none">None</option>
+                            <option value="visual">Visual</option>
+                            <option value="sound" selected>Sound</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>📜 Scrollback</h3>
+                    <div class="settings-row">
+                        <label>Scrollback Lines:</label>
+                        <input type="number" id="setting-scrollback" value="10000" min="100" max="100000" step="100">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>🚪 Window</h3>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-confirm-close" checked>
+                            Confirm Before Close
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Tab -->
+            <div class="settings-panel" data-panel="advanced">
+                <div class="settings-section">
+                    <h3>🚀 Performance</h3>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-gpu-acceleration" checked>
+                            GPU Acceleration
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-webgl">
+                            Enable WebGL Renderer
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>🔌 Features</h3>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-custom-commands" checked>
+                            Enable Custom Commands
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <label>
+                            <input type="checkbox" id="setting-inline-rendering" checked>
+                            Enable Inline Rendering
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>💾 Configuration</h3>
+                    <div class="settings-row">
+                        <button class="settings-button" onclick="exportSettings()">
+                            📤 Export Settings
+                        </button>
+                        <button class="settings-button" onclick="importSettings()">
+                            📥 Import Settings
+                        </button>
+                    </div>
+                    <div class="settings-row">
+                        <button class="settings-button danger" onclick="resetSettings()">
+                            🔄 Reset to Defaults
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Tab -->
+            <div class="settings-panel" data-panel="about">
+                <div class="about-content">
+                    <div class="about-logo">
+                        <div class="ascii-logo">
+  _   _      _           _
+ | \\ | | ___| |__  _   _| | __ _
+ |  \\| |/ _ \\ '_ \\| | | | |/ _` |
+ | |\\  |  __/ |_) | |_| | | (_| |
+ |_| \\_|\\___|_.__/ \\__,_|_|\\__,_|
+                    </div>
+                    </div>
+                    <h2>Nebula Terminal v3.0</h2>
+                    <p class="about-subtitle">The Ultimate Customizable Terminal</p>
+
+                    <div class="about-info">
+                        <p><strong>Version:</strong> 3.0.0-alpha</p>
+                        <p><strong>Built with:</strong> Electron, node-pty, xterm.js</p>
+                        <p><strong>Author:</strong> Ron Murphy</p>
+                        <p><strong>License:</strong> MIT</p>
+                    </div>
+
+                    <div class="about-features">
+                        <h3>✨ Features</h3>
+                        <ul>
+                            <li>🎨 12 Professional Themes</li>
+                            <li>⚡ Real PTY Terminal</li>
+                            <li>💎 Transparency & Effects</li>
+                            <li>🖼️ Inline Content Rendering (Coming Soon)</li>
+                            <li>📁 File Navigation (Coming Soon)</li>
+                            <li>🗂️ Tabs & Split Panes (Coming Soon)</li>
+                        </ul>
+                    </div>
+
+                    <div class="about-links">
+                        <a href="#" onclick="openExternal('https://github.com/ronmurphy/NebulaDesktop')" class="about-link">
+                            📖 Documentation
+                        </a>
+                        <a href="#" onclick="openExternal('https://github.com/ronmurphy/NebulaDesktop/issues')" class="about-link">
+                            🐛 Report Bug
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="settings-footer">
+            <button class="settings-button secondary" onclick="closeSettings()">Cancel</button>
+            <button class="settings-button primary" onclick="saveSettings()">Save & Apply</button>
+        </div>
+    </div>
+</div>
