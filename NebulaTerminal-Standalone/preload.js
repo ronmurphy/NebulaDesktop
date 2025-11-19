@@ -50,7 +50,9 @@ contextBridge.exposeInMainWorld('terminal', {
 contextBridge.exposeInMainWorld('fileAPI', {
     readFile: (filePath) => ipcRenderer.invoke('file:read', filePath),
     saveFile: (filePath, content) => ipcRenderer.invoke('file:save', { filePath, content }),
-    selectFile: (extensions) => ipcRenderer.invoke('file:select', extensions)
+    selectFile: (extensions) => ipcRenderer.invoke('file:select', extensions),
+    readDir: (dirPath) => ipcRenderer.invoke('file:readdir', dirPath),
+    stat: (filePath) => ipcRenderer.invoke('file:stat', filePath)
 });
 
 // Expose menu event listeners

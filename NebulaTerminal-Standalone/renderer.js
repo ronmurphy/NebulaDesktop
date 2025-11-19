@@ -183,6 +183,7 @@ Nebula Commands (default: split mode):
 • nie <file> [--inline] - Text editor
 • nid <file> [--inline] - Monaco code editor
 • niw <url> [--inline] - Full web browser!
+• nfm [path] - File manager with list/grid views
 
 Built with love using Electron & xterm.js`);
     }
