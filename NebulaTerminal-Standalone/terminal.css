@@ -452,6 +452,8 @@ html, body {
 
 webview {
     display: block;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 /* Legacy terminal container - now unused */
@@ -538,4 +540,80 @@ webview {
 /* Light mode override if needed */
 @media (prefers-color-scheme: light) {
     /* Keep dark theme even in light mode for terminal aesthetic */
+}
+
+/* Draggable Panes System */
+.pane-header {
+    cursor: move;
+    user-select: none;
+}
+
+.pane.dragging {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.pane-drop-zone-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+}
+
+.pane-drop-zone-overlay.active {
+    display: block;
+}
+
+.drop-zone {
+    position: absolute;
+    background: rgba(0, 255, 0, 0.1);
+    border: 2px dashed rgba(0, 255, 0, 0.3);
+    transition: all 0.2s;
+    pointer-events: none;
+}
+
+.drop-zone.hover {
+    background: rgba(0, 255, 0, 0.25);
+    border-color: rgba(0, 255, 0, 0.6);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+}
+
+/* Drop zones positioning */
+.drop-zone.left {
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+}
+
+.drop-zone.right {
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+}
+
+.drop-zone.top {
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 50%;
+}
+
+.drop-zone.bottom {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 50%;
+}
+
+.drop-zone.center {
+    left: 25%;
+    right: 25%;
+    top: 25%;
+    bottom: 25%;
 }

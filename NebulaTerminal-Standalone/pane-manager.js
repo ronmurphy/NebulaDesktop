@@ -209,6 +209,178 @@ class PaneManager {
                 });
             }
         }
+
+        // Drag and drop functionality
+        this.setupPaneDragAndDrop(pane, header);
+    }
+
+    setupPaneDragAndDrop(pane, header) {
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dropZoneOverlay = null;
+
+        header.addEventListener('mousedown', (e) => {
+            // Don't start drag if clicking on buttons
+            if (e.target.tagName === 'BUTTON') return;
+
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+
+            // Add dragging class after small movement to prevent accidental drags
+            const onMove = (moveEvent) => {
+                const deltaX = Math.abs(moveEvent.clientX - dragStartX);
+                const deltaY = Math.abs(moveEvent.clientY - dragStartY);
+
+                if (deltaX > 5 || deltaY > 5) {
+                    pane.element.classList.add('dragging');
+                    this.createDropZoneOverlay(pane);
+                    document.removeEventListener('mousemove', onMove);
+                }
+            };
+
+            document.addEventListener('mousemove', onMove);
+
+            const cleanup = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', cleanup);
+            };
+            document.addEventListener('mouseup', cleanup);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+
+            isDragging = false;
+            pane.element.classList.remove('dragging');
+
+            // Check if dropped on a drop zone
+            const dropZone = document.elementFromPoint(e.clientX, e.clientY);
+            if (dropZone && dropZone.classList.contains('drop-zone')) {
+                const targetPaneId = parseInt(dropZone.dataset.targetPane);
+                const dropPosition = dropZone.dataset.position;
+
+                if (targetPaneId && dropPosition) {
+                    this.reorganizePane(pane.id, targetPaneId, dropPosition);
+                }
+            }
+
+            // Remove drop zone overlay
+            this.removeDropZoneOverlay();
+        });
+    }
+
+    createDropZoneOverlay(draggedPane) {
+        // Remove existing overlay
+        this.removeDropZoneOverlay();
+
+        // Create overlay for each pane
+        this.panes.forEach(targetPane => {
+            if (targetPane.id === draggedPane.id) return; // Skip dragged pane
+
+            const overlay = document.createElement('div');
+            overlay.className = 'pane-drop-zone-overlay active';
+
+            // Create drop zones: left, right, top, bottom, center
+            const positions = ['left', 'right', 'top', 'bottom', 'center'];
+            positions.forEach(pos => {
+                const zone = document.createElement('div');
+                zone.className = `drop-zone ${pos}`;
+                zone.dataset.targetPane = targetPane.id;
+                zone.dataset.position = pos;
+
+                // Add hover effect
+                zone.addEventListener('mouseenter', () => {
+                    zone.classList.add('hover');
+                });
+                zone.addEventListener('mouseleave', () => {
+                    zone.classList.remove('hover');
+                });
+
+                overlay.appendChild(zone);
+            });
+
+            targetPane.element.appendChild(overlay);
+        });
+    }
+
+    removeDropZoneOverlay() {
+        document.querySelectorAll('.pane-drop-zone-overlay').forEach(overlay => {
+            overlay.remove();
+        });
+    }
+
+    reorganizePane(sourcePaneId, targetPaneId, position) {
+        console.log(`Reorganize pane ${sourcePaneId} to ${position} of pane ${targetPaneId}`);
+
+        const sourcePane = this.getPane(sourcePaneId);
+        const targetPane = this.getPane(targetPaneId);
+
+        if (!sourcePane || !targetPane) return;
+
+        // For now, just split the target pane and move source content
+        // In a full implementation, this would reorganize the layout tree
+
+        if (position === 'center') {
+            // Swap pane contents
+            this.swapPanes(sourcePaneId, targetPaneId);
+        } else {
+            // Create split and move pane
+            const direction = (position === 'left' || position === 'right') ? 'vertical' : 'horizontal';
+            this.splitPane(targetPaneId, direction);
+
+            // Move source pane content to new pane
+            setTimeout(() => {
+                const newPane = this.panes[this.panes.length - 1];
+                if (position === 'left' || position === 'top') {
+                    // Swap to put dragged pane first
+                    this.swapPanes(sourcePaneId, newPane.id);
+                } else {
+                    // Move dragged pane to new position
+                    this.swapPanes(sourcePaneId, newPane.id);
+                }
+            }, 100);
+        }
+    }
+
+    swapPanes(paneId1, paneId2) {
+        const pane1 = this.getPane(paneId1);
+        const pane2 = this.getPane(paneId2);
+
+        if (!pane1 || !pane2) return;
+
+        // Swap PTY IDs and terminal instances
+        const tempPtyId = pane1.ptyId;
+        const tempTerm = pane1.term;
+        const tempFitAddon = pane1.fitAddon;
+
+        pane1.ptyId = pane2.ptyId;
+        pane1.term = pane2.term;
+        pane1.fitAddon = pane2.fitAddon;
+
+        pane2.ptyId = tempPtyId;
+        pane2.term = tempTerm;
+        pane2.fitAddon = tempFitAddon;
+
+        // Re-render terminals in swapped positions
+        const content1 = pane1.element.querySelector('.pane-content');
+        const content2 = pane2.element.querySelector('.pane-content');
+
+        // Clear and re-attach terminals
+        content1.innerHTML = '';
+        content2.innerHTML = '';
+
+        pane1.term.open(content1);
+        pane2.term.open(content2);
+
+        // Refit
+        setTimeout(() => {
+            pane1.fitAddon.fit();
+            pane2.fitAddon.fit();
+            window.terminal.resize(pane1.ptyId, pane1.term.cols, pane1.term.rows);
+            window.terminal.resize(pane2.ptyId, pane2.term.cols, pane2.term.rows);
+        }, 100);
     }
 
     async splitPane(paneId, direction) {
