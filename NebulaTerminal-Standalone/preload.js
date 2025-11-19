@@ -46,6 +46,13 @@ contextBridge.exposeInMainWorld('terminal', {
     }
 });
 
+// Expose file operations
+contextBridge.exposeInMainWorld('fileAPI', {
+    readFile: (filePath) => ipcRenderer.invoke('file:read', filePath),
+    saveFile: (filePath, content) => ipcRenderer.invoke('file:save', { filePath, content }),
+    selectFile: (extensions) => ipcRenderer.invoke('file:select', extensions)
+});
+
 // Expose menu event listeners
 contextBridge.exposeInMainWorld('menuEvents', {
     onOpenSettings: (callback) => {

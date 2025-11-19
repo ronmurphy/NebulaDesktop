@@ -9,6 +9,7 @@ class PaneManager {
         this.activePaneId = null;
         this.nextPaneId = 1;
         this.layout = null; // Root layout node
+        this.inlineContentManager = new InlineContentManager(this);
     }
 
     async init() {
@@ -89,9 +90,38 @@ class PaneManager {
             term.write(data);
         });
 
-        // Setup terminal input handler
+        // Command buffer for intercepting special commands
+        let commandBuffer = '';
+
+        // Setup terminal input handler with command interception
         term.onData((data) => {
-            window.terminal.write(ptyId, data);
+            // Check if it's Enter key
+            if (data === '\r' || data === '\n') {
+                const trimmed = commandBuffer.trim();
+
+                // Try to intercept special commands
+                if (trimmed && this.inlineContentManager.interceptCommand(trimmed, pane)) {
+                    // Command was intercepted, clear buffer and don't send to PTY
+                    commandBuffer = '';
+                    return;
+                }
+
+                // Not a special command, send to PTY and clear buffer
+                window.terminal.write(ptyId, data);
+                commandBuffer = '';
+            } else if (data === '\x7f' || data === '\b') {
+                // Backspace - remove from buffer
+                commandBuffer = commandBuffer.slice(0, -1);
+                window.terminal.write(ptyId, data);
+            } else if (data === '\x03') {
+                // Ctrl+C - clear buffer
+                commandBuffer = '';
+                window.terminal.write(ptyId, data);
+            } else {
+                // Regular character - add to buffer and send to PTY
+                commandBuffer += data;
+                window.terminal.write(ptyId, data);
+            }
         });
 
         // Setup resize handler
