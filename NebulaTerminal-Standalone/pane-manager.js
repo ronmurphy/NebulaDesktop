@@ -99,14 +99,18 @@ class PaneManager {
             if (data === '\r' || data === '\n') {
                 const trimmed = commandBuffer.trim();
 
-                // Try to intercept special commands
+                // Try to intercept Nebula inline commands BEFORE sending to PTY
                 if (trimmed && this.inlineContentManager.interceptCommand(trimmed, pane)) {
-                    // Command was intercepted, clear buffer and don't send to PTY
+                    // Command was intercepted!
+                    // The command chars were already sent to PTY, so clear the line first
+                    window.terminal.write(ptyId, '\x15');  // Ctrl+U - clear line
+                    window.terminal.write(ptyId, '\r');    // Enter to get new prompt
                     commandBuffer = '';
+                    // The interceptCommand method will show success message
                     return;
                 }
 
-                // Not a special command, send to PTY and clear buffer
+                // Not a special command, send to PTY normally
                 window.terminal.write(ptyId, data);
                 commandBuffer = '';
             } else if (data === '\x7f' || data === '\b') {
