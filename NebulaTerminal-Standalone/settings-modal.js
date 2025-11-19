@@ -194,10 +194,19 @@ class SettingsModal {
     }
 
     open() {
+        // Re-find modal element in case it wasn't available during init
+        if (!this.modal) {
+            this.modal = document.getElementById('settings-modal');
+            console.log('Re-finding modal on open:', !!this.modal);
+        }
+
         if (this.modal) {
             this.modal.classList.remove('hidden');
             this.loadCurrentSettings();
             this.pendingSettings = {};
+            console.log('Settings modal opened successfully');
+        } else {
+            console.error('Cannot open settings - modal element still not found!');
         }
     }
 
@@ -381,6 +390,5 @@ function openExternal(url) {
     console.log('Open external:', url);
 }
 
-// Initialize settings modal when loaded
-window.settingsModal = new SettingsModal();
-window.settingsModal.init();
+// Note: SettingsModal will be initialized after settings-modal.html is loaded
+// See initialization in index.html after fetch completes

@@ -43,6 +43,16 @@
             .then(response => response.text())
             .then(html => {
                 document.getElementById('settings-modal-placeholder').innerHTML = html;
+                console.log('Settings modal HTML loaded successfully');
+
+                // Initialize SettingsModal AFTER the HTML is in the DOM
+                if (window.SettingsModal) {
+                    window.settingsModal = new SettingsModal();
+                    window.settingsModal.init();
+                    console.log('SettingsModal initialized');
+                } else {
+                    console.error('SettingsModal class not found!');
+                }
             })
             .catch(error => console.error('Failed to load settings modal:', error));
     </script>
