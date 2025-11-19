@@ -81,5 +81,20 @@ contextBridge.exposeInMainWorld('menuEvents', {
     },
     onAbout: (callback) => {
         ipcRenderer.on('menu:about', callback);
+    },
+    onNewTab: (callback) => {
+        ipcRenderer.on('menu:new-tab', callback);
+    },
+    onSaveLayout: (callback) => {
+        ipcRenderer.on('menu:save-layout', callback);
+    },
+    onLoadLayout: (callback) => {
+        ipcRenderer.on('menu:load-layout', callback);
+    },
+    onExportLayout: (callback) => {
+        ipcRenderer.on('menu:export-layout', callback);
+    },
+    onImportLayout: (callback) => {
+        ipcRenderer.on('menu:import-layout', callback);
     }
 });
