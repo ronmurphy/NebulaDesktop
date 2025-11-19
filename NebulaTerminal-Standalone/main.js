@@ -6,7 +6,8 @@ const pty = require('node-pty');
 class NebulaTerminalApp {
     constructor() {
         this.mainWindow = null;
-        this.ptyProcess = null;
+        this.ptyProcesses = new Map(); // Map of ptyId -> ptyProcess
+        this.nextPtyId = 1;
     }
 
     createMainWindow() {
@@ -181,9 +182,10 @@ class NebulaTerminalApp {
         ipcMain.handle('terminal:create', (event, options = {}) => {
             const shell = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : 'bash');
             const cwd = options.cwd || process.env.HOME || os.homedir();
+            const ptyId = this.nextPtyId++;
 
             // Create PTY process
-            this.ptyProcess = pty.spawn(shell, [], {
+            const ptyProcess = pty.spawn(shell, [], {
                 name: 'xterm-256color',
                 cols: options.cols || 80,
                 rows: options.rows || 24,
@@ -191,50 +193,74 @@ class NebulaTerminalApp {
                 env: process.env
             });
 
-            console.log('PTY created:', {
-                pid: this.ptyProcess.pid,
+            // Store PTY process
+            this.ptyProcesses.set(ptyId, ptyProcess);
+
+            console.log(`PTY ${ptyId} created:`, {
+                pid: ptyProcess.pid,
                 shell: shell,
                 cwd: cwd
             });
 
-            // Forward data from PTY to renderer
-            this.ptyProcess.onData((data) => {
+            // Forward data from PTY to renderer with ptyId
+            ptyProcess.onData((data) => {
                 if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-                    this.mainWindow.webContents.send('terminal:data', data);
+                    this.mainWindow.webContents.send('terminal:data', { ptyId, data });
                 }
             });
 
             // Handle PTY exit
-            this.ptyProcess.onExit(({ exitCode, signal }) => {
-                console.log('PTY exited:', { exitCode, signal });
+            ptyProcess.onExit(({ exitCode, signal }) => {
+                console.log(`PTY ${ptyId} exited:`, { exitCode, signal });
                 if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-                    this.mainWindow.webContents.send('terminal:exit', { exitCode, signal });
+                    this.mainWindow.webContents.send('terminal:exit', { ptyId, exitCode, signal });
                 }
+                this.ptyProcesses.delete(ptyId);
             });
 
             return {
-                pid: this.ptyProcess.pid,
+                id: ptyId,
+                pid: ptyProcess.pid,
                 cols: options.cols || 80,
                 rows: options.rows || 24
             };
         });
 
-        // Write data to PTY
-        ipcMain.on('terminal:write', (event, data) => {
-            if (this.ptyProcess) {
-                this.ptyProcess.write(data);
+        // Write data to specific PTY
+        ipcMain.on('terminal:write', (event, { ptyId, data }) => {
+            const ptyProcess = this.ptyProcesses.get(ptyId);
+            if (ptyProcess) {
+                ptyProcess.write(data);
             }
         });
 
-        // Resize PTY
-        ipcMain.on('terminal:resize', (event, { cols, rows }) => {
-            if (this.ptyProcess) {
+        // Resize specific PTY
+        ipcMain.on('terminal:resize', (event, { ptyId, cols, rows }) => {
+            const ptyProcess = this.ptyProcesses.get(ptyId);
+            if (ptyProcess) {
                 try {
-                    this.ptyProcess.resize(cols, rows);
+                    ptyProcess.resize(cols, rows);
                 } catch (error) {
-                    console.error('Failed to resize PTY:', error);
+                    console.error(`Failed to resize PTY ${ptyId}:`, error);
                 }
             }
+        });
+
+        // Kill specific PTY
+        ipcMain.handle('terminal:kill', (event, ptyId) => {
+            const ptyProcess = this.ptyProcesses.get(ptyId);
+            if (ptyProcess) {
+                try {
+                    ptyProcess.kill();
+                    this.ptyProcesses.delete(ptyId);
+                    console.log(`PTY ${ptyId} killed`);
+                    return { success: true };
+                } catch (error) {
+                    console.error(`Failed to kill PTY ${ptyId}:`, error);
+                    return { success: false, error: error.message };
+                }
+            }
+            return { success: false, error: 'PTY not found' };
         });
 
         // Get terminal info

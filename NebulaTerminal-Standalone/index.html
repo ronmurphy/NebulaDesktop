@@ -17,8 +17,14 @@
     <!-- Background Layer (for custom backgrounds) -->
     <div id="terminal-background"></div>
 
-    <!-- Terminal Container -->
-    <div id="terminal-container"></div>
+    <!-- Tab Bar -->
+    <div id="tab-bar">
+        <div id="tab-list"></div>
+        <button id="new-tab-btn" class="new-tab-button" title="New Tab (Ctrl+T)">+</button>
+    </div>
+
+    <!-- Tabs Container (holds all terminal containers) -->
+    <div id="tabs-container"></div>
 
     <!-- Settings Modal (loaded from external file) -->
     <div id="settings-modal-placeholder"></div>
@@ -35,6 +41,9 @@
     <script src="settings-manager.js"></script>
     <script src="theme-engine.js"></script>
     <script src="settings-modal.js"></script>
+
+    <!-- Tab Management -->
+    <script src="tab-manager.js"></script>
 
     <!-- Terminal renderer -->
     <script src="renderer.js"></script>
