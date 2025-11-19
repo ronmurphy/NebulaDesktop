@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const os = require('os');
 const pty = require('node-pty');
@@ -26,6 +26,9 @@ class NebulaTerminalApp {
 
         this.mainWindow.loadFile('index.html');
 
+        // Set custom menu
+        this.createMenu();
+
         // Open DevTools in development mode
         if (process.argv.includes('--dev')) {
             this.mainWindow.webContents.openDevTools();
@@ -38,6 +41,139 @@ class NebulaTerminalApp {
             }
             this.mainWindow = null;
         });
+    }
+
+    createMenu() {
+        const template = [
+            {
+                label: 'File',
+                submenu: [
+                    {
+                        label: 'New Terminal',
+                        accelerator: 'CmdOrCtrl+N',
+                        click: () => {
+                            // TODO: Implement new tab
+                            console.log('New terminal - tabs coming soon!');
+                        }
+                    },
+                    { type: 'separator' },
+                    {
+                        label: 'Quit',
+                        accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4',
+                        click: () => {
+                            app.quit();
+                        }
+                    }
+                ]
+            },
+            {
+                label: 'Edit',
+                submenu: [
+                    {
+                        label: 'Copy',
+                        accelerator: 'CmdOrCtrl+Shift+C',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:copy');
+                        }
+                    },
+                    {
+                        label: 'Paste',
+                        accelerator: 'CmdOrCtrl+Shift+V',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:paste');
+                        }
+                    },
+                    { type: 'separator' },
+                    {
+                        label: 'Find',
+                        accelerator: 'CmdOrCtrl+Shift+F',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:find');
+                        }
+                    }
+                ]
+            },
+            {
+                label: 'View',
+                submenu: [
+                    {
+                        label: 'Increase Font Size',
+                        accelerator: 'CmdOrCtrl+Plus',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:font-increase');
+                        }
+                    },
+                    {
+                        label: 'Decrease Font Size',
+                        accelerator: 'CmdOrCtrl+-',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:font-decrease');
+                        }
+                    },
+                    {
+                        label: 'Reset Font Size',
+                        accelerator: 'CmdOrCtrl+0',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:font-reset');
+                        }
+                    },
+                    { type: 'separator' },
+                    {
+                        label: 'Reload',
+                        accelerator: 'CmdOrCtrl+R',
+                        click: () => {
+                            this.mainWindow.reload();
+                        }
+                    },
+                    {
+                        label: 'Toggle Developer Tools',
+                        accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+                        click: () => {
+                            this.mainWindow.webContents.toggleDevTools();
+                        }
+                    }
+                ]
+            },
+            {
+                label: 'Settings',
+                submenu: [
+                    {
+                        label: 'Open Settings',
+                        accelerator: 'CmdOrCtrl+,',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:open-settings');
+                        }
+                    },
+                    {
+                        label: 'Theme Switcher',
+                        accelerator: 'CmdOrCtrl+T',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:theme-switcher');
+                        }
+                    }
+                ]
+            },
+            {
+                label: 'Help',
+                submenu: [
+                    {
+                        label: 'About Nebula Terminal',
+                        click: () => {
+                            this.mainWindow.webContents.send('menu:about');
+                        }
+                    },
+                    {
+                        label: 'Documentation',
+                        click: () => {
+                            require('electron').shell.openExternal('https://github.com/ronmurphy/NebulaDesktop');
+                        }
+                    }
+                ]
+            }
+        ];
+
+        const menu = Menu.buildFromTemplate(template);
+        Menu.setApplicationMenu(menu);
     }
 
     setupIPCHandlers() {

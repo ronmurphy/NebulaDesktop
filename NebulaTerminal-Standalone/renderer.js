@@ -1,4 +1,4 @@
-// Nebula Terminal - Real PTY Terminal with xterm.js
+// Nebula Terminal - Real PTY Terminal with xterm.js + Settings Integration
 // This provides a true terminal experience with support for interactive apps
 
 class NebulaTerminalRenderer {
@@ -11,40 +11,24 @@ class NebulaTerminalRenderer {
     }
 
     async init() {
-        // Create xterm.js terminal instance
+        // Load settings
+        const settings = window.settingsManager.settings;
+
+        // Create xterm.js terminal instance with settings
         this.term = new Terminal({
-            cursorBlink: true,
-            cursorStyle: 'block',
-            fontFamily: 'FiraCode Nerd Font Mono, Fira Code, JetBrains Mono, Cascadia Code, SF Mono, Monaco, Consolas, monospace',
-            fontSize: 14,
+            cursorBlink: settings.cursorBlink,
+            cursorStyle: settings.cursorStyle,
+            fontFamily: settings.fontFamily,
+            fontSize: settings.fontSize,
             lineHeight: 1.2,
             letterSpacing: 0,
-            theme: {
-                background: '#1a1a1a',
-                foreground: '#00ff00',
-                cursor: '#00ff00',
-                cursorAccent: '#1a1a1a',
-                selection: 'rgba(0, 255, 0, 0.3)',
-                black: '#000000',
-                red: '#ff6b6b',
-                green: '#00ff00',
-                yellow: '#ffeb3b',
-                blue: '#66d9ef',
-                magenta: '#f92672',
-                cyan: '#a6e22e',
-                white: '#f8f8f2',
-                brightBlack: '#555555',
-                brightRed: '#ff8787',
-                brightGreen: '#5fff5f',
-                brightYellow: '#ffff87',
-                brightBlue: '#87d7ff',
-                brightMagenta: '#ff87ff',
-                brightCyan: '#87ffaf',
-                brightWhite: '#ffffff'
-            },
-            scrollback: 10000,
+            theme: {}, // Will be set by theme engine
+            scrollback: settings.scrollback,
             allowProposedApi: true
         });
+
+        // Expose terminal globally for settings modal
+        window.terminalInstance = this.term;
 
         // Load addons
         this.fitAddon = new FitAddon.FitAddon();
@@ -55,9 +39,25 @@ class NebulaTerminalRenderer {
         this.term.loadAddon(this.webLinksAddon);
         this.term.loadAddon(this.searchAddon);
 
+        // Expose fitAddon globally
+        window.fitAddon = this.fitAddon;
+
+        // Apply theme from settings
+        window.themeEngine.applyTheme(this.term, settings.theme);
+
         // Open terminal in DOM
         const container = document.getElementById('terminal-container');
         this.term.open(container);
+
+        // Apply window opacity
+        if (settings.windowOpacity < 1.0) {
+            document.body.style.opacity = settings.windowOpacity;
+        }
+
+        // Apply background blur
+        if (settings.backgroundBlur > 0) {
+            container.style.backdropFilter = `blur(${settings.backgroundBlur}px)`;
+        }
 
         // Fit terminal to window
         this.fitAddon.fit();
@@ -79,6 +79,9 @@ class NebulaTerminalRenderer {
 
         // Connect terminal to PTY
         this.connectToPTY();
+
+        // Setup menu event listeners
+        this.setupMenuListeners();
 
         // Show welcome message
         this.showWelcome();
@@ -137,28 +140,27 @@ class NebulaTerminalRenderer {
                 return false;
             }
 
+            // Ctrl+, - Open Settings
+            if (event.ctrlKey && event.key === ',') {
+                openSettings();
+                return false;
+            }
+
             // Ctrl+Shift+Plus - Increase font size
-            if (event.ctrlKey && event.shiftKey && event.key === '+') {
-                const currentSize = this.term.options.fontSize;
-                this.term.options.fontSize = currentSize + 1;
-                this.fitAddon.fit();
+            if (event.ctrlKey && (event.key === '+' || event.key === '=')) {
+                this.increaseFontSize();
                 return false;
             }
 
-            // Ctrl+Shift+Minus - Decrease font size
-            if (event.ctrlKey && event.shiftKey && event.key === '_') {
-                const currentSize = this.term.options.fontSize;
-                if (currentSize > 8) {
-                    this.term.options.fontSize = currentSize - 1;
-                    this.fitAddon.fit();
-                }
+            // Ctrl+Minus - Decrease font size
+            if (event.ctrlKey && event.key === '-') {
+                this.decreaseFontSize();
                 return false;
             }
 
-            // Ctrl+Shift+0 - Reset font size
-            if (event.ctrlKey && event.shiftKey && event.key === ')') {
-                this.term.options.fontSize = 14;
-                this.fitAddon.fit();
+            // Ctrl+0 - Reset font size
+            if (event.ctrlKey && event.key === '0') {
+                this.resetFontSize();
                 return false;
             }
 
@@ -166,16 +168,85 @@ class NebulaTerminalRenderer {
         });
     }
 
+    setupMenuListeners() {
+        // Listen for menu events from main process
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type) {
+                this.handleMenuEvent(event.data.type);
+            }
+        });
+
+        // Listen for IPC events via preload if available
+        if (window.ipcRenderer) {
+            window.ipcRenderer.on('menu:open-settings', () => openSettings());
+            window.ipcRenderer.on('menu:theme-switcher', () => openSettings());
+            window.ipcRenderer.on('menu:copy', () => this.handleCopy());
+            window.ipcRenderer.on('menu:paste', () => this.handlePaste());
+            window.ipcRenderer.on('menu:find', () => this.openSearch());
+            window.ipcRenderer.on('menu:font-increase', () => this.increaseFontSize());
+            window.ipcRenderer.on('menu:font-decrease', () => this.decreaseFontSize());
+            window.ipcRenderer.on('menu:font-reset', () => this.resetFontSize());
+            window.ipcRenderer.on('menu:about', () => {
+                openSettings();
+                // Switch to about tab
+                setTimeout(() => {
+                    const aboutTab = document.querySelector('[data-tab="about"]');
+                    if (aboutTab) aboutTab.click();
+                }, 100);
+            });
+        }
+    }
+
+    handleCopy() {
+        const selection = this.term.getSelection();
+        if (selection) {
+            navigator.clipboard.writeText(selection);
+        }
+    }
+
+    handlePaste() {
+        navigator.clipboard.readText().then((text) => {
+            window.terminal.write(text);
+        });
+    }
+
+    increaseFontSize() {
+        const currentSize = this.term.options.fontSize;
+        this.term.options.fontSize = Math.min(currentSize + 1, 32);
+        this.fitAddon.fit();
+        // Update settings
+        window.settingsManager.set('fontSize', this.term.options.fontSize);
+    }
+
+    decreaseFontSize() {
+        const currentSize = this.term.options.fontSize;
+        this.term.options.fontSize = Math.max(currentSize - 1, 8);
+        this.fitAddon.fit();
+        // Update settings
+        window.settingsManager.set('fontSize', this.term.options.fontSize);
+    }
+
+    resetFontSize() {
+        this.term.options.fontSize = 14;
+        this.fitAddon.fit();
+        // Update settings
+        window.settingsManager.set('fontSize', 14);
+    }
+
     async showWelcome() {
         const info = await window.terminal.info();
 
         // Show a minimal welcome that won't interfere with the shell
         this.term.write('\x1b[1;36m'); // Cyan bold
-        this.term.write('Nebula Terminal v2.0');
+        this.term.write('Nebula Terminal v3.0');
         this.term.write('\x1b[0m'); // Reset
-        this.term.write(' - Real PTY Terminal\r\n');
+        this.term.write(' - Ultimate Edition\r\n');
         this.term.write('\x1b[2m'); // Dim
         this.term.write(`${info.user}@${info.hostname} | ${info.shell}`);
+        this.term.write('\x1b[0m'); // Reset
+        this.term.write('\r\n');
+        this.term.write('\x1b[2m'); // Dim
+        this.term.write('Press Ctrl+, for Settings');
         this.term.write('\x1b[0m'); // Reset
         this.term.write('\r\n\r\n');
     }

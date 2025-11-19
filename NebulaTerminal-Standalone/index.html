@@ -11,9 +11,14 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="terminal.css">
+    <link rel="stylesheet" href="settings-modal.css">
 </head>
 <body>
+    <!-- Terminal Container -->
     <div id="terminal-container"></div>
+
+    <!-- Settings Modal (loaded from external file) -->
+    <div id="settings-modal-placeholder"></div>
 
     <!-- xterm.js -->
     <script src="node_modules/xterm/lib/xterm.js"></script>
@@ -23,7 +28,23 @@
     <script src="node_modules/xterm-addon-web-links/lib/xterm-addon-web-links.js"></script>
     <script src="node_modules/xterm-addon-search/lib/xterm-addon-search.js"></script>
 
+    <!-- Settings and Theme System -->
+    <script src="settings-manager.js"></script>
+    <script src="theme-engine.js"></script>
+    <script src="settings-modal.js"></script>
+
     <!-- Terminal renderer -->
     <script src="renderer.js"></script>
+
+    <!-- Load settings modal HTML -->
+    <script>
+        // Load the settings modal HTML into the page
+        fetch('settings-modal.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('settings-modal-placeholder').innerHTML = html;
+            })
+            .catch(error => console.error('Failed to load settings modal:', error));
+    </script>
 </body>
 </html>
